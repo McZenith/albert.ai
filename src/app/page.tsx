@@ -9,6 +9,7 @@ import { ChevronUp, ChevronDown, Filter, ShoppingCart } from 'lucide-react';
 // Enhanced Types
 interface Match {
   id: string;
+  score: string;
   teams: {
     home: { id: string; name: string };
     away: { id: string; name: string };
@@ -142,6 +143,7 @@ const HeaderCell = ({
   onFilter,
   filterType,
   align = 'left',
+  isActive = false,
 }: {
   title: string;
   sortDirection?: SortDirection;
@@ -149,6 +151,7 @@ const HeaderCell = ({
   onFilter?: (value: string) => void;
   filterType?: FilterType;
   align?: 'left' | 'right' | 'center';
+  isActive?: boolean;
 }) => {
   const [showFilter, setShowFilter] = useState(false);
 
@@ -156,19 +159,31 @@ const HeaderCell = ({
     <th className='px-4 py-3'>
       <div className='flex flex-col gap-2'>
         <div
-          className={`flex items-center justify-${align} gap-2 cursor-pointer`}
+          className={`flex items-center justify-${align} gap-2 cursor-pointer ${
+            isActive ? 'text-blue-600' : ''
+          }`}
           onClick={onSort}
         >
           <span className='text-sm font-medium text-gray-500'>{title}</span>
-          {sortDirection &&
-            (sortDirection === 'asc' ? (
-              <ChevronUp className='w-4 h-4' />
-            ) : (
-              <ChevronDown className='w-4 h-4' />
-            ))}
+          {sortDirection && (
+            <div className='flex flex-col'>
+              <ChevronUp
+                className={`w-3 h-3 ${
+                  sortDirection === 'asc' ? 'text-blue-600' : 'text-gray-300'
+                }`}
+              />
+              <ChevronDown
+                className={`w-3 h-3 ${
+                  sortDirection === 'desc' ? 'text-blue-600' : 'text-gray-300'
+                }`}
+              />
+            </div>
+          )}
           {filterType !== 'none' && (
             <Filter
-              className='w-4 h-4 cursor-pointer hover:text-blue-600'
+              className={`w-4 h-4 cursor-pointer hover:text-blue-600 ${
+                isActive ? 'text-blue-600' : ''
+              }`}
               onClick={(e) => {
                 e.stopPropagation();
                 setShowFilter(!showFilter);
@@ -245,6 +260,7 @@ const SearchBar = ({
 );
 
 // Stats Component with Cart Badge
+
 const Stats = ({
   matchCount,
   isPaused,
@@ -255,6 +271,7 @@ const Stats = ({
   cartItemsCount,
   showCartItems,
   setShowCartItems,
+  onClearCart,
   disabled = false,
 }: {
   matchCount: number;
@@ -266,6 +283,7 @@ const Stats = ({
   cartItemsCount: number;
   showCartItems: boolean;
   setShowCartItems: (show: boolean) => void;
+  onClearCart: () => void;
   disabled?: boolean;
 }) => (
   <div className='container mx-auto'>
@@ -313,6 +331,18 @@ const Stats = ({
           {showCartItems ? 'Show All' : 'Show Cart'}
         </button>
         <button
+          onClick={onClearCart}
+          disabled={disabled || cartItemsCount === 0}
+          className={`flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors ${
+            disabled || cartItemsCount === 0
+              ? 'opacity-50 cursor-not-allowed'
+              : ''
+          }`}
+        >
+          <span className='mr-2'>🗑️</span>
+          Clear Cart
+        </button>
+        <button
           onClick={onCopyNames}
           disabled={disabled || cartItemsCount === 0}
           className={`flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors ${
@@ -341,7 +371,7 @@ const Stats = ({
   </div>
 );
 
-// Market Row Component
+// Market Row Component// Market Row Component
 const MarketRow = ({
   match,
   market,
@@ -376,24 +406,27 @@ const MarketRow = ({
 
   return (
     <tr className='border-t hover:bg-gray-50 transition-colors'>
-      {/* Teams & Status Column */}
+      {/* Teams, Score & Status Column */}
       <td className='px-4 py-3'>
         <div className='flex flex-col'>
-          <span className='font-medium'>{match.teams.home.name}</span>
+          <div className='flex items-center justify-between'>
+            <span className='font-medium'>{match.teams.home.name}</span>
+            <span className='ml-2 text-sm font-medium text-gray-600'>
+              {match.score}
+            </span>
+          </div>
           <span className='text-sm text-gray-600'>{match.teams.away.name}</span>
-          <div className='mt-1'>
+          <div className='mt-1 flex items-center gap-2'>
             <span className='inline-block px-2 py-1 text-xs font-medium rounded-sm bg-blue-100 text-blue-800'>
               {match.status}
             </span>
+            {match.status !== 'FT' && (
+              <span className='text-xs text-gray-600'>
+                {formatPlayedTime(match.playedSeconds)}
+              </span>
+            )}
           </div>
         </div>
-      </td>
-
-      {/* Time Column */}
-      <td className='px-4 py-3 text-right'>
-        <span className='text-sm'>
-          {match.status !== 'FT' && formatPlayedTime(match.playedSeconds)}
-        </span>
       </td>
 
       {/* Tournament Column */}
@@ -401,6 +434,26 @@ const MarketRow = ({
 
       {/* Market Column */}
       <td className='px-4 py-3 text-sm'>{market.description}</td>
+
+      {/* Profit % Column */}
+      <td className='px-4 py-3 text-right'>
+        <span
+          className={`px-2 py-1 rounded text-sm ${
+            market.profitPercentage > 5
+              ? 'bg-green-100 text-green-800'
+              : market.profitPercentage > 2
+              ? 'bg-yellow-100 text-yellow-800'
+              : 'bg-gray-100 text-gray-800'
+          }`}
+        >
+          {market.profitPercentage.toFixed(2)}%
+        </span>
+      </td>
+
+      {/* Margin Column */}
+      <td className='px-4 py-3 text-right text-sm'>
+        {market.margin.toFixed(2)}%
+      </td>
 
       {/* Outcomes Column */}
       <td className='px-4 py-3'>
@@ -455,45 +508,6 @@ const MarketRow = ({
         </div>
       </td>
 
-      {/* Return Column */}
-      <td className='px-4 py-3'>
-        <div className='space-y-1'>
-          {market.outcomes.map((outcome, index) => (
-            <div
-              key={createOutcomeKey(outcome.id, index)}
-              className='text-sm text-right'
-            >
-              $
-              {(
-                (outcome.stakePercentage / 100) *
-                TOTAL_INVESTMENT *
-                outcome.odds
-              ).toFixed(2)}
-            </div>
-          ))}
-        </div>
-      </td>
-
-      {/* Profit % Column */}
-      <td className='px-4 py-3 text-right'>
-        <span
-          className={`px-2 py-1 rounded text-sm ${
-            market.profitPercentage > 5
-              ? 'bg-green-100 text-green-800'
-              : market.profitPercentage > 2
-              ? 'bg-yellow-100 text-yellow-800'
-              : 'bg-gray-100 text-gray-800'
-          }`}
-        >
-          {market.profitPercentage.toFixed(2)}%
-        </span>
-      </td>
-
-      {/* Margin Column */}
-      <td className='px-4 py-3 text-right text-sm'>
-        {market.margin.toFixed(2)}%
-      </td>
-
       {/* Actions Column */}
       <td className='px-4 py-3 text-center'>
         <button
@@ -528,17 +542,20 @@ const MarketRow = ({
 };
 
 // Main Component
+// Main Component
 const MatchesPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('live');
   const [showCartItems, setShowCartItems] = useState(false);
-  const [sortConfig, setSortConfig] = useState<{
-    field: string;
-    direction: SortDirection;
-  }>({
-    field: '',
-    direction: 'asc',
-  });
+  const [sortConfigs, setSortConfigs] = useState<
+    Array<{
+      field: string;
+      direction: SortDirection;
+    }>
+  >([
+    // Default sort by played seconds
+    { field: 'playedSeconds', direction: 'desc' },
+  ]);
   const [filters, setFilters] = useState<Record<string, string>>({});
   const [isInitialLoading, setIsInitialLoading] = useState(true);
 
@@ -548,7 +565,7 @@ const MatchesPage = () => {
     togglePause,
     isConnected,
   } = useMatchData();
-  const { items: cartItems, addItem, removeItem } = useCartStore();
+  const { items: cartItems, addItem, removeItem, clearCart } = useCartStore();
 
   // Handle initial loading state
   useEffect(() => {
@@ -558,11 +575,25 @@ const MatchesPage = () => {
   }, [isConnected, isInitialLoading, liveMatches.length]);
 
   const handleSort = (field: string) => {
-    setSortConfig((current) => ({
-      field,
-      direction:
-        current.field === field && current.direction === 'asc' ? 'desc' : 'asc',
-    }));
+    setSortConfigs((current) => {
+      const existingIndex = current.findIndex(
+        (config) => config.field === field
+      );
+
+      if (existingIndex === -1) {
+        // Add new sort
+        return [...current, { field, direction: 'asc' }];
+      } else {
+        // Toggle direction or remove if it was desc
+        const newConfigs = [...current];
+        if (newConfigs[existingIndex].direction === 'asc') {
+          newConfigs[existingIndex].direction = 'desc';
+        } else {
+          newConfigs.splice(existingIndex, 1);
+        }
+        return newConfigs;
+      }
+    });
   };
 
   const handleFilter = (field: string, value: string) => {
@@ -617,42 +648,49 @@ const MatchesPage = () => {
       );
     });
 
-    // Apply sorting
-    if (sortConfig.field) {
+    // Apply multiple sorts
+    if (sortConfigs.length > 0) {
       filtered.sort((a, b) => {
-        let aValue, bValue;
+        for (const sortConfig of sortConfigs) {
+          let comparison = 0;
+          let aValue, bValue;
 
-        switch (sortConfig.field) {
-          case 'status':
-            aValue = a.status;
-            bValue = b.status;
-            break;
-          case 'playedSeconds':
-            aValue = a.playedSeconds;
-            bValue = b.playedSeconds;
-            break;
-          case 'profit':
-            aValue = Math.max(...a.markets.map((m) => m.profitPercentage));
-            bValue = Math.max(...b.markets.map((m) => m.profitPercentage));
-            break;
-          case 'margin':
-            aValue = Math.max(...a.markets.map((m) => m.margin));
-            bValue = Math.max(...b.markets.map((m) => m.margin));
-            break;
-          case 'odds':
-            aValue = Math.max(
-              ...a.markets.flatMap((m) => m.outcomes.map((o) => o.odds))
-            );
-            bValue = Math.max(
-              ...b.markets.flatMap((m) => m.outcomes.map((o) => o.odds))
-            );
-            break;
-          default:
-            return 0;
+          switch (sortConfig.field) {
+            case 'status':
+              aValue = a.status;
+              bValue = b.status;
+              break;
+            case 'playedSeconds':
+              aValue = a.playedSeconds;
+              bValue = b.playedSeconds;
+              break;
+            case 'profit':
+              aValue = Math.max(...a.markets.map((m) => m.profitPercentage));
+              bValue = Math.max(...b.markets.map((m) => m.profitPercentage));
+              break;
+            case 'margin':
+              aValue = Math.max(...a.markets.map((m) => m.margin));
+              bValue = Math.max(...b.markets.map((m) => m.margin));
+              break;
+            case 'odds':
+              aValue = Math.max(
+                ...a.markets.flatMap((m) => m.outcomes.map((o) => o.odds))
+              );
+              bValue = Math.max(
+                ...b.markets.flatMap((m) => m.outcomes.map((o) => o.odds))
+              );
+              break;
+            default:
+              continue;
+          }
+
+          if (aValue < bValue) comparison = -1;
+          if (aValue > bValue) comparison = 1;
+
+          if (comparison !== 0) {
+            return sortConfig.direction === 'asc' ? comparison : -comparison;
+          }
         }
-
-        if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
-        if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
         return 0;
       });
     }
@@ -683,6 +721,7 @@ const MatchesPage = () => {
           cartItemsCount={cartItems.length}
           showCartItems={showCartItems}
           setShowCartItems={setShowCartItems}
+          onClearCart={clearCart}
           disabled={isInitialLoading}
         />
 
@@ -702,38 +741,55 @@ const MatchesPage = () => {
                   <thead>
                     <tr className='bg-gray-50'>
                       <HeaderCell
-                        title='Teams'
+                        title='Teams & Score'
                         filterType='status'
                         onFilter={(value) => handleFilter('status', value)}
-                      />
-                      <HeaderCell
-                        title='Time'
                         sortDirection={
-                          sortConfig.field === 'playedSeconds'
-                            ? sortConfig.direction
-                            : undefined
+                          sortConfigs.find((c) => c.field === 'playedSeconds')
+                            ?.direction
                         }
                         onSort={() => handleSort('playedSeconds')}
-                        onFilter={(value) =>
-                          handleFilter('playedSeconds', value)
-                        }
-                        filterType='playedSeconds'
-                        align='right'
+                        isActive={sortConfigs.some(
+                          (c) => c.field === 'playedSeconds'
+                        )}
                       />
                       <HeaderCell title='Tournament' filterType='none' />
                       <HeaderCell title='Market' filterType='none' />
+                      <HeaderCell
+                        title='Profit %'
+                        sortDirection={
+                          sortConfigs.find((c) => c.field === 'profit')
+                            ?.direction
+                        }
+                        onSort={() => handleSort('profit')}
+                        onFilter={(value) => handleFilter('profit', value)}
+                        filterType='profit'
+                        align='right'
+                        isActive={sortConfigs.some((c) => c.field === 'profit')}
+                      />
+                      <HeaderCell
+                        title='Margin'
+                        sortDirection={
+                          sortConfigs.find((c) => c.field === 'margin')
+                            ?.direction
+                        }
+                        onSort={() => handleSort('margin')}
+                        onFilter={(value) => handleFilter('margin', value)}
+                        filterType='margin'
+                        align='right'
+                        isActive={sortConfigs.some((c) => c.field === 'margin')}
+                      />
                       <HeaderCell title='Outcomes' filterType='none' />
                       <HeaderCell
                         title='Odds'
                         sortDirection={
-                          sortConfig.field === 'odds'
-                            ? sortConfig.direction
-                            : undefined
+                          sortConfigs.find((c) => c.field === 'odds')?.direction
                         }
                         onSort={() => handleSort('odds')}
                         onFilter={(value) => handleFilter('odds', value)}
                         filterType='odds'
                         align='right'
+                        isActive={sortConfigs.some((c) => c.field === 'odds')}
                       />
                       <HeaderCell
                         title='Stake %'
@@ -743,35 +799,6 @@ const MatchesPage = () => {
                       <HeaderCell
                         title='Investment ($)'
                         filterType='none'
-                        align='right'
-                      />
-                      <HeaderCell
-                        title='Return ($)'
-                        filterType='none'
-                        align='right'
-                      />
-                      <HeaderCell
-                        title='Profit %'
-                        sortDirection={
-                          sortConfig.field === 'profit'
-                            ? sortConfig.direction
-                            : undefined
-                        }
-                        onSort={() => handleSort('profit')}
-                        onFilter={(value) => handleFilter('profit', value)}
-                        filterType='profit'
-                        align='right'
-                      />
-                      <HeaderCell
-                        title='Margin'
-                        sortDirection={
-                          sortConfig.field === 'margin'
-                            ? sortConfig.direction
-                            : undefined
-                        }
-                        onSort={() => handleSort('margin')}
-                        onFilter={(value) => handleFilter('margin', value)}
-                        filterType='margin'
                         align='right'
                       />
                       <HeaderCell
