@@ -569,10 +569,7 @@ const MatchesPage = () => {
       field: string;
       direction: SortDirection;
     }>
-  >([
-    // Default sort by played seconds
-    { field: 'playedSeconds', direction: 'desc' },
-  ]);
+  >([{ field: 'playedSeconds', direction: 'asc' }]);
   const [filters, setFilters] = useState<Record<string, string>>({});
   const [isInitialLoading, setIsInitialLoading] = useState(true);
 
@@ -618,6 +615,18 @@ const MatchesPage = () => {
       ...current,
       [field]: value,
     }));
+  };
+
+  // Helper function to get sort value for status
+  const getStatusSortValue = (status: string) => {
+    const statusOrder = {
+      NS: 0, // Not Started
+      '1H': 1, // First Half
+      HT: 2, // Half Time
+      '2H': 3, // Second Half
+      FT: 4, // Full Time
+    } as const;
+    return statusOrder[status as keyof typeof statusOrder] || 0;
   };
 
   const getSortedAndFilteredMatches = (matches: Match[]) => {
@@ -674,20 +683,49 @@ const MatchesPage = () => {
 
           switch (sortConfig.field) {
             case 'status':
-              aValue = a.status;
-              bValue = b.status;
+              aValue = getStatusSortValue(a.status);
+              bValue = getStatusSortValue(b.status);
               break;
             case 'playedSeconds':
-              aValue = a.playedSeconds;
-              bValue = b.playedSeconds;
+              // For matches that haven't started yet
+              if (a.status === 'NS' && b.status === 'NS') {
+                comparison = 0;
+              }
+              // If only one match hasn't started, it should come first
+              else if (a.status === 'NS') {
+                comparison = -1;
+              } else if (b.status === 'NS') {
+                comparison = 1;
+              }
+              // For matches that have finished
+              else if (a.status === 'FT' && b.status === 'FT') {
+                comparison = 0;
+              }
+              // If only one match is finished, it should come last
+              else if (a.status === 'FT') {
+                comparison = 1;
+              } else if (b.status === 'FT') {
+                comparison = -1;
+              }
+              // For ongoing matches, compare played seconds
+              else {
+                aValue = a.playedSeconds;
+                bValue = b.playedSeconds;
+                if (aValue < bValue) comparison = -1;
+                if (aValue > bValue) comparison = 1;
+              }
               break;
             case 'profit':
               aValue = Math.max(...a.markets.map((m) => m.profitPercentage));
               bValue = Math.max(...b.markets.map((m) => m.profitPercentage));
+              if (aValue < bValue) comparison = -1;
+              if (aValue > bValue) comparison = 1;
               break;
             case 'margin':
               aValue = Math.max(...a.markets.map((m) => m.margin));
               bValue = Math.max(...b.markets.map((m) => m.margin));
+              if (aValue < bValue) comparison = -1;
+              if (aValue > bValue) comparison = 1;
               break;
             case 'odds':
               aValue = Math.max(
@@ -696,13 +734,12 @@ const MatchesPage = () => {
               bValue = Math.max(
                 ...b.markets.flatMap((m) => m.outcomes.map((o) => o.odds))
               );
+              if (aValue < bValue) comparison = -1;
+              if (aValue > bValue) comparison = 1;
               break;
             default:
               continue;
           }
-
-          if (aValue < bValue) comparison = -1;
-          if (aValue > bValue) comparison = 1;
 
           if (comparison !== 0) {
             return sortConfig.direction === 'asc' ? comparison : -comparison;
@@ -854,6 +891,5 @@ const MatchesPage = () => {
     </div>
   );
 };
-
 
 export default MatchesPage;
