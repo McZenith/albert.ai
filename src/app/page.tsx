@@ -46,7 +46,7 @@ type FilterType =
 // Loading Skeleton Components
 const SkeletonCell = () => (
   <div className='animate-pulse'>
-    <div className='h-4 bg-gray-200 rounded w-3/4'></div>
+    <div className='h-4 bg-gray-200 rounded-sm w-3/4'></div>
   </div>
 );
 
@@ -54,8 +54,8 @@ const SkeletonRow = () => (
   <tr className='border-t'>
     <td className='px-4 py-3'>
       <div className='space-y-2'>
-        <div className='animate-pulse h-4 bg-gray-200 rounded w-32'></div>
-        <div className='animate-pulse h-4 bg-gray-200 rounded w-24'></div>
+        <div className='animate-pulse h-4 bg-gray-200 rounded-sm w-32'></div>
+        <div className='animate-pulse h-4 bg-gray-200 rounded-sm w-24'></div>
       </div>
     </td>
     <td className='px-4 py-3'>
@@ -69,14 +69,14 @@ const SkeletonRow = () => (
     </td>
     <td className='px-4 py-3'>
       <div className='space-y-2'>
-        <div className='animate-pulse h-4 bg-gray-200 rounded w-24'></div>
-        <div className='animate-pulse h-4 bg-gray-200 rounded w-24'></div>
+        <div className='animate-pulse h-4 bg-gray-200 rounded-sm w-24'></div>
+        <div className='animate-pulse h-4 bg-gray-200 rounded-sm w-24'></div>
       </div>
     </td>
     <td className='px-4 py-3'>
       <div className='space-y-2'>
-        <div className='animate-pulse h-4 bg-gray-200 rounded w-16'></div>
-        <div className='animate-pulse h-4 bg-gray-200 rounded w-16'></div>
+        <div className='animate-pulse h-4 bg-gray-200 rounded-sm w-16'></div>
+        <div className='animate-pulse h-4 bg-gray-200 rounded-sm w-16'></div>
       </div>
     </td>
     <td className='px-4 py-3'>
@@ -95,13 +95,13 @@ const SkeletonRow = () => (
       <SkeletonCell />
     </td>
     <td className='px-4 py-3'>
-      <div className='animate-pulse h-8 bg-gray-200 rounded w-20 mx-auto'></div>
+      <div className='animate-pulse h-8 bg-gray-200 rounded-sm w-20 mx-auto'></div>
     </td>
   </tr>
 );
 
 const LoadingTable = () => (
-  <div className='mt-4 bg-white rounded-lg shadow overflow-hidden'>
+  <div className='mt-4 bg-white rounded-lg shadow-sm overflow-hidden'>
     <div className='overflow-x-auto'>
       <table className='min-w-full divide-y divide-gray-200'>
         <thead>
@@ -110,7 +110,7 @@ const LoadingTable = () => (
               .fill(0)
               .map((_, index) => (
                 <th key={index} className='px-4 py-3'>
-                  <div className='animate-pulse h-4 bg-gray-200 rounded w-20'></div>
+                  <div className='animate-pulse h-4 bg-gray-200 rounded-sm w-20'></div>
                 </th>
               ))}
           </tr>
@@ -180,7 +180,7 @@ const HeaderCell = ({
           <div className='relative'>
             {filterType === 'status' ? (
               <select
-                className='w-full text-sm border rounded px-2 py-1'
+                className='w-full text-sm border rounded-sm px-2 py-1'
                 onChange={(e) => onFilter(e.target.value)}
               >
                 <option value=''>All</option>
@@ -192,7 +192,7 @@ const HeaderCell = ({
             ) : filterType === 'playedSeconds' ? (
               <input
                 type='number'
-                className='w-full text-sm border rounded px-2 py-1'
+                className='w-full text-sm border rounded-sm px-2 py-1'
                 placeholder='Min minutes'
                 onChange={(e) =>
                   onFilter((parseInt(e.target.value) * 60).toString())
@@ -201,7 +201,7 @@ const HeaderCell = ({
             ) : (
               <input
                 type='number'
-                className='w-full text-sm border rounded px-2 py-1'
+                className='w-full text-sm border rounded-sm px-2 py-1'
                 placeholder={`Min ${filterType}`}
                 onChange={(e) => onFilter(e.target.value)}
               />
@@ -224,7 +224,7 @@ const SearchBar = ({
   disabled?: boolean;
 }) => (
   <div className='container mx-auto'>
-    <div className='p-4 bg-white shadow-sm mt-4 rounded-lg'>
+    <div className='p-4 bg-white shadow-xs mt-4 rounded-lg'>
       <div className='relative'>
         <span className='absolute inset-y-0 left-3 flex items-center text-gray-400'>
           🔍
@@ -269,7 +269,7 @@ const Stats = ({
   disabled?: boolean;
 }) => (
   <div className='container mx-auto'>
-    <div className='flex flex-wrap justify-between items-center p-4 bg-white shadow-sm rounded-lg'>
+    <div className='flex flex-wrap justify-between items-center p-4 bg-white shadow-xs rounded-lg'>
       <div className='flex items-center space-x-4 mb-2 sm:mb-0'>
         <button
           className={`px-4 py-2 rounded-lg relative ${
@@ -382,7 +382,7 @@ const MarketRow = ({
           <span className='font-medium'>{match.teams.home.name}</span>
           <span className='text-sm text-gray-600'>{match.teams.away.name}</span>
           <div className='mt-1'>
-            <span className='inline-block px-2 py-1 text-xs font-medium rounded bg-blue-100 text-blue-800'>
+            <span className='inline-block px-2 py-1 text-xs font-medium rounded-sm bg-blue-100 text-blue-800'>
               {match.status}
             </span>
           </div>
@@ -696,7 +696,7 @@ const MatchesPage = () => {
           {isInitialLoading ? (
             <LoadingTable />
           ) : (
-            <div className='mt-4 bg-white rounded-lg shadow overflow-hidden'>
+            <div className='mt-4 bg-white rounded-lg shadow-sm overflow-hidden'>
               <div className='overflow-x-auto'>
                 <table className='min-w-full divide-y divide-gray-200'>
                   <thead>
