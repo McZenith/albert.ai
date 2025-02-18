@@ -53,48 +53,66 @@ const SkeletonCell = () => (
 
 const SkeletonRow = () => (
   <tr className='border-t'>
+    {/* Teams Column */}
     <td className='px-4 py-3'>
       <div className='space-y-2'>
         <div className='animate-pulse h-4 bg-gray-200 rounded-sm w-32'></div>
         <div className='animate-pulse h-4 bg-gray-200 rounded-sm w-24'></div>
       </div>
     </td>
+    {/* Score Column */}
+    <td className='px-4 py-3'>
+      <div className='flex justify-center'>
+        <div className='animate-pulse h-4 bg-gray-200 rounded-sm w-12'></div>
+      </div>
+    </td>
+    {/* Tournament Column */}
     <td className='px-4 py-3'>
       <SkeletonCell />
     </td>
+    {/* Market Column */}
     <td className='px-4 py-3'>
       <SkeletonCell />
     </td>
+    {/* Profit Column */}
     <td className='px-4 py-3'>
-      <SkeletonCell />
+      <div className='flex justify-end'>
+        <div className='animate-pulse h-4 bg-gray-200 rounded-sm w-16'></div>
+      </div>
     </td>
+    {/* Margin Column */}
+    <td className='px-4 py-3'>
+      <div className='flex justify-end'>
+        <div className='animate-pulse h-4 bg-gray-200 rounded-sm w-16'></div>
+      </div>
+    </td>
+    {/* Outcomes Column */}
     <td className='px-4 py-3'>
       <div className='space-y-2'>
         <div className='animate-pulse h-4 bg-gray-200 rounded-sm w-24'></div>
         <div className='animate-pulse h-4 bg-gray-200 rounded-sm w-24'></div>
       </div>
     </td>
+    {/* Odds Column */}
     <td className='px-4 py-3'>
       <div className='space-y-2'>
         <div className='animate-pulse h-4 bg-gray-200 rounded-sm w-16'></div>
         <div className='animate-pulse h-4 bg-gray-200 rounded-sm w-16'></div>
       </div>
     </td>
+    {/* Stake Column */}
     <td className='px-4 py-3'>
-      <SkeletonCell />
+      <div className='flex justify-end'>
+        <div className='animate-pulse h-4 bg-gray-200 rounded-sm w-16'></div>
+      </div>
     </td>
+    {/* Investment Column */}
     <td className='px-4 py-3'>
-      <SkeletonCell />
+      <div className='flex justify-end'>
+        <div className='animate-pulse h-4 bg-gray-200 rounded-sm w-20'></div>
+      </div>
     </td>
-    <td className='px-4 py-3'>
-      <SkeletonCell />
-    </td>
-    <td className='px-4 py-3'>
-      <SkeletonCell />
-    </td>
-    <td className='px-4 py-3'>
-      <SkeletonCell />
-    </td>
+    {/* Actions Column */}
     <td className='px-4 py-3'>
       <div className='animate-pulse h-8 bg-gray-200 rounded-sm w-20 mx-auto'></div>
     </td>
@@ -107,7 +125,7 @@ const LoadingTable = () => (
       <table className='min-w-full divide-y divide-gray-200'>
         <thead>
           <tr className='bg-gray-50'>
-            {Array(12)
+            {Array(11)
               .fill(0)
               .map((_, index) => (
                 <th key={index} className='px-4 py-3'>
@@ -393,12 +411,10 @@ const MarketRow = ({
 
   const TOTAL_INVESTMENT = 100000;
 
-  // Create unique key for outcomes
   const createOutcomeKey = (outcomeId: string, index: number) => {
     return `${match.id}-${market.id}-${outcomeId}-${index}`;
   };
 
-  // Add visual feedback for odds changes
   const getOddsClassName = (outcome: { isChanged?: boolean }) => {
     if (!outcome.isChanged) return 'text-sm font-medium text-right';
     return 'text-sm font-medium text-right bg-yellow-100 transition-colors duration-500';
@@ -406,15 +422,10 @@ const MarketRow = ({
 
   return (
     <tr className='border-t hover:bg-gray-50 transition-colors'>
-      {/* Teams, Score & Status Column */}
+      {/* Teams & Status Column */}
       <td className='px-4 py-3'>
         <div className='flex flex-col'>
-          <div className='flex items-center justify-between'>
-            <span className='font-medium'>{match.teams.home.name}</span>
-            <span className='ml-2 text-sm font-medium text-gray-600'>
-              {match.score}
-            </span>
-          </div>
+          <span className='font-medium'>{match.teams.home.name}</span>
           <span className='text-sm text-gray-600'>{match.teams.away.name}</span>
           <div className='mt-1 flex items-center gap-2'>
             <span className='inline-block px-2 py-1 text-xs font-medium rounded-sm bg-blue-100 text-blue-800'>
@@ -427,6 +438,11 @@ const MarketRow = ({
             )}
           </div>
         </div>
+      </td>
+
+      {/* Score Column */}
+      <td className='px-4 py-3 text-center'>
+        <span className='text-sm font-medium'>{match.score || '-'}</span>
       </td>
 
       {/* Tournament Column */}
@@ -541,6 +557,7 @@ const MarketRow = ({
   );
 };
 
+// Main Component
 // Main Component
 // Main Component
 const MatchesPage = () => {
@@ -741,7 +758,7 @@ const MatchesPage = () => {
                   <thead>
                     <tr className='bg-gray-50'>
                       <HeaderCell
-                        title='Teams & Score'
+                        title='Teams'
                         filterType='status'
                         onFilter={(value) => handleFilter('status', value)}
                         sortDirection={
@@ -752,6 +769,11 @@ const MatchesPage = () => {
                         isActive={sortConfigs.some(
                           (c) => c.field === 'playedSeconds'
                         )}
+                      />
+                      <HeaderCell
+                        title='Score'
+                        filterType='none'
+                        align='center'
                       />
                       <HeaderCell title='Tournament' filterType='none' />
                       <HeaderCell title='Market' filterType='none' />
@@ -832,5 +854,6 @@ const MatchesPage = () => {
     </div>
   );
 };
+
 
 export default MatchesPage;
