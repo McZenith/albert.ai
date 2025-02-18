@@ -671,9 +671,7 @@ const MatchesPage = () => {
           togglePause={togglePause}
           onCopyNames={() => {
             const teamNames = cartItems
-              .map(
-                (item) => `${item.teams.home.name} vs ${item.teams.away.name}`
-              )
+              .map((item) => `${item.teams.home.name}`)
               .join('\n');
             navigator.clipboard
               .writeText(teamNames)
