@@ -1,3 +1,4 @@
+'use client';
 import React, { useEffect, useState } from 'react';
 
 interface OddsCellProps {
@@ -7,9 +8,16 @@ interface OddsCellProps {
   stakePercentage: number;
 }
 
-const OddsCell = ({ odds, previousOdds, description, stakePercentage }: OddsCellProps) => {
+const OddsCell = ({
+  odds,
+  previousOdds,
+  description,
+  stakePercentage,
+}: OddsCellProps) => {
   const [animateValue, setAnimateValue] = useState(false);
-  const [animateDirection, setAnimateDirection] = useState<'up' | 'down' | null>(null);
+  const [animateDirection, setAnimateDirection] = useState<
+    'up' | 'down' | null
+  >(null);
 
   useEffect(() => {
     if (previousOdds && previousOdds !== odds) {
@@ -21,12 +29,12 @@ const OddsCell = ({ odds, previousOdds, description, stakePercentage }: OddsCell
   }, [odds, previousOdds]);
 
   return (
-    <div className="flex items-center justify-between">
-      <span className="text-sm">{description}</span>
-      <div className="flex items-center space-x-2">
-        <span 
+    <div className='flex items-center justify-between'>
+      <span className='text-sm'>{description}</span>
+      <div className='flex items-center space-x-2'>
+        <span
           className={`font-medium ${
-            animateValue 
+            animateValue
               ? animateDirection === 'up'
                 ? 'text-green-600 animate-odds-up'
                 : 'text-red-600 animate-odds-down'
@@ -35,7 +43,7 @@ const OddsCell = ({ odds, previousOdds, description, stakePercentage }: OddsCell
         >
           {odds.toFixed(2)}
         </span>
-        <span className="text-xs text-gray-500">
+        <span className='text-xs text-gray-500'>
           ({stakePercentage.toFixed(1)}%)
         </span>
       </div>

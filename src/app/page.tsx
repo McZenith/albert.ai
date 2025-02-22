@@ -566,13 +566,11 @@ const MarketRow = ({
 // Main Component
 const MatchesPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState('live');
-  const [showCartItems, setShowCartItems] = useState(false);
+  const [activeTab, setActiveTab] = useState<string>('live');
+  const [copiedText, setCopiedText] = useState<string>('');
+  const [showCartItems, setShowCartItems] = useState<boolean>(false);
   const [sortConfigs, setSortConfigs] = useState<
-    Array<{
-      field: string;
-      direction: SortDirection;
-    }>
+    Array<{ field: string; direction: SortDirection }>
   >([{ field: 'playedSeconds', direction: 'asc' }]);
   const [filters, setFilters] = useState<Record<string, string>>({});
   const [isInitialLoading, setIsInitialLoading] = useState(true);
@@ -591,6 +589,18 @@ const MatchesPage = () => {
       setIsInitialLoading(false);
     }
   }, [isConnected, isInitialLoading, liveMatches.length]);
+
+  useEffect(() => {
+    // Reset the timer whenever new text comes in
+    if (copiedText) {
+      const timer = setTimeout(() => {
+        setCopiedText('');
+      }, 3000);
+
+      // Cleanup timer on unmount or when copyText changes
+      return () => clearTimeout(timer);
+    }
+  }, [copiedText]);
 
   const handleSort = (field: string) => {
     setSortConfigs((current) => {
@@ -753,7 +763,11 @@ const MatchesPage = () => {
       });
     }
 
-    return filtered;
+    const filteredMatches = filtered.filter((x) =>
+      x.markets.filter((x) => x.description != '1st Half - Correct Score')
+    );
+
+    return filteredMatches;
   };
 
   const filteredMatches = getSortedAndFilteredMatches(liveMatches);
@@ -761,6 +775,13 @@ const MatchesPage = () => {
   return (
     <div className='min-h-screen bg-gray-50'>
       <div className='py-4'>
+        <div className='relative'>
+          {copiedText && (
+            <p className='text-sm text-gray-700 bg-gray-100 px-4 py-2 rounded-md'>
+              {copiedText}
+            </p>
+          )}
+        </div>{' '}
         <Stats
           matchCount={filteredMatches.length}
           isPaused={isPaused}
@@ -771,7 +792,7 @@ const MatchesPage = () => {
               .join('\n');
             navigator.clipboard
               .writeText(teamNames)
-              .then(() => alert('Team names copied!'))
+              .then(() => setCopiedText('Team names copied!'))
               .catch((err) => console.error('Failed to copy:', err));
           }}
           activeTab={activeTab}
@@ -782,7 +803,6 @@ const MatchesPage = () => {
           onClearCart={clearCart}
           disabled={isInitialLoading}
         />
-
         <div className='container mx-auto px-4'>
           <SearchBar
             value={searchQuery}
