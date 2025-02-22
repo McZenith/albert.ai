@@ -554,7 +554,7 @@ const MarketRow = ({
               : 'bg-blue-600 text-white hover:bg-blue-700'
           } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
-          {isInCart ? 'Remove' : 'Add to Cart'}
+          {isInCart ? 'Remove' : 'Add'}
         </button>
       </td>
     </tr>
