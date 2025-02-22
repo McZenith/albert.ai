@@ -21,6 +21,7 @@ interface Match {
     id: string;
     description: string;
     profitPercentage: number;
+    favourite: string;
     margin: number;
     outcomes: Array<{
       id: string;
@@ -524,6 +525,9 @@ const MarketRow = ({
         </div>
       </td>
 
+      <td className='px-4 py-3 text-center'>
+        <span className='text-sm font-medium'>{market.favourite}</span>
+      </td>
       {/* Actions Column */}
       <td className='px-4 py-3 text-center'>
         <button
@@ -758,7 +762,7 @@ const MatchesPage = () => {
     <div className='min-h-screen bg-gray-50'>
       <div className='py-4'>
         <Stats
-          matchCount={liveMatches.length}
+          matchCount={filteredMatches.length}
           isPaused={isPaused}
           togglePause={togglePause}
           onCopyNames={() => {
@@ -859,6 +863,11 @@ const MatchesPage = () => {
                         title='Investment ($)'
                         filterType='none'
                         align='right'
+                      />
+                      <HeaderCell
+                        title='Favourite'
+                        filterType='none'
+                        align='center'
                       />
                       <HeaderCell
                         title='Actions'

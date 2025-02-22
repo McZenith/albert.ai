@@ -25,6 +25,7 @@ interface ClientMarket {
     description: string;
     specifier: string;
     margin: number;
+    favourite: string;
     profitPercentage: number;
     outcomes: ClientOutcome[];
 }
@@ -54,6 +55,7 @@ interface TransformedMatch {
         description: string;
         specifier: string;
         profitPercentage: number;
+        favourite: string;
         margin: number;
         outcomes: Array<{
             id: string;
@@ -206,6 +208,7 @@ export const useMatchData = () => {
             id: market.id,
             description: market.description,
             specifier: market.specifier,
+            favourite: market.favourite,
             profitPercentage: market.profitPercentage,
             margin: market.margin,
             outcomes: market.outcomes.map(outcome => ({
