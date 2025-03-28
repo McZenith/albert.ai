@@ -121,7 +121,7 @@ export const useMatchData = () => {
 
         const startConnection = async () => {
             try {
-                const connection = new HubConnectionBuilder()
+                const connection = new HubConnectionBuilder() 
                     .withUrl('https://fredapi-5da7cd50ded2.herokuapp.com/livematchhub')
                     .withAutomaticReconnect([0, 2000, 5000, 10000, 20000]) // Progressive retry intervals
                     .build();

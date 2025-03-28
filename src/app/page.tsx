@@ -5,6 +5,7 @@ import React, { useState, useEffect } from 'react';
 import { useMatchData } from '../hooks/useMatchData';
 import { useCartStore } from '@/hooks/useStore';
 import { ChevronUp, ChevronDown, Filter, ShoppingCart } from 'lucide-react';
+import MatchPredictor from '@/components/UpcomingTab';
 
 // Enhanced Types
 interface Match {
@@ -279,7 +280,6 @@ const SearchBar = ({
 );
 
 // Stats Component with Cart Badge
-
 const Stats = ({
   matchCount,
   isPaused,
@@ -288,6 +288,7 @@ const Stats = ({
   activeTab,
   setActiveTab,
   cartItemsCount,
+  upcomingMatchesCount,
   showCartItems,
   setShowCartItems,
   onClearCart,
@@ -300,6 +301,7 @@ const Stats = ({
   activeTab: string;
   setActiveTab: (tab: string) => void;
   cartItemsCount: number;
+  upcomingMatchesCount: number;
   showCartItems: boolean;
   setShowCartItems: (show: boolean) => void;
   onClearCart: () => void;
@@ -323,13 +325,18 @@ const Stats = ({
           )}
         </button>
         <button
-          className={`px-4 py-2 rounded-lg ${
+          className={`px-4 py-2 rounded-lg relative ${
             activeTab === 'upcoming' ? 'bg-blue-600 text-white' : 'bg-gray-100'
           } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
           onClick={() => setActiveTab('upcoming')}
           disabled={disabled}
         >
           Upcoming Matches
+          {activeTab === 'upcoming' && upcomingMatchesCount > 0 && (
+            <span className='absolute -top-2 -right-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full'>
+              {upcomingMatchesCount}
+            </span>
+          )}
         </button>
       </div>
 
@@ -342,18 +349,18 @@ const Stats = ({
           }`}
         >
           <ShoppingCart className='w-5 h-5 mr-2' />
-          {cartItemsCount > 0 && (
+          {cartItemsCount + upcomingMatchesCount > 0 && (
             <span className='absolute -top-2 -right-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full'>
-              {cartItemsCount}
+              {cartItemsCount + upcomingMatchesCount}
             </span>
           )}
           {showCartItems ? 'Show All' : 'Show Cart'}
         </button>
         <button
           onClick={onClearCart}
-          disabled={disabled || cartItemsCount === 0}
+          disabled={disabled || cartItemsCount + upcomingMatchesCount === 0}
           className={`flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors ${
-            disabled || cartItemsCount === 0
+            disabled || cartItemsCount + upcomingMatchesCount === 0
               ? 'opacity-50 cursor-not-allowed'
               : ''
           }`}
@@ -363,9 +370,9 @@ const Stats = ({
         </button>
         <button
           onClick={onCopyNames}
-          disabled={disabled || cartItemsCount === 0}
+          disabled={disabled || cartItemsCount + upcomingMatchesCount === 0}
           className={`flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors ${
-            disabled || cartItemsCount === 0
+            disabled || cartItemsCount + upcomingMatchesCount === 0
               ? 'opacity-50 cursor-not-allowed'
               : ''
           }`}
@@ -389,6 +396,12 @@ const Stats = ({
     </div>
   </div>
 );
+
+// Add the cleaning function at the top of the file
+const enhancedCleanTeamName = (name: string): string => {
+  if (!name) return '';
+  return name.replace(/^\d+\s+/, '').trim();
+};
 
 // Market Row Component// Market Row Component
 const MarketRow = ({
@@ -562,8 +575,6 @@ const MarketRow = ({
 };
 
 // Main Component
-// Main Component
-// Main Component
 const MatchesPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<string>('live');
@@ -581,7 +592,15 @@ const MatchesPage = () => {
     togglePause,
     isConnected,
   } = useMatchData();
-  const { items: cartItems, addItem, removeItem, clearCart } = useCartStore();
+  const {
+    items: cartItems,
+    addItem,
+    removeItem,
+    clearCart,
+    upcomingMatches,
+    clearUpcomingMatches,
+    getUpcomingMatchesCount,
+  } = useCartStore();
 
   // Handle initial loading state
   useEffect(() => {
@@ -772,6 +791,47 @@ const MatchesPage = () => {
 
   const filteredMatches = getSortedAndFilteredMatches(liveMatches);
 
+  // Function to clear all carts
+  const clearAllCarts = () => {
+    clearCart();
+    clearUpcomingMatches();
+  };
+
+  // Update the copy function to handle both carts
+  const copyAllNames = () => {
+    // Get names from regular cart
+    const cartTeamNames = cartItems.map(
+      (item) => `${item.teams.home.name} vs ${item.teams.away.name}`
+    );
+
+    // Get names from upcoming matches cart
+    const upcomingTeamNames = upcomingMatches.map((match) => {
+      const favoriteTeam =
+        match.favorite === 'home'
+          ? match.homeTeam.name
+          : match.favorite === 'away'
+          ? match.awayTeam.name
+          : 'No favorite';
+
+      const opponent =
+        match.favorite === 'home'
+          ? match.awayTeam.name
+          : match.favorite === 'away'
+          ? match.homeTeam.name
+          : '';
+
+      return `${favoriteTeam} to score over 1.5 goals vs ${opponent}`;
+    });
+
+    // Combine both lists
+    const allTeams = [...cartTeamNames, ...upcomingTeamNames].join('\n');
+
+    navigator.clipboard
+      .writeText(allTeams)
+      .then(() => setCopiedText('Team names copied!'))
+      .catch((err) => console.error('Failed to copy:', err));
+  };
+
   return (
     <div className='min-h-screen bg-gray-50'>
       <div className='py-4'>
@@ -781,141 +841,143 @@ const MatchesPage = () => {
               {copiedText}
             </p>
           )}
-        </div>{' '}
+        </div>
         <Stats
           matchCount={filteredMatches.length}
           isPaused={isPaused}
           togglePause={togglePause}
-          onCopyNames={() => {
-            const teamNames = cartItems
-              .map((item) => `${item.teams.home.name}`)
-              .join('\n');
-            navigator.clipboard
-              .writeText(teamNames)
-              .then(() => setCopiedText('Team names copied!'))
-              .catch((err) => console.error('Failed to copy:', err));
-          }}
+          onCopyNames={copyAllNames}
           activeTab={activeTab}
           setActiveTab={setActiveTab}
           cartItemsCount={cartItems.length}
+          upcomingMatchesCount={getUpcomingMatchesCount()}
           showCartItems={showCartItems}
           setShowCartItems={setShowCartItems}
-          onClearCart={clearCart}
+          onClearCart={clearAllCarts}
           disabled={isInitialLoading}
         />
-        <div className='container mx-auto px-4'>
-          <SearchBar
-            value={searchQuery}
-            onChange={setSearchQuery}
-            disabled={isInitialLoading}
-          />
+        {activeTab === 'live' ? (
+          <div className='container mx-auto px-4'>
+            <SearchBar
+              value={searchQuery}
+              onChange={setSearchQuery}
+              disabled={isInitialLoading}
+            />
 
-          {isInitialLoading ? (
-            <LoadingTable />
-          ) : (
-            <div className='mt-4 bg-white rounded-lg shadow-sm overflow-hidden'>
-              <div className='overflow-x-auto'>
-                <table className='min-w-full divide-y divide-gray-200'>
-                  <thead>
-                    <tr className='bg-gray-50'>
-                      <HeaderCell
-                        title='Teams'
-                        filterType='status'
-                        onFilter={(value) => handleFilter('status', value)}
-                        sortDirection={
-                          sortConfigs.find((c) => c.field === 'playedSeconds')
-                            ?.direction
-                        }
-                        onSort={() => handleSort('playedSeconds')}
-                        isActive={sortConfigs.some(
-                          (c) => c.field === 'playedSeconds'
-                        )}
-                      />
-                      <HeaderCell
-                        title='Score'
-                        filterType='none'
-                        align='center'
-                      />
-                      <HeaderCell title='Tournament' filterType='none' />
-                      <HeaderCell title='Market' filterType='none' />
-                      <HeaderCell
-                        title='Profit %'
-                        sortDirection={
-                          sortConfigs.find((c) => c.field === 'profit')
-                            ?.direction
-                        }
-                        onSort={() => handleSort('profit')}
-                        onFilter={(value) => handleFilter('profit', value)}
-                        filterType='profit'
-                        align='right'
-                        isActive={sortConfigs.some((c) => c.field === 'profit')}
-                      />
-                      <HeaderCell
-                        title='Margin'
-                        sortDirection={
-                          sortConfigs.find((c) => c.field === 'margin')
-                            ?.direction
-                        }
-                        onSort={() => handleSort('margin')}
-                        onFilter={(value) => handleFilter('margin', value)}
-                        filterType='margin'
-                        align='right'
-                        isActive={sortConfigs.some((c) => c.field === 'margin')}
-                      />
-                      <HeaderCell title='Outcomes' filterType='none' />
-                      <HeaderCell
-                        title='Odds'
-                        sortDirection={
-                          sortConfigs.find((c) => c.field === 'odds')?.direction
-                        }
-                        onSort={() => handleSort('odds')}
-                        onFilter={(value) => handleFilter('odds', value)}
-                        filterType='odds'
-                        align='right'
-                        isActive={sortConfigs.some((c) => c.field === 'odds')}
-                      />
-                      <HeaderCell
-                        title='Stake %'
-                        filterType='none'
-                        align='right'
-                      />
-                      <HeaderCell
-                        title='Investment ($)'
-                        filterType='none'
-                        align='right'
-                      />
-                      <HeaderCell
-                        title='Favourite'
-                        filterType='none'
-                        align='center'
-                      />
-                      <HeaderCell
-                        title='Actions'
-                        filterType='none'
-                        align='center'
-                      />
-                    </tr>
-                  </thead>
-                  <tbody className='divide-y divide-gray-200'>
-                    {filteredMatches.flatMap((match, matchIndex) =>
-                      match.markets.map((market, marketIndex) => (
-                        <MarketRow
-                          key={`${match.id}-${market.id}-${matchIndex}-${marketIndex}`}
-                          match={match}
-                          market={market}
-                          cartItems={cartItems}
-                          addItem={addItem}
-                          removeItem={removeItem}
-                          disabled={isInitialLoading}
+            {isInitialLoading ? (
+              <LoadingTable />
+            ) : (
+              <div className='mt-4 bg-white rounded-lg shadow-sm overflow-hidden'>
+                <div className='overflow-x-auto'>
+                  <table className='min-w-full divide-y divide-gray-200'>
+                    <thead>
+                      <tr className='bg-gray-50'>
+                        <HeaderCell
+                          title='Teams'
+                          filterType='status'
+                          onFilter={(value) => handleFilter('status', value)}
+                          sortDirection={
+                            sortConfigs.find((c) => c.field === 'playedSeconds')
+                              ?.direction
+                          }
+                          onSort={() => handleSort('playedSeconds')}
+                          isActive={sortConfigs.some(
+                            (c) => c.field === 'playedSeconds'
+                          )}
                         />
-                      ))
-                    )}
-                  </tbody>
-                </table>
+                        <HeaderCell
+                          title='Score'
+                          filterType='none'
+                          align='center'
+                        />
+                        <HeaderCell title='Tournament' filterType='none' />
+                        <HeaderCell title='Market' filterType='none' />
+                        <HeaderCell
+                          title='Profit %'
+                          sortDirection={
+                            sortConfigs.find((c) => c.field === 'profit')
+                              ?.direction
+                          }
+                          onSort={() => handleSort('profit')}
+                          onFilter={(value) => handleFilter('profit', value)}
+                          filterType='profit'
+                          align='right'
+                          isActive={sortConfigs.some(
+                            (c) => c.field === 'profit'
+                          )}
+                        />
+                        <HeaderCell
+                          title='Margin'
+                          sortDirection={
+                            sortConfigs.find((c) => c.field === 'margin')
+                              ?.direction
+                          }
+                          onSort={() => handleSort('margin')}
+                          onFilter={(value) => handleFilter('margin', value)}
+                          filterType='margin'
+                          align='right'
+                          isActive={sortConfigs.some(
+                            (c) => c.field === 'margin'
+                          )}
+                        />
+                        <HeaderCell title='Outcomes' filterType='none' />
+                        <HeaderCell
+                          title='Odds'
+                          sortDirection={
+                            sortConfigs.find((c) => c.field === 'odds')
+                              ?.direction
+                          }
+                          onSort={() => handleSort('odds')}
+                          onFilter={(value) => handleFilter('odds', value)}
+                          filterType='odds'
+                          align='right'
+                          isActive={sortConfigs.some((c) => c.field === 'odds')}
+                        />
+                        <HeaderCell
+                          title='Stake %'
+                          filterType='none'
+                          align='right'
+                        />
+                        <HeaderCell
+                          title='Investment ($)'
+                          filterType='none'
+                          align='right'
+                        />
+                        <HeaderCell
+                          title='Favourite'
+                          filterType='none'
+                          align='center'
+                        />
+                        <HeaderCell
+                          title='Actions'
+                          filterType='none'
+                          align='center'
+                        />
+                      </tr>
+                    </thead>
+                    <tbody className='divide-y divide-gray-200'>
+                      {filteredMatches.flatMap((match, matchIndex) =>
+                        match.markets.map((market, marketIndex) => (
+                          <MarketRow
+                            key={`${match.id}-${market.id}-${matchIndex}-${marketIndex}`}
+                            match={match}
+                            market={market}
+                            cartItems={cartItems}
+                            addItem={addItem}
+                            removeItem={removeItem}
+                            disabled={isInitialLoading}
+                          />
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        ) : (
+          <MatchPredictor />
+        )}
       </div>
     </div>
   );
