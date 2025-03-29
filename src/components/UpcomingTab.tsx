@@ -238,6 +238,36 @@ const ClientOnlyLoader = () => {
   );
 };
 
+// Helper function to normalize time formats 
+const normalizeTimeFormat = (timeStr: string): string => {
+  if (!timeStr) return '';
+  
+  // Already in 24-hour format (HH:MM)
+  if (/^\d{1,2}:\d{2}$/.test(timeStr)) {
+    // Make sure hours are 2 digits
+    const [hours, minutes] = timeStr.split(':');
+    return `${hours.padStart(2, '0')}:${minutes}`;
+  }
+  
+  // Handle "XX:XX AM/PM" format
+  const amPmMatch = timeStr.match(/^(\d{1,2}):(\d{2})\s*(am|pm)$/i);
+  if (amPmMatch) {
+    let [_, hours, minutes, ampm] = amPmMatch;
+    let hourNum = parseInt(hours);
+    
+    // Convert to 24-hour format
+    if (ampm.toLowerCase() === 'pm' && hourNum < 12) {
+      hourNum += 12;
+    } else if (ampm.toLowerCase() === 'am' && hourNum === 12) {
+      hourNum = 0;
+    }
+    
+    return `${hourNum.toString().padStart(2, '0')}:${minutes}`;
+  }
+  
+  return timeStr;
+};
+
 const MatchPredictor = () => {
   // Remove localStorage access from initial state
   const [expandedMatch, setExpandedMatch] = useState<string | number | null>(
@@ -253,6 +283,14 @@ const MatchPredictor = () => {
     showOnlyUpcoming: false,
   });
   const [showScrollTop, setShowScrollTop] = useState<boolean>(false);
+
+  // Add new states for the modal
+  const [showAnalyticsModal, setShowAnalyticsModal] = useState<boolean>(false);
+  const [analyticsData, setAnalyticsData] = useState<{
+    [key: string]: { total: number; hourData: { [hour: string]: number } };
+  }>({});
+  // Add state to track whether to show only cart items
+  const [showOnlyCart, setShowOnlyCart] = useState<boolean>(false);
 
   // New effect to load stored values after component mounts (client-side only)
   useEffect(() => {
@@ -293,6 +331,12 @@ const MatchPredictor = () => {
         } catch (e) {
           console.error('Failed to parse saved filters', e);
         }
+      }
+
+      // For showOnlyCart
+      const savedShowOnlyCart = localStorage.getItem('showOnlyCart');
+      if (savedShowOnlyCart) {
+        setShowOnlyCart(savedShowOnlyCart === 'true');
       }
     } catch (error) {
       // Silently handle any localStorage errors
@@ -340,6 +384,15 @@ const MatchPredictor = () => {
     }
   }, [filters]);
 
+  // Save showOnlyCart to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('showOnlyCart', String(showOnlyCart));
+    } catch (error) {
+      console.error('Error saving showOnlyCart to localStorage:', error);
+    }
+  }, [showOnlyCart]);
+
   // New states for API data
   const [upcomingMatches, setUpcomingMatches] = useState<Match[]>([]);
   const [metadata, setMetadata] = useState<ApiResponse['metadata'] | null>(
@@ -382,6 +435,9 @@ const MatchPredictor = () => {
             return !isNaN(num) ? num : 0;
           };
 
+          // Normalize the time format to make date parsing more consistent
+          const normalizedTime = normalizeTimeFormat(match.time);
+
           // Use alternative goal statistic fields if available
           const homeTeamData = {
             ...match.homeTeam,
@@ -417,16 +473,11 @@ const MatchPredictor = () => {
 
           return {
             ...match,
+            time: normalizedTime, // Use normalized time
             homeTeam: homeTeamData,
             awayTeam: awayTeamData,
           };
         });
-
-        // Log the first match to verify data
-        if (cleanedMatches.length > 0) {
-          console.log('First match home team:', cleanedMatches[0].homeTeam);
-          console.log('First match away team:', cleanedMatches[0].awayTeam);
-        }
 
         setUpcomingMatches(cleanedMatches);
         setMetadata(data.metadata);
@@ -448,16 +499,22 @@ const MatchPredictor = () => {
 
   const toggleMatchInCart = (id: string | number, index: number): void => {
     const matchToAdd = upcomingMatches.find((m) => m.id === id);
-    if (!matchToAdd) return;
+    if (!matchToAdd) {
+      console.error(`Could not find match with ID ${id} at index ${index}`);
+      return;
+    }
 
     // Generate a unique ID if the match ID is 0
     const uniqueId = id === 0 ? `match-${index}` : id;
+    console.log(`Toggling match in cart: ${matchToAdd.homeTeam.name} vs ${matchToAdd.awayTeam.name} (ID: ${uniqueId})`);
 
     if (isUpcomingMatchInCart(uniqueId)) {
       // Remove from cart if already there
+      console.log(`Removing match from cart: ${matchToAdd.homeTeam.name} vs ${matchToAdd.awayTeam.name}`);
       removeUpcomingMatch(uniqueId);
     } else {
       // Add to cart if not there, ensure it has a unique ID
+      console.log(`Adding match to cart: ${matchToAdd.homeTeam.name} vs ${matchToAdd.awayTeam.name}`);
       if (id === 0) {
         // Clone the match and assign a unique ID
         const matchWithUniqueId = { ...matchToAdd, id: uniqueId };
@@ -466,11 +523,23 @@ const MatchPredictor = () => {
         addUpcomingMatch(matchToAdd);
       }
     }
+    
+    // Log the current cart state after the change
+    console.log(`Cart now contains ${useCartStore.getState().upcomingMatches.length} matches`);
   };
 
   const checkMatchInCart = (id: string | number, index: number): boolean => {
     const uniqueId = id === 0 ? `match-${index}` : id;
-    return isUpcomingMatchInCart(uniqueId);
+    const isInCart = isUpcomingMatchInCart(uniqueId);
+
+    // Add logging when matches are checked only during filtering, not during rendering
+    if (uniqueId === id) {
+      console.log(
+        `Checking if match with ID ${uniqueId} is in cart: ${isInCart}`
+      );
+    }
+
+    return isInCart;
   };
 
   const getMetricColor = (
@@ -593,92 +662,69 @@ const MatchPredictor = () => {
 
   // Filter function for matches
   const filterMatches = (matches: Match[]): Match[] => {
-    // First apply all filters except the time filter
-    const filteredBeforeTime = matches.filter((match) => {
+    console.log(`Starting filtering with ${matches.length} total matches`);
+    
+    // Apply all basic filters first (confidence, favorite, position gap, expected goals)
+    let filteredMatches = matches.filter((match) => {
       // Filter by confidence score
-      if (match.confidenceScore < filters.minConfidence) return false;
+      if (match.confidenceScore < filters.minConfidence) {
+        return false;
+      }
 
       // Filter by favorite
-      if (filters.favorite !== 'all' && match.favorite !== filters.favorite)
+      if (filters.favorite !== 'all' && match.favorite !== filters.favorite) {
         return false;
+      }
 
       // Filter by position gap
-      if (match.positionGap < filters.positionGap) return false;
+      if (match.positionGap < filters.positionGap) {
+        return false;
+      }
 
       // Filter by expected goals
-      if (match.expectedGoals < filters.minExpectedGoals) return false;
+      if (match.expectedGoals < filters.minExpectedGoals) {
+        return false;
+      }
 
       return true;
     });
 
-    // If we're not filtering by time, return all matches
-    if (!filters.showOnlyUpcoming) {
-      return filteredBeforeTime;
+    console.log(`After basic filters: ${filteredMatches.length} matches`);
+
+    // Next apply the time window filter if enabled
+    if (filters.showOnlyUpcoming) {
+      const windowFiltered = applyTimeWindowFilter(filteredMatches);
+      filteredMatches = windowFiltered;
+      console.log(`After time filter: ${filteredMatches.length} matches`);
     }
 
-    // Apply time filter
-    const filterByTimeWindow = (matches: Match[], windowHours: number) => {
-      return matches.filter((match) => {
-        try {
-          // Create a date object from the match date and time
-          // Handle different date/time formats more robustly
-          let matchDateTime;
-
-          if (match.date && match.time) {
-            // Try parsing with T separator first
-            matchDateTime = new Date(`${match.date}T${match.time}`);
-
-            // If that fails, try with space separator
-            if (isNaN(matchDateTime.getTime())) {
-              matchDateTime = new Date(`${match.date} ${match.time}`);
-            }
-          } else if (match.date) {
-            // If we only have a date but no time, use noon as default time
-            matchDateTime = new Date(`${match.date}T12:00:00`);
-          } else {
-            // If we have no valid date, skip this match
-            return false;
-          }
-
-          // Check if the date is valid
-          if (isNaN(matchDateTime.getTime())) {
-            console.error('Invalid date/time format:', match.date, match.time);
-            return false;
-          }
-
-          // Get current date and time
-          const now = new Date();
-
-          // Create a date for the current hour (minutes/seconds/ms set to 0)
-          const currentHour = new Date(now);
-          currentHour.setMinutes(0, 0, 0);
-
-          // Calculate hours later from the current hour
-          const laterTime = new Date(
-            currentHour.getTime() + windowHours * 60 * 60 * 1000
-          );
-
-          // Check if match time is in the desired range (current hour to 24 hours later)
-          if (matchDateTime < currentHour || matchDateTime > laterTime) {
-            return false;
-          }
-
-          return true;
-        } catch (error) {
-          console.error(
-            'Error parsing match date/time:',
-            error,
-            match.date,
-            match.time
-          );
-          // If there's an error parsing the date, exclude the match
-          return false;
+    // Finally, apply cart filter if enabled (after all other filters)
+    if (showOnlyCart) {
+      console.log(`Applying cart filter to ${filteredMatches.length} matches`);
+      const beforeCartCount = filteredMatches.length;
+      
+      filteredMatches = filteredMatches.filter((match, index) => {
+        const uniqueId = match.id === 0 ? `match-${index}` : match.id;
+        const isInCart = isUpcomingMatchInCart(uniqueId);
+        
+        if (isInCart) {
+          console.log(`Match in cart: ${match.homeTeam.name} vs ${match.awayTeam.name} (ID: ${uniqueId})`);
         }
+        
+        return isInCart;
       });
-    };
+      
+      console.log(`After cart filter: ${filteredMatches.length}/${beforeCartCount} matches remain`);
+    }
 
+    return filteredMatches;
+  };
+
+  // Helper function to apply time window filtering with adaptive window sizes
+  const applyTimeWindowFilter = (matches: Match[]): Match[] => {
     // Try 24 hour window first
-    const matchesIn24Hours = filterByTimeWindow(filteredBeforeTime, 24);
+    const matchesIn24Hours = filterByTimeWindow(matches, 24);
+    console.log(`Matches in 24h window: ${matchesIn24Hours.length}`);
 
     // If we have a reasonable number of matches in the 24 hour window, return those
     if (matchesIn24Hours.length >= 5) {
@@ -686,31 +732,18 @@ const MatchPredictor = () => {
     }
 
     // If we have very few matches, try a 72 hour window
-    const matchesIn72Hours = filterByTimeWindow(filteredBeforeTime, 72);
-
-    // If we have a reasonable number of matches in the 72 hour window, use those
+    const matchesIn72Hours = filterByTimeWindow(matches, 72);
+    console.log(`Matches in 72h window: ${matchesIn72Hours.length}`);
+    
+    // If we have a reasonable number of matches in the 72 hour window, return those
     if (matchesIn72Hours.length >= 5) {
-      console.log(
-        `Using 72-hour window because 24-hour window only had ${matchesIn24Hours.length} matches`
-      );
       return matchesIn72Hours;
     }
 
-    // If there are still very few matches, try a 7-day window
-    const matchesIn7Days = filterByTimeWindow(filteredBeforeTime, 168); // 7 days = 168 hours
-
-    if (matchesIn7Days.length > 0) {
-      console.log(
-        `Using 7-day window because shorter windows had too few matches`
-      );
-      return matchesIn7Days;
-    }
-
-    // As a last resort, return all matches
-    console.log(
-      `No matches found in any time window, returning all ${filteredBeforeTime.length} matches`
-    );
-    return filteredBeforeTime;
+    // As a last resort, try a 7 day window
+    const matchesIn7Days = filterByTimeWindow(matches, 24 * 7);
+    console.log(`Matches in 7 day window: ${matchesIn7Days.length}`);
+    return matchesIn7Days;
   };
 
   // Handle sorting
@@ -738,20 +771,30 @@ const MatchPredictor = () => {
 
   // Add a function to select all visible matches
   const selectAllVisibleMatches = () => {
+    console.log('Selecting all visible matches');
     const visibleMatches = filterMatches(sortMatches(upcomingMatches));
+    console.log(`Found ${visibleMatches.length} visible matches to select`);
+
+    let addedCount = 0;
     visibleMatches.forEach((match, index) => {
       // Only add matches that are not already in the cart
-      if (!checkMatchInCart(match.id, index)) {
-        // Use the same logic as in toggleMatchInCart to handle adding matches
-        const uniqueId = match.id === 0 ? `match-${index}` : match.id;
+      const uniqueId = match.id === 0 ? `match-${index}` : match.id;
+      if (!isUpcomingMatchInCart(uniqueId)) {
         if (match.id === 0) {
           const matchWithUniqueId = { ...match, id: uniqueId };
           addUpcomingMatch(matchWithUniqueId);
         } else {
           addUpcomingMatch(match);
         }
+        addedCount++;
       }
     });
+
+    console.log(
+      `Added ${addedCount} new matches to cart. Total cart size: ${
+        useCartStore.getState().upcomingMatches.length
+      }`
+    );
   };
 
   // Add a function to clear all selected matches
@@ -768,6 +811,8 @@ const MatchPredictor = () => {
       minExpectedGoals: 0,
       showOnlyUpcoming: false,
     });
+    // Also reset the cart filter
+    setShowOnlyCart(false);
   };
 
   // Add a function to toggle the upcoming matches filter
@@ -776,6 +821,32 @@ const MatchPredictor = () => {
       ...prev,
       showOnlyUpcoming: !prev.showOnlyUpcoming,
     }));
+  };
+
+  // Add a function to toggle showing only cart items
+  const toggleCartFilter = () => {
+    const newValue = !showOnlyCart;
+    console.log(`Toggling cart filter from ${showOnlyCart} to ${newValue}`);
+    console.log(
+      `Current cart size: ${
+        useCartStore.getState().upcomingMatches.length
+      } matches`
+    );
+
+    // Log some cart items for debugging
+    if (useCartStore.getState().upcomingMatches.length > 0) {
+      console.log('Sample cart items:');
+      useCartStore
+        .getState()
+        .upcomingMatches.slice(0, 3)
+        .forEach((match) => {
+          console.log(
+            `- ${match.homeTeam.name} vs ${match.awayTeam.name} (ID: ${match.id})`
+          );
+        });
+    }
+
+    setShowOnlyCart(newValue);
   };
 
   // Update tooltip to reflect adaptive time window
@@ -812,7 +883,21 @@ const MatchPredictor = () => {
     }
   };
 
-  // Add this helper function to format the date nicely for display
+  // Add scroll to top effect
+  useEffect(() => {
+    const handleScroll = () => {
+      // Show button when user scrolls down 300px
+      setShowScrollTop(window.scrollY > 300);
+    };
+
+    // Add scroll event listener
+    window.addEventListener('scroll', handleScroll);
+
+    // Remove event listener on cleanup
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Add helper function to format the date nicely for display
   const formatMatchDate = (date: string, time: string): string => {
     try {
       let matchDateTime;
@@ -870,25 +955,68 @@ const MatchPredictor = () => {
     }
   };
 
-  // Add scroll to top effect
-  useEffect(() => {
-    const handleScroll = () => {
-      // Show button when user scrolls down 300px
-      setShowScrollTop(window.scrollY > 300);
-    };
-
-    // Add scroll event listener
-    window.addEventListener('scroll', handleScroll);
-
-    // Remove event listener on cleanup
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
   const scrollToTop = () => {
     window.scrollTo({
       top: 0,
       behavior: 'smooth',
     });
+  };
+
+  // Now replace the showMatchesByHour function
+  const showMatchesByHour = () => {
+    // Get all matches
+    const dateGroups = {
+      Today: [],
+      Tomorrow: [],
+      Future: [],
+    };
+
+    // First group matches by date
+    upcomingMatches.forEach((match) => {
+      if (!match.date || !match.time) return;
+
+      // Get formatted date like "Today", "Tomorrow" or the actual date
+      const formattedDate = formatMatchDate(match.date, match.time).split(
+        ','
+      )[0];
+
+      // Assign to date group
+      if (formattedDate === 'Today') {
+        dateGroups['Today'].push(match);
+      } else if (formattedDate === 'Tomorrow') {
+        dateGroups['Tomorrow'].push(match);
+      } else {
+        dateGroups['Future'].push(match);
+      }
+    });
+
+    // For each date group, count matches by hour
+    const formattedData: {
+      [key: string]: { total: number; hourData: { [hour: string]: number } };
+    } = {};
+
+    Object.keys(dateGroups).forEach((dateGroup) => {
+      const matches = dateGroups[dateGroup];
+      formattedData[dateGroup] = {
+        total: matches.length,
+        hourData: {},
+      };
+
+      if (matches.length === 0) {
+        return;
+      }
+
+      // Group by hour within this date group
+      matches.forEach((match) => {
+        const hour = match.time.split(':')[0];
+        formattedData[dateGroup].hourData[hour] =
+          (formattedData[dateGroup].hourData[hour] || 0) + 1;
+      });
+    });
+
+    // Set the analytics data and show the modal
+    setAnalyticsData(formattedData);
+    setShowAnalyticsModal(true);
   };
 
   if (isLoading) {
@@ -1065,6 +1193,40 @@ const MatchPredictor = () => {
                 }
               >
                 {filters.showOnlyUpcoming ? 'Upcoming Matches' : 'All Times'}
+              </button>
+            </div>
+
+            <div>
+              <label className='text-gray-500 text-xs block mb-1'>
+                Cart Filter
+              </label>
+              <button
+                className={`px-3 py-1 text-sm rounded border ${
+                  showOnlyCart
+                    ? 'bg-green-600 text-white border-green-700'
+                    : 'bg-white text-gray-800 border-gray-300'
+                }`}
+                onClick={toggleCartFilter}
+                title={
+                  showOnlyCart
+                    ? 'Currently showing only matches in your cart'
+                    : 'Currently showing all matches (click to show only cart items)'
+                }
+              >
+                {showOnlyCart ? 'Cart Items Only' : 'All Matches'}
+              </button>
+            </div>
+
+            <div>
+              <label className='text-gray-500 text-xs block mb-1'>
+                Analytics
+              </label>
+              <button
+                className='px-3 py-1 text-sm rounded border bg-blue-500 text-white border-blue-600'
+                onClick={showMatchesByHour}
+                title='Show analytics of matches by date and hour'
+              >
+                Show Match Analytics
               </button>
             </div>
 
@@ -1762,6 +1924,105 @@ const MatchPredictor = () => {
           </tbody>
         </table>
       </div>
+
+      {/* Analytics Modal */}
+      {showAnalyticsModal && (
+        <div className='fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50'>
+          <div className='bg-white rounded-lg shadow-xl mx-4 w-full max-w-2xl max-h-[80vh] overflow-auto'>
+            <div className='p-4 border-b border-gray-200 flex justify-between items-center'>
+              <h2 className='text-xl font-bold text-gray-800'>
+                Match Analytics
+              </h2>
+              <button
+                className='text-gray-400 hover:text-gray-600 focus:outline-none'
+                onClick={() => setShowAnalyticsModal(false)}
+              >
+                <svg
+                  xmlns='http://www.w3.org/2000/svg'
+                  className='h-6 w-6'
+                  fill='none'
+                  viewBox='0 0 24 24'
+                  stroke='currentColor'
+                >
+                  <path
+                    strokeLinecap='round'
+                    strokeLinejoin='round'
+                    strokeWidth={2}
+                    d='M6 18L18 6M6 6l12 12'
+                  />
+                </svg>
+              </button>
+            </div>
+
+            <div className='p-6 space-y-6'>
+              {Object.keys(analyticsData).map((dateGroup) => (
+                <div key={dateGroup} className='mb-6'>
+                  <div className='flex items-center mb-3'>
+                    <h3 className='text-lg font-semibold text-gray-700'>
+                      {dateGroup}
+                    </h3>
+                    <div className='ml-3 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm'>
+                      {analyticsData[dateGroup].total} matches
+                    </div>
+                  </div>
+
+                  {analyticsData[dateGroup].total === 0 ? (
+                    <p className='text-gray-500 italic'>No matches scheduled</p>
+                  ) : (
+                    <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3'>
+                      {Object.keys(analyticsData[dateGroup].hourData)
+                        .sort((a, b) => parseInt(a) - parseInt(b))
+                        .map((hour) => {
+                          const count = analyticsData[dateGroup].hourData[hour];
+                          const formattedHour = `${hour}:00`;
+
+                          // Calculate percentage for the progress bar
+                          const maxCount = Math.max(
+                            ...Object.values(analyticsData[dateGroup].hourData)
+                          );
+                          const percentage = Math.round(
+                            (count / maxCount) * 100
+                          );
+
+                          return (
+                            <div
+                              key={hour}
+                              className='bg-gray-50 rounded-lg p-3 border border-gray-200'
+                            >
+                              <div className='flex justify-between items-center mb-2'>
+                                <span className='font-medium text-gray-700'>
+                                  {formattedHour}
+                                </span>
+                                <span className='text-blue-600 font-semibold'>
+                                  {count} matches
+                                </span>
+                              </div>
+                              <div className='w-full bg-gray-200 rounded-full h-2.5'>
+                                <div
+                                  className='bg-blue-600 h-2.5 rounded-full'
+                                  style={{ width: `${percentage}%` }}
+                                ></div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div className='border-t border-gray-200 p-4 flex justify-end'>
+              <button
+                className='px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors'
+                onClick={() => setShowAnalyticsModal(false)}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Scroll to top button */}
       {showScrollTop && (
