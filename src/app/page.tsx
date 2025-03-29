@@ -881,9 +881,9 @@ const MatchesPage = () => {
 
   // Update the copy function to handle both carts
   const copyAllNames = () => {
-    // Get names from regular cart
+    // Get only home team names from regular cart
     const cartTeamNames = cartItems.map(
-      (item) => `${item.teams.home.name} vs ${item.teams.away.name}`
+      (item) => item.teams.home.name
     );
 
     // Get only favorite team names from upcoming matches cart
