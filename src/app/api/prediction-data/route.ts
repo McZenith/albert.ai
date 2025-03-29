@@ -45,26 +45,28 @@ interface HeadToHead {
   }>;
 }
 
+interface UpcomingMatch {
+  id: number;
+  homeTeam: Team;
+  awayTeam: Team;
+  date: string;
+  time: string;
+  venue: string;
+  positionGap: number;
+  favorite: 'home' | 'away' | null;
+  confidenceScore: number;
+  averageGoals: number;
+  expectedGoals: number;
+  defensiveStrength: number;
+  headToHead: HeadToHead;
+  odds?: Record<string, number>;
+  cornerStats?: Record<string, number>;
+  scoringPatterns?: Record<string, number>;
+  reasonsForPrediction: string[];
+}
+
 interface PredictionData {
-  upcomingMatches: Array<{
-    id: number;
-    homeTeam: Team;
-    awayTeam: Team;
-    date: string;
-    time: string;
-    venue: string;
-    positionGap: number;
-    favorite: 'home' | 'away' | null;
-    confidenceScore: number;
-    averageGoals: number;
-    expectedGoals: number;
-    defensiveStrength: number;
-    headToHead: HeadToHead;
-    odds?: Record<string, number>;
-    cornerStats?: Record<string, number>;
-    scoringPatterns?: Record<string, number>;
-    reasonsForPrediction: string[];
-  }>;
+  upcomingMatches: Array<UpcomingMatch>;
   metadata: {
     total: number;
     date: string;
@@ -72,245 +74,296 @@ interface PredictionData {
   };
 }
 
-// Cache to store the data
-let cachedData: PredictionData | null = null;
-let lastFetchTime: number = 0;
-const CACHE_DURATION = 3 * 60 * 60 * 1000; // 3 hours in milliseconds
 const BASE_URL = 'https://fredapi-5da7cd50ded2.herokuapp.com/api/prediction-data';
-const DEFAULT_PAGE_SIZE = 50; // Default number of items per page
 
-const fetchAllPages = async (): Promise<PredictionData> => {
-  // First try to access the API with pagination parameters
-  const response = await fetch(`${BASE_URL}?page=1&pageSize=${DEFAULT_PAGE_SIZE}`, {
-    next: { revalidate: CACHE_DURATION / 1000 },
-    headers: {
-      'Accept': 'application/json',
-      'User-Agent': 'Albert.ai Football Prediction App'
-    }
-  });
-
-  if (!response.ok) {
-    throw new Error(`API responded with status: ${response.status}`);
-  }
-
-  const responseData = await response.json();
-
-  // Check if the response has the new paginated structure
-  if (responseData.data && responseData.pagination) {
-    // New paginated structure detected
-    let allUpcomingMatches = [...responseData.data.upcomingMatches];
-    const metadata = responseData.data.metadata;
-    const { totalPages, currentPage } = responseData.pagination;
-
-    // Only fetch additional pages if there are more pages and we're on page 1
-    if (totalPages > 1 && currentPage === 1) {
-      const pagePromises = [];
-      // Limit to 5 more pages to avoid excessive requests
-      const maxPages = Math.min(totalPages, 5);
-
-      for (let page = 2; page <= maxPages; page++) {
-        pagePromises.push(
-          fetch(`${BASE_URL}?page=${page}&pageSize=${DEFAULT_PAGE_SIZE}`, {
-            next: { revalidate: CACHE_DURATION / 1000 },
-            headers: {
-              'Accept': 'application/json',
-              'User-Agent': 'Albert.ai Football Prediction App'
-            }
-          }).then(res => {
-            if (!res.ok) {
-              console.error(`Error fetching page ${page}: ${res.status}`);
-              return { data: { upcomingMatches: [] } };
-            }
-            return res.json();
-          })
-        );
+// This version requests all data at once (uses the backend's batch endpoint)
+const fetchAllMatches = async (): Promise<PredictionData> => {
+  try {
+    // Send a request to the backend with a flag to get all data at once
+    console.log("Fetching all matches in a single request...");
+    const response = await fetch(`${BASE_URL}?getAllMatches=true&pageSize=1000`, {
+      headers: {
+        'Accept': 'application/json',
+        'User-Agent': 'Albert.ai Football Prediction App'
       }
+    });
 
-      try {
-        const additionalPagesResponses = await Promise.all(pagePromises);
-
-        // Combine all matches from all pages, ensuring proper data structure
-        additionalPagesResponses.forEach(pageResponse => {
-          // Extract upcomingMatches from the response
-          const pageMatches = pageResponse.data?.upcomingMatches || [];
-
-          if (Array.isArray(pageMatches)) {
-            // Verify and normalize each match before adding
-            const normalizedMatches = pageMatches.filter((match: any) => {
-              // Verify match has required properties
-              return match && match.homeTeam && match.awayTeam && match.id;
-            }).map((match: any) => {
-              // Ensure each match has all expected properties
-              return {
-                ...match,
-                // Ensure all required team properties exist
-                homeTeam: {
-                  name: match.homeTeam.name || '',
-                  position: match.homeTeam.position || 0,
-                  logo: match.homeTeam.logo || '',
-                  avgHomeGoals: match.homeTeam.avgHomeGoals || 0,
-                  avgAwayGoals: match.homeTeam.avgAwayGoals || 0,
-                  avgTotalGoals: match.homeTeam.avgTotalGoals || 0,
-                  form: match.homeTeam.form || '',
-                  cleanSheets: match.homeTeam.cleanSheets || 0,
-                  // Add other optional properties as needed
-                  ...match.homeTeam
-                },
-                awayTeam: {
-                  name: match.awayTeam.name || '',
-                  position: match.awayTeam.position || 0,
-                  logo: match.awayTeam.logo || '',
-                  avgHomeGoals: match.awayTeam.avgHomeGoals || 0,
-                  avgAwayGoals: match.awayTeam.avgAwayGoals || 0,
-                  avgTotalGoals: match.awayTeam.avgTotalGoals || 0,
-                  form: match.awayTeam.form || '',
-                  cleanSheets: match.awayTeam.cleanSheets || 0,
-                  // Add other optional properties as needed
-                  ...match.awayTeam
-                },
-                // Ensure other match properties
-                date: match.date || '',
-                time: match.time || '',
-                venue: match.venue || '',
-                positionGap: match.positionGap || 0,
-                favorite: match.favorite || null,
-                confidenceScore: match.confidenceScore || 0,
-                averageGoals: match.averageGoals || 0,
-                expectedGoals: match.expectedGoals || 0,
-                defensiveStrength: match.defensiveStrength || 1,
-                headToHead: match.headToHead || {
-                  matches: 0,
-                  wins: 0,
-                  draws: 0,
-                  losses: 0,
-                  goalsScored: 0,
-                  goalsConceded: 0
-                },
-                reasonsForPrediction: match.reasonsForPrediction || []
-              };
-            });
-
-            allUpcomingMatches = [...allUpcomingMatches, ...normalizedMatches];
-          }
-        });
-
-        // Update metadata with the actual number of matches we fetched
-        metadata.total = allUpcomingMatches.length;
-      } catch (err) {
-        console.error('Error fetching additional pages:', err);
-        // Continue with just the first page data
-      }
+    if (!response.ok) {
+      throw new Error(`API responded with status: ${response.status}`);
     }
 
-    // Normalize the first page data as well for consistency
-    const normalizedMatches = allUpcomingMatches.map((match: any) => ({
-      ...match,
-      homeTeam: {
-        ...match.homeTeam,
-        avgHomeGoals: match.homeTeam.avgHomeGoals || 0,
-        avgAwayGoals: match.homeTeam.avgAwayGoals || 0,
-        avgTotalGoals: match.homeTeam.avgTotalGoals || 0,
-      },
-      awayTeam: {
-        ...match.awayTeam,
-        avgHomeGoals: match.awayTeam.avgHomeGoals || 0,
-        avgAwayGoals: match.awayTeam.avgAwayGoals || 0,
-        avgTotalGoals: match.awayTeam.avgTotalGoals || 0,
-      }
-    }));
+    const responseData = await response.json();
+    console.log(`Received response with status ${response.status}`);
 
-    return {
-      upcomingMatches: normalizedMatches,
-      metadata: metadata
-    };
-  } else {
-    // Old structure or direct data format
-    // Make sure to normalize this data too
-    const upcomingMatches = responseData.data?.upcomingMatches || responseData.upcomingMatches || [];
-    const metadata = responseData.data?.metadata || responseData.metadata || {
-      total: upcomingMatches.length,
+    let matches: Partial<UpcomingMatch>[] = [];
+    let metadata = {
+      total: 0,
       date: new Date().toISOString().split('T')[0],
       leagueData: {}
     };
 
-    // Normalize all matches to ensure consistent structure
-    const normalizedMatches = upcomingMatches.map((match: any) => ({
-      ...match,
-      homeTeam: {
-        ...match.homeTeam,
-        avgHomeGoals: match.homeTeam.avgHomeGoals || 0,
-        avgAwayGoals: match.homeTeam.avgAwayGoals || 0,
-        avgTotalGoals: match.homeTeam.avgTotalGoals || 0,
-      },
-      awayTeam: {
-        ...match.awayTeam,
-        avgHomeGoals: match.awayTeam.avgHomeGoals || 0,
-        avgAwayGoals: match.awayTeam.avgAwayGoals || 0,
-        avgTotalGoals: match.awayTeam.avgTotalGoals || 0,
-      }
-    }));
+    // Try different possible data structures from the API
+    if (responseData.data?.upcomingMatches) {
+      matches = responseData.data.upcomingMatches;
+      metadata = responseData.data.metadata || metadata;
+      console.log(`Found ${matches.length} matches in data.upcomingMatches`);
+    } else if (responseData.upcomingMatches) {
+      matches = responseData.upcomingMatches;
+      metadata = responseData.metadata || metadata;
+      console.log(`Found ${matches.length} matches in upcomingMatches`);
+    } else if (Array.isArray(responseData)) {
+      matches = responseData;
+      console.log(`Found ${matches.length} matches in array response`);
+    } else {
+      console.log("Unexpected API response structure:", Object.keys(responseData));
+      throw new Error("Unexpected API response structure");
+    }
+
+    // Process and normalize all matches
+    const normalizedMatches = processMatches(matches);
+    console.log(`Successfully processed ${normalizedMatches.length} matches`);
 
     return {
       upcomingMatches: normalizedMatches,
-      metadata: metadata
+      metadata: {
+        ...metadata,
+        total: normalizedMatches.length
+      }
     };
+  } catch (error) {
+    console.error("Error in fetchAllMatches:", error);
+    throw error;
   }
+};
+
+// Fallback method to fetch page by page if getting all matches at once fails
+const fetchAllPages = async (): Promise<PredictionData> => {
+  try {
+    console.log("Falling back to page-by-page fetch approach");
+
+    // First, find out how many pages there are
+    const initialResponse = await fetch(`${BASE_URL}?page=1&pageSize=50`, {
+      headers: {
+        'Accept': 'application/json',
+        'User-Agent': 'Albert.ai Football Prediction App'
+      }
+    });
+
+    if (!initialResponse.ok) {
+      throw new Error(`API responded with status: ${initialResponse.status}`);
+    }
+
+    const initialData = await initialResponse.json();
+    let totalPages = 1;
+
+    if (initialData.pagination && initialData.pagination.totalPages) {
+      totalPages = initialData.pagination.totalPages;
+    }
+
+    console.log(`Found ${totalPages} total pages to fetch`);
+
+    // Extract matches from first page
+    let allMatches: Partial<UpcomingMatch>[] = [];
+    let metadata = {
+      total: 0,
+      date: new Date().toISOString().split('T')[0],
+      leagueData: {}
+    };
+
+    if (initialData.data?.upcomingMatches) {
+      allMatches = [...initialData.data.upcomingMatches];
+      metadata = initialData.data.metadata || metadata;
+    } else if (initialData.upcomingMatches) {
+      allMatches = [...initialData.upcomingMatches];
+      metadata = initialData.metadata || metadata;
+    }
+
+    console.log(`Extracted ${allMatches.length} matches from page 1`);
+
+    // Now fetch all other pages (if any)
+    if (totalPages > 1) {
+      const pagePromises = [];
+
+      for (let page = 2; page <= totalPages; page++) {
+        pagePromises.push(fetch(`${BASE_URL}?page=${page}&pageSize=50`, {
+          headers: {
+            'Accept': 'application/json',
+            'User-Agent': 'Albert.ai Football Prediction App'
+          }
+        }).then(res => {
+          if (!res.ok) {
+            console.error(`Error fetching page ${page}: ${res.status}`);
+            return null;
+          }
+          return res.json();
+        }).catch(err => {
+          console.error(`Failed to fetch page ${page}:`, err);
+          return null;
+        }));
+      }
+
+      const pageResponses = await Promise.all(pagePromises);
+
+      // Extract matches from each page
+      pageResponses.forEach((response, index) => {
+        if (!response) return;
+
+        const pageNumber = index + 2;
+        let pageMatches: Partial<UpcomingMatch>[] = [];
+
+        if (response.data?.upcomingMatches) {
+          pageMatches = response.data.upcomingMatches;
+        } else if (response.upcomingMatches) {
+          pageMatches = response.upcomingMatches;
+        }
+
+        console.log(`Extracted ${pageMatches.length} matches from page ${pageNumber}`);
+        allMatches = [...allMatches, ...pageMatches];
+      });
+    }
+
+    // Process and normalize all matches
+    const normalizedMatches = processMatches(allMatches);
+    console.log(`Successfully processed ${normalizedMatches.length} matches from ${totalPages} pages`);
+
+    return {
+      upcomingMatches: normalizedMatches,
+      metadata: {
+        ...metadata,
+        total: normalizedMatches.length
+      }
+    };
+  } catch (error) {
+    console.error("Error in fetchAllPages:", error);
+    throw error;
+  }
+};
+
+// Helper function to format time to local time
+const formatToLocalTime = (date: string, time: string): string => {
+  if (!date || !time) return time || '';
+
+  try {
+    // Based on testing, we know the server returns time in HH:MM format
+    // Still, let's normalize time format to handle edge cases
+    let normalizedTime = time;
+
+    // Check if time contains seconds (HH:MM:SS) and strip them if needed
+    if (/^\d{1,2}:\d{2}:\d{2}$/.test(time)) {
+      normalizedTime = time.substring(0, 5);
+    }
+
+    // Check if time is in 24-hour format without colon (e.g., "1430")
+    if (/^\d{4}$/.test(time)) {
+      normalizedTime = `${time.substring(0, 2)}:${time.substring(2, 4)}`;
+    }
+
+    // Combine date and normalized time strings, ensuring proper format
+    // Add seconds (":00") if they're not already there
+    const dateTimeStr = normalizedTime.includes(':') && normalizedTime.length === 5
+      ? `${date}T${normalizedTime}:00`
+      : `${date}T${normalizedTime}`;
+
+    // Verify the combined date+time string is valid
+    const dateObj = new Date(dateTimeStr);
+    if (isNaN(dateObj.getTime())) {
+      console.warn(`Invalid date created from: ${dateTimeStr}, using original time`);
+      return normalizedTime;
+    }
+
+    // Format with options for 12-hour format with AM/PM
+    const formattedTime = dateObj.toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true // Use 12-hour format with AM/PM
+    });
+
+    return formattedTime;
+  } catch (error) {
+    console.error('Error formatting time to local time:', error, 'for date:', date, 'time:', time);
+    return time;
+  }
+};
+
+// Helper function to process and normalize match data
+const processMatches = (matches: Partial<UpcomingMatch>[]): UpcomingMatch[] => {
+  return matches
+    .filter(match => Boolean(match && match.homeTeam && match.awayTeam && match.id))
+    .map(match => {
+      const localTime = formatToLocalTime(match.date || '', match.time || '');
+
+      return {
+        id: match.id as number,
+        homeTeam: {
+          name: match.homeTeam?.name || '',
+          position: match.homeTeam?.position || 0,
+          logo: match.homeTeam?.logo || '',
+          avgHomeGoals: match.homeTeam?.avgHomeGoals || 0,
+          avgAwayGoals: match.homeTeam?.avgAwayGoals || 0,
+          avgTotalGoals: match.homeTeam?.avgTotalGoals || 0,
+          form: match.homeTeam?.form || '',
+          cleanSheets: match.homeTeam?.cleanSheets || 0,
+          ...match.homeTeam
+        },
+        awayTeam: {
+          name: match.awayTeam?.name || '',
+          position: match.awayTeam?.position || 0,
+          logo: match.awayTeam?.logo || '',
+          avgHomeGoals: match.awayTeam?.avgHomeGoals || 0,
+          avgAwayGoals: match.awayTeam?.avgAwayGoals || 0,
+          avgTotalGoals: match.awayTeam?.avgTotalGoals || 0,
+          form: match.awayTeam?.form || '',
+          cleanSheets: match.awayTeam?.cleanSheets || 0,
+          ...match.awayTeam
+        },
+        date: match.date || '',
+        time: localTime,
+        venue: match.venue || '',
+        positionGap: match.positionGap || 0,
+        favorite: match.favorite || null,
+        confidenceScore: match.confidenceScore || 0,
+        averageGoals: match.averageGoals || 0,
+        expectedGoals: match.expectedGoals || 0,
+        defensiveStrength: match.defensiveStrength || 1,
+        headToHead: match.headToHead || {
+          matches: 0,
+          wins: 0,
+          draws: 0,
+          losses: 0,
+          goalsScored: 0,
+          goalsConceded: 0
+        },
+        odds: match.odds || {},
+        cornerStats: match.cornerStats || {},
+        scoringPatterns: match.scoringPatterns || {},
+        reasonsForPrediction: match.reasonsForPrediction || []
+      } as UpcomingMatch;
+    });
 };
 
 export async function GET() {
   try {
-    const currentTime = Date.now();
+    console.log("Starting prediction data fetch...");
+    let data: PredictionData;
 
-    // Return cached data if it exists and hasn't expired
-    if (cachedData && currentTime - lastFetchTime < CACHE_DURATION) {
-      return NextResponse.json({
-        ...cachedData,
-        cache: {
-          isCached: true,
-          lastUpdated: new Date(lastFetchTime).toISOString(),
-          cacheAge: Math.round((currentTime - lastFetchTime) / 1000 / 60), // minutes
-          nextRefresh: new Date(lastFetchTime + CACHE_DURATION).toISOString()
-        }
-      });
+    // Try to fetch all matches at once first
+    try {
+      data = await fetchAllMatches();
+    } catch (error) {
+      console.log("Error fetching all matches at once, falling back to pagination:", error);
+      // If that fails, fall back to fetching page by page
+      data = await fetchAllPages();
     }
-
-    // Fetch fresh data if cache is empty or expired
-    const data = await fetchAllPages();
 
     // Make sure the data has the expected structure
     if (!data.upcomingMatches || !Array.isArray(data.upcomingMatches)) {
       throw new Error('Invalid data structure received from API');
     }
 
-    // Update cache and last fetch time
-    cachedData = data;
-    lastFetchTime = currentTime;
-
-    return NextResponse.json({
-      ...data,
-      cache: {
-        isCached: false,
-        lastUpdated: new Date(lastFetchTime).toISOString(),
-        cacheAge: 0,
-        nextRefresh: new Date(lastFetchTime + CACHE_DURATION).toISOString()
-      }
-    });
+    console.log(`Returning ${data.upcomingMatches.length} total matches to client`);
+    return NextResponse.json(data);
   } catch (error) {
     console.error('Error fetching prediction data:', error);
-
-    // If we have cached data, return it even if it's expired rather than failing
-    if (cachedData) {
-      return NextResponse.json({
-        ...cachedData,
-        cache: {
-          isCached: true,
-          lastUpdated: new Date(lastFetchTime).toISOString(),
-          cacheAge: Math.round((Date.now() - lastFetchTime) / 1000 / 60), // minutes
-          nextRefresh: new Date(lastFetchTime + CACHE_DURATION).toISOString(),
-          error: error instanceof Error ? error.message : 'Unknown error while refreshing cache'
-        }
-      });
-    }
 
     return NextResponse.json(
       {
