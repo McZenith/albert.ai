@@ -241,30 +241,30 @@ const ClientOnlyLoader = () => {
 // Helper function to normalize time formats 
 const normalizeTimeFormat = (timeStr: string): string => {
   if (!timeStr) return '';
-  
+
   // Already in 24-hour format (HH:MM)
   if (/^\d{1,2}:\d{2}$/.test(timeStr)) {
     // Make sure hours are 2 digits
     const [hours, minutes] = timeStr.split(':');
     return `${hours.padStart(2, '0')}:${minutes}`;
   }
-  
+
   // Handle "XX:XX AM/PM" format
   const amPmMatch = timeStr.match(/^(\d{1,2}):(\d{2})\s*(am|pm)$/i);
   if (amPmMatch) {
-    let [_, hours, minutes, ampm] = amPmMatch;
+    const [, hours, minutes, ampm] = amPmMatch;
     let hourNum = parseInt(hours);
-    
+
     // Convert to 24-hour format
     if (ampm.toLowerCase() === 'pm' && hourNum < 12) {
       hourNum += 12;
     } else if (ampm.toLowerCase() === 'am' && hourNum === 12) {
       hourNum = 0;
     }
-    
+
     return `${hourNum.toString().padStart(2, '0')}:${minutes}`;
   }
-  
+
   return timeStr;
 };
 
@@ -780,7 +780,7 @@ const MatchPredictor = () => {
         // If the date is from 2025, correct it to the current year for filtering purposes
         let dateToUse = match.date;
         if (match.date.startsWith('2025-')) {
-          const [_, month, day] = match.date.split('-');
+          const [, month, day] = match.date.split('-');
           const currentYear = new Date().getFullYear();
           dateToUse = `${currentYear}-${month}-${day}`;
         }
@@ -800,7 +800,7 @@ const MatchPredictor = () => {
               : timeToUse;
 
           matchDateTime = new Date(`${dateToUse}T${timeWithSeconds}`);
-        } catch (e) {
+        } catch (_) {
           // Fallback to manual parsing
         }
 
@@ -834,7 +834,7 @@ const MatchPredictor = () => {
 
             // JavaScript months are 0-indexed
             matchDateTime = new Date(year, month - 1, day, hours, minutes);
-          } catch (e) {
+          } catch (_) {
             // If all else fails, use noon on the match date
             matchDateTime = new Date(`${dateToUse}T12:00:00`);
           }

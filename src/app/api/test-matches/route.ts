@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 // Generate test matches for debugging the 1 PM issue
-export async function GET(request: NextRequest): Promise<NextResponse> {
+export async function GET(_request: NextRequest): Promise<NextResponse> {
     try {
         // Create test data with matches at 1 PM tomorrow
         const testData = generateTestMatches();
@@ -16,13 +16,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
                 }
             }
         });
-    } catch (error: any) {
-        console.error('Error generating test matches:', error.message);
+    } catch (error: Error | unknown) {
+        console.error('Error generating test matches:',
+            error instanceof Error ? error.message : 'Unknown error');
 
         return NextResponse.json(
             {
                 error: 'Failed to generate test matches',
-                message: error.message
+                message: error instanceof Error ? error.message : 'Unknown error'
             },
             { status: 500 }
         );
