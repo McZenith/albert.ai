@@ -209,80 +209,131 @@ const enhancedCleanTeamName = (name: string): string => {
   return cleanedName;
 };
 
+// Client-only wrapper for Loader2 to ensure hydration consistency
+const ClientOnlyLoader = () => {
+  const [isClient, setIsClient] = useState(false);
+  
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+  
+  if (!isClient) {
+    // Server rendering - use a div with the same dimensions
+    return (
+      <>
+        <div className="w-12 h-12 text-blue-500 mb-4" />
+        <p className='text-gray-600'>Loading prediction data...</p>
+      </>
+    );
+  }
+  
+  // Client rendering - use the actual Loader2 component
+  return (
+    <>
+      <Loader2 className='w-12 h-12 text-blue-500 animate-spin mb-4' />
+      <p className='text-gray-600'>Loading prediction data...</p>
+    </>
+  );
+};
+
 const MatchPredictor = () => {
+  // Remove localStorage access from initial state
   const [expandedMatch, setExpandedMatch] = useState<string | number | null>(
-    () => {
-      // Initialize expandedMatch from localStorage if available
-      if (typeof window !== 'undefined') {
-        const savedExpandedMatch = localStorage.getItem('expandedMatch');
-        // Convert to number if it's a numeric string, otherwise return the string or null
-        if (savedExpandedMatch) {
-          if (!isNaN(Number(savedExpandedMatch))) {
-            return Number(savedExpandedMatch);
-          }
-          return savedExpandedMatch;
+    null
+  );
+  const [sortField, setSortField] = useState<string>('confidenceScore');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [filters, setFilters] = useState<Filters>({
+    minConfidence: 0,
+    favorite: 'all',
+    positionGap: 0,
+    minExpectedGoals: 0,
+  });
+
+  // New effect to load stored values after component mounts (client-side only)
+  useEffect(() => {
+    // Load saved values from localStorage after mount
+    try {
+      // For expandedMatch
+      const savedExpandedMatch = localStorage.getItem('expandedMatch');
+      if (savedExpandedMatch) {
+        if (!isNaN(Number(savedExpandedMatch))) {
+          setExpandedMatch(Number(savedExpandedMatch));
+        } else {
+          setExpandedMatch(savedExpandedMatch);
         }
       }
-      return null;
-    }
-  );
-  const [sortField, setSortField] = useState<string>(() => {
-    // Initialize sortField from localStorage if available
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('upcomingSortField') || 'confidenceScore';
-    }
-    return 'confidenceScore';
-  });
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>(() => {
-    // Initialize sortDirection from localStorage if available
-    if (typeof window !== 'undefined') {
-      return (
-        (localStorage.getItem('upcomingSortDirection') as 'asc' | 'desc') ||
-        'desc'
-      );
-    }
-    return 'desc';
-  });
-  const [filters, setFilters] = useState<Filters>(() => {
-    // Initialize filters from localStorage if available
-    if (typeof window !== 'undefined') {
+
+      // For sortField
+      const savedSortField = localStorage.getItem('upcomingSortField');
+      if (savedSortField) {
+        setSortField(savedSortField);
+      }
+
+      // For sortDirection
+      const savedSortDirection = localStorage.getItem(
+        'upcomingSortDirection'
+      ) as 'asc' | 'desc';
+      if (
+        savedSortDirection &&
+        (savedSortDirection === 'asc' || savedSortDirection === 'desc')
+      ) {
+        setSortDirection(savedSortDirection);
+      }
+
+      // For filters
       const savedFilters = localStorage.getItem('upcomingFilters');
       if (savedFilters) {
         try {
-          return JSON.parse(savedFilters) as Filters;
+          setFilters(JSON.parse(savedFilters) as Filters);
         } catch (e) {
           console.error('Failed to parse saved filters', e);
         }
       }
+    } catch (error) {
+      // Silently handle any localStorage errors
+      console.error('Error accessing localStorage:', error);
     }
-    return {
-      minConfidence: 0,
-      favorite: 'all',
-      positionGap: 0,
-      minExpectedGoals: 0,
-    };
-  });
+  }, []); // Empty dependency array means this runs once after mount
 
   // Save expandedMatch to localStorage whenever it changes
   useEffect(() => {
-    if (expandedMatch !== null) {
-      localStorage.setItem('expandedMatch', String(expandedMatch));
-    } else {
-      localStorage.removeItem('expandedMatch');
+    try {
+      if (expandedMatch !== null) {
+        localStorage.setItem('expandedMatch', String(expandedMatch));
+      } else {
+        localStorage.removeItem('expandedMatch');
+      }
+    } catch (error) {
+      console.error('Error saving expandedMatch to localStorage:', error);
     }
   }, [expandedMatch]);
 
-  // Save sort and filter state to localStorage
+  // Save sort field to localStorage
   useEffect(() => {
-    localStorage.setItem('upcomingSortField', sortField);
+    try {
+      localStorage.setItem('upcomingSortField', sortField);
+    } catch (error) {
+      console.error('Error saving sortField to localStorage:', error);
+    }
   }, [sortField]);
 
+  // Save sort direction to localStorage
   useEffect(() => {
-    localStorage.setItem('upcomingSortDirection', sortDirection);
+    try {
+      localStorage.setItem('upcomingSortDirection', sortDirection);
+    } catch (error) {
+      console.error('Error saving sortDirection to localStorage:', error);
+    }
   }, [sortDirection]);
 
+  // Save filters to localStorage
   useEffect(() => {
-    localStorage.setItem('upcomingFilters', JSON.stringify(filters));
+    try {
+      localStorage.setItem('upcomingFilters', JSON.stringify(filters));
+    } catch (error) {
+      console.error('Error saving filters to localStorage:', error);
+    }
   }, [filters]);
 
   // New states for API data
@@ -447,7 +498,7 @@ const MatchPredictor = () => {
   // Sort function for matches
   const sortMatches = (matches: Match[]): Match[] => {
     return [...matches].sort((a, b) => {
-      let aValue: number, bValue: number;
+      let aValue: number | string | Date, bValue: number | string | Date;
 
       // Handle nested properties
       if (sortField === 'homeAvg') {
@@ -489,6 +540,30 @@ const MatchPredictor = () => {
       } else if (sortField === 'h2h') {
         aValue = a.headToHead.wins / Math.max(1, a.headToHead.matches);
         bValue = b.headToHead.wins / Math.max(1, b.headToHead.matches);
+      } else if (sortField === 'matchTime') {
+        // For server rendering, use string comparison of ISO dates first
+        if (typeof window === 'undefined') {
+          // Simple string comparison for server-side rendering to avoid hydration mismatch
+          const aDateStr = `${a.date} ${a.time || '00:00'}`;
+          const bDateStr = `${b.date} ${b.time || '00:00'}`;
+
+          if (sortDirection === 'asc') {
+            return aDateStr.localeCompare(bDateStr);
+          } else {
+            return bDateStr.localeCompare(aDateStr);
+          }
+        }
+
+        // Client-side only: Convert date & time strings to Date objects for comparison
+        const aDate = new Date(`${a.date} ${a.time || '00:00'}`);
+        const bDate = new Date(`${b.date} ${b.time || '00:00'}`);
+
+        // Direct comparison of timestamps for dates
+        if (sortDirection === 'asc') {
+          return aDate.getTime() - bDate.getTime();
+        } else {
+          return bDate.getTime() - aDate.getTime();
+        }
       } else {
         // Convert to unknown first, then to Record<string, number>
         aValue = (a as unknown as Record<string, number>)[sortField] || 0;
@@ -497,9 +572,13 @@ const MatchPredictor = () => {
 
       // Compare based on direction
       if (sortDirection === 'asc') {
-        return aValue - bValue;
+        return typeof aValue === 'number' && typeof bValue === 'number'
+          ? aValue - bValue
+          : String(aValue).localeCompare(String(bValue));
       } else {
-        return bValue - aValue;
+        return typeof aValue === 'number' && typeof bValue === 'number'
+          ? bValue - aValue
+          : String(bValue).localeCompare(String(aValue));
       }
     });
   };
@@ -549,36 +628,41 @@ const MatchPredictor = () => {
 
   if (isLoading) {
     return (
-      <div className='flex flex-col items-center justify-center p-12 h-64'>
-        <Loader2 className='w-12 h-12 text-blue-500 animate-spin mb-4' />
-        <p className='text-gray-600'>Loading prediction data...</p>
+      <div className='max-w-full mx-auto p-4 bg-white rounded-lg shadow-sm'>
+        <div className='flex flex-col items-center justify-center p-12 h-64'>
+          <ClientOnlyLoader />
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className='bg-red-50 border border-red-200 text-red-700 p-6 rounded-lg'>
-        <h3 className='text-lg font-medium mb-2'>Error Loading Data</h3>
-        <p className='mb-4'>{error}</p>
-        <button
-          className='bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700'
-          onClick={() => window.location.reload()}
-        >
-          Try Again
-        </button>
+      <div className='max-w-full mx-auto p-4 bg-white rounded-lg shadow-sm'>
+        <div className='bg-red-50 border border-red-200 text-red-700 p-6 rounded-lg'>
+          <h3 className='text-lg font-medium mb-2'>Error Loading Data</h3>
+          <p className='mb-4'>{error}</p>
+          <button
+            className='bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700'
+            onClick={() => window.location.reload()}
+          >
+            Try Again
+          </button>
+        </div>
       </div>
     );
   }
 
   if (!upcomingMatches || upcomingMatches.length === 0) {
     return (
-      <div className='bg-yellow-50 border border-yellow-200 text-yellow-700 p-6 rounded-lg'>
-        <h3 className='text-lg font-medium mb-2'>No Matches Available</h3>
-        <p>
-          There are no upcoming matches available at this time. Please check
-          back later.
-        </p>
+      <div className='max-w-full mx-auto p-4 bg-white rounded-lg shadow-sm'>
+        <div className='bg-yellow-50 border border-yellow-200 text-yellow-700 p-6 rounded-lg'>
+          <h3 className='text-lg font-medium mb-2'>No Matches Available</h3>
+          <p>
+            There are no upcoming matches available at this time. Please check
+            back later.
+          </p>
+        </div>
       </div>
     );
   }
@@ -725,8 +809,16 @@ const MatchPredictor = () => {
               <th className='p-3 text-left whitespace-nowrap text-sm font-medium text-gray-500 min-w-[200px]'>
                 Match
               </th>
-              <th className='p-3 text-center whitespace-nowrap text-sm font-medium text-gray-500 min-w-[80px]'>
+              <th
+                className='p-3 text-center whitespace-nowrap cursor-pointer hover:bg-gray-100 text-sm font-medium text-gray-500 min-w-[80px]'
+                onClick={() => handleSort('matchTime')}
+              >
                 Date
+                {sortField === 'matchTime' && (
+                  <span className='ml-1'>
+                    {sortDirection === 'asc' ? '↑' : '↓'}
+                  </span>
+                )}
               </th>
               <th
                 className='p-3 text-center whitespace-nowrap cursor-pointer hover:bg-gray-100 text-sm font-medium text-gray-500 min-w-[80px]'
@@ -877,8 +969,8 @@ const MatchPredictor = () => {
                   ? 'bg-purple-50 text-purple-800 border border-purple-200'
                   : 'bg-gray-50 text-gray-800 border border-gray-200';
 
-              // Generate a unique key for the match
-              const uniqueKey = match.id === 0 ? `match-${index}` : match.id;
+              // Generate a truly unique key by always including index
+              const uniqueKey = `match-${match.id}-${index}`;
 
               return (
                 <React.Fragment key={uniqueKey}>
@@ -939,10 +1031,7 @@ const MatchPredictor = () => {
                     </td>
                     <td className='p-3 text-center whitespace-nowrap'>
                       <div className='text-gray-800'>
-                        {new Date(match.date).toLocaleDateString('en-US', {
-                          month: 'short',
-                          day: 'numeric',
-                        })}
+                        {match.date.split('-').slice(1).join('/')}
                       </div>
                       <div className='text-gray-500 text-sm'>{match.time}</div>
                     </td>
@@ -1171,6 +1260,210 @@ const MatchPredictor = () => {
                       </div>
                     </td>
                   </tr>
+                  {expandedMatch === match.id && (
+                    <tr className='bg-gray-50'>
+                      <td colSpan={17} className='p-4'>
+                        <div className='bg-white border border-gray-200 rounded-lg p-4 shadow-sm'>
+                          <div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
+                            {/* Match Details */}
+                            <div className='border-r border-gray-100 pr-4'>
+                              <h3 className='font-semibold text-gray-700 mb-2'>
+                                Match Details
+                              </h3>
+                              <div className='space-y-2'>
+                                <div className='flex justify-between'>
+                                  <span className='text-gray-500'>Date:</span>
+                                  <span className='font-medium'>
+                                    {match.date}
+                                  </span>
+                                </div>
+                                <div className='flex justify-between'>
+                                  <span className='text-gray-500'>Time:</span>
+                                  <span className='font-medium'>
+                                    {match.time}
+                                  </span>
+                                </div>
+                                <div className='flex justify-between'>
+                                  <span className='text-gray-500'>Venue:</span>
+                                  <span className='font-medium'>
+                                    {match.venue}
+                                  </span>
+                                </div>
+                                <div className='flex justify-between'>
+                                  <span className='text-gray-500'>
+                                    Expected Goals:
+                                  </span>
+                                  <span className='font-medium'>
+                                    {match.expectedGoals.toFixed(2)}
+                                  </span>
+                                </div>
+                                {match.odds && (
+                                  <>
+                                    <div className='flex justify-between'>
+                                      <span className='text-gray-500'>
+                                        Over 1.5 Goals:
+                                      </span>
+                                      <span className='font-medium'>
+                                        {match.odds.over15Goals.toFixed(2)}
+                                      </span>
+                                    </div>
+                                    <div className='flex justify-between'>
+                                      <span className='text-gray-500'>
+                                        Home/Draw/Away:
+                                      </span>
+                                      <span className='font-medium'>
+                                        {match.odds.homeWin.toFixed(2)} /{' '}
+                                        {match.odds.draw.toFixed(2)} /{' '}
+                                        {match.odds.awayWin.toFixed(2)}
+                                      </span>
+                                    </div>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Teams Comparison */}
+                            <div className='border-r border-gray-100 px-4'>
+                              <h3 className='font-semibold text-gray-700 mb-2'>
+                                Teams Comparison
+                              </h3>
+                              <table className='w-full text-sm'>
+                                <thead>
+                                  <tr>
+                                    <th className='text-left font-medium text-gray-500'>
+                                      Metric
+                                    </th>
+                                    <th className='text-center font-medium text-gray-500'>
+                                      {match.homeTeam.name}
+                                    </th>
+                                    <th className='text-center font-medium text-gray-500'>
+                                      {match.awayTeam.name}
+                                    </th>
+                                  </tr>
+                                </thead>
+                                <tbody className='divide-y divide-gray-100'>
+                                  <tr>
+                                    <td className='py-1 text-gray-500'>
+                                      Position
+                                    </td>
+                                    <td className='py-1 text-center'>
+                                      {match.homeTeam.position}
+                                    </td>
+                                    <td className='py-1 text-center'>
+                                      {match.awayTeam.position}
+                                    </td>
+                                  </tr>
+                                  <tr>
+                                    <td className='py-1 text-gray-500'>Form</td>
+                                    <td className='py-1 text-center'>
+                                      {match.homeTeam.form}
+                                    </td>
+                                    <td className='py-1 text-center'>
+                                      {match.awayTeam.form}
+                                    </td>
+                                  </tr>
+                                  <tr>
+                                    <td className='py-1 text-gray-500'>
+                                      Form Points
+                                    </td>
+                                    <td className='py-1 text-center'>
+                                      {calculateFormPoints(match.homeTeam.form)}
+                                      %
+                                    </td>
+                                    <td className='py-1 text-center'>
+                                      {calculateFormPoints(match.awayTeam.form)}
+                                      %
+                                    </td>
+                                  </tr>
+                                  <tr>
+                                    <td className='py-1 text-gray-500'>
+                                      Avg Goals
+                                    </td>
+                                    <td className='py-1 text-center'>
+                                      {match.homeTeam.avgHomeGoals?.toFixed(
+                                        2
+                                      ) || 'N/A'}
+                                    </td>
+                                    <td className='py-1 text-center'>
+                                      {match.awayTeam.avgAwayGoals?.toFixed(
+                                        2
+                                      ) || 'N/A'}
+                                    </td>
+                                  </tr>
+                                  <tr>
+                                    <td className='py-1 text-gray-500'>
+                                      Clean Sheets
+                                    </td>
+                                    <td className='py-1 text-center'>
+                                      {match.homeTeam.cleanSheets}
+                                    </td>
+                                    <td className='py-1 text-center'>
+                                      {match.awayTeam.cleanSheets}
+                                    </td>
+                                  </tr>
+                                </tbody>
+                              </table>
+                            </div>
+
+                            {/* Prediction Reasons */}
+                            <div className='pl-4'>
+                              <h3 className='font-semibold text-gray-700 mb-2'>
+                                Prediction Reasons
+                              </h3>
+                              <ul className='list-disc pl-4 space-y-1'>
+                                {match.reasonsForPrediction.map(
+                                  (reason, idx) => (
+                                    <li
+                                      key={idx}
+                                      className='text-gray-700 text-sm'
+                                    >
+                                      {reason}
+                                    </li>
+                                  )
+                                )}
+                              </ul>
+
+                              {/* H2H Records */}
+                              {match.headToHead.matches > 0 && (
+                                <div className='mt-4'>
+                                  <h4 className='font-medium text-gray-700 mb-1'>
+                                    Head-to-Head
+                                  </h4>
+                                  <div className='text-sm text-gray-600 mb-2'>
+                                    Record: {match.headToHead.wins}W{' '}
+                                    {match.headToHead.draws}D{' '}
+                                    {match.headToHead.losses}L (
+                                    {match.headToHead.goalsScored}-
+                                    {match.headToHead.goalsConceded})
+                                  </div>
+                                  {match.headToHead.recentMatches && (
+                                    <div>
+                                      <h5 className='text-xs font-medium text-gray-500 mb-1'>
+                                        Recent Matches:
+                                      </h5>
+                                      <ul className='text-xs space-y-1'>
+                                        {match.headToHead.recentMatches.map(
+                                          (h2hMatch, idx) => (
+                                            <li
+                                              key={idx}
+                                              className='text-gray-600'
+                                            >
+                                              {h2hMatch.date.substring(0, 10)}:{' '}
+                                              {h2hMatch.result}
+                                            </li>
+                                          )
+                                        )}
+                                      </ul>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
                 </React.Fragment>
               );
             })}

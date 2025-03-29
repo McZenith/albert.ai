@@ -306,100 +306,127 @@ const Stats = ({
   setShowCartItems: (show: boolean) => void;
   onClearCart: () => void;
   disabled?: boolean;
-}) => (
-  <div className='container mx-auto'>
-    <div className='flex flex-wrap justify-between items-center p-4 bg-white shadow-xs rounded-lg'>
-      <div className='flex items-center space-x-4 mb-2 sm:mb-0'>
-        <button
-          className={`px-4 py-2 rounded-lg relative ${
-            activeTab === 'live' ? 'bg-blue-600 text-white' : 'bg-gray-100'
-          } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-          onClick={() => {
-            setActiveTab('live');
-          }}
-          disabled={disabled}
-        >
-          Live Matches
-          {activeTab === 'live' && (
-            <span className='absolute -top-2 -right-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full'>
-              {matchCount}
-            </span>
-          )}
-        </button>
-        <button
-          className={`px-4 py-2 rounded-lg relative ${
-            activeTab === 'upcoming' ? 'bg-blue-600 text-white' : 'bg-gray-100'
-          } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-          onClick={() => {
-            setActiveTab('upcoming');
-          }}
-          disabled={disabled}
-        >
-          Upcoming Matches
-          {activeTab === 'upcoming' && upcomingMatchesCount > 0 && (
-            <span className='absolute -top-2 -right-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full'>
-              {upcomingMatchesCount}
-            </span>
-          )}
-        </button>
-      </div>
+}) => {
+  // Always set a consistent initial UI for both server and client
+  // We'll use client-side useEffect to update the UI after hydration
+  const [isClient, setIsClient] = React.useState(false);
 
-      <div className='flex space-x-2 flex-wrap gap-2'>
-        <button
-          onClick={() => setShowCartItems(!showCartItems)}
-          disabled={disabled}
-          className={`flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors relative ${
-            disabled ? 'opacity-50 cursor-not-allowed' : ''
-          }`}
-        >
-          <ShoppingCart className='w-5 h-5 mr-2' />
-          {cartItemsCount + upcomingMatchesCount > 0 && (
-            <span className='absolute -top-2 -right-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full'>
-              {cartItemsCount + upcomingMatchesCount}
-            </span>
-          )}
-          {showCartItems ? 'Show All' : 'Show Cart'}
-        </button>
-        <button
-          onClick={onClearCart}
-          disabled={disabled || cartItemsCount + upcomingMatchesCount === 0}
-          className={`flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors ${
-            disabled || cartItemsCount + upcomingMatchesCount === 0
-              ? 'opacity-50 cursor-not-allowed'
-              : ''
-          }`}
-        >
-          <span className='mr-2'>🗑️</span>
-          Clear Cart
-        </button>
-        <button
-          onClick={onCopyNames}
-          disabled={disabled || cartItemsCount + upcomingMatchesCount === 0}
-          className={`flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors ${
-            disabled || cartItemsCount + upcomingMatchesCount === 0
-              ? 'opacity-50 cursor-not-allowed'
-              : ''
-          }`}
-        >
-          <span className='mr-2'>📋</span>
-          Copy Selected Teams
-        </button>
-        <button
-          onClick={togglePause}
-          disabled={disabled}
-          className={`flex items-center px-4 py-2 ${
-            isPaused ? 'bg-green-600' : 'bg-amber-600'
-          } text-white rounded-lg hover:opacity-90 transition-colors ${
-            disabled ? 'opacity-50 cursor-not-allowed' : ''
-          }`}
-        >
-          <span className='mr-2'>{isPaused ? '▶️' : '⏸'}</span>
-          {isPaused ? 'Resume Updates' : 'Pause Updates'}
-        </button>
+  React.useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  // Use these default styles for server rendering to ensure consistency
+  const defaultButtonStyle = 'px-4 py-2 rounded-lg relative bg-gray-100';
+
+  return (
+    <div className='container mx-auto'>
+      <div className='flex flex-wrap justify-between items-center p-4 bg-white shadow-xs rounded-lg'>
+        <div className='flex items-center space-x-4 mb-2 sm:mb-0'>
+          <button
+            className={
+              isClient
+                ? `px-4 py-2 rounded-lg relative ${
+                    activeTab === 'live'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-100'
+                  } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`
+                : defaultButtonStyle
+            }
+            onClick={() => {
+              setActiveTab('live');
+            }}
+            disabled={disabled}
+          >
+            Live Matches
+            {isClient && activeTab === 'live' && (
+              <span className='absolute -top-2 -right-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full'>
+                {matchCount}
+              </span>
+            )}
+          </button>
+          <button
+            className={
+              isClient
+                ? `px-4 py-2 rounded-lg relative ${
+                    activeTab === 'upcoming'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-100'
+                  } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`
+                : defaultButtonStyle
+            }
+            onClick={() => {
+              setActiveTab('upcoming');
+            }}
+            disabled={disabled}
+          >
+            Upcoming Matches
+            {isClient &&
+              activeTab === 'upcoming' &&
+              upcomingMatchesCount > 0 && (
+                <span className='absolute -top-2 -right-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full'>
+                  {upcomingMatchesCount}
+                </span>
+              )}
+          </button>
+        </div>
+
+        <div className='flex space-x-2 flex-wrap gap-2'>
+          <button
+            onClick={() => setShowCartItems(!showCartItems)}
+            disabled={disabled}
+            className='flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors relative'
+          >
+            <ShoppingCart className='w-5 h-5 mr-2' />
+            {isClient && cartItemsCount + upcomingMatchesCount > 0 && (
+              <span className='absolute -top-2 -right-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full'>
+                {cartItemsCount + upcomingMatchesCount}
+              </span>
+            )}
+            {isClient
+              ? showCartItems
+                ? 'Show All'
+                : 'Show Cart'
+              : 'Show Cart'}
+          </button>
+          <button
+            onClick={onClearCart}
+            disabled={
+              disabled ||
+              (isClient && cartItemsCount + upcomingMatchesCount === 0)
+            }
+            className='flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors opacity-50 cursor-not-allowed'
+          >
+            <span className='mr-2'>🗑️</span>
+            Clear Cart
+          </button>
+          <button
+            onClick={onCopyNames}
+            disabled={
+              disabled ||
+              (isClient && cartItemsCount + upcomingMatchesCount === 0)
+            }
+            className='flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors opacity-50 cursor-not-allowed'
+          >
+            <span className='mr-2'>📋</span>
+            Copy Selected Teams
+          </button>
+          <button
+            onClick={togglePause}
+            disabled={disabled}
+            className='flex items-center px-4 py-2 bg-amber-600 text-white rounded-lg hover:opacity-90 transition-colors'
+          >
+            <span className='mr-2'>⏸</span>
+            {isClient
+              ? isPaused
+                ? 'Resume Updates'
+                : 'Pause Updates'
+              : 'Pause Updates'}
+          </button>
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 // Market Row Component
 const MarketRow = ({
