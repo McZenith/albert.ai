@@ -593,7 +593,8 @@ const MatchPredictor = () => {
 
   // Filter function for matches
   const filterMatches = (matches: Match[]): Match[] => {
-    return matches.filter((match) => {
+    // First apply all filters except the time filter
+    const filteredBeforeTime = matches.filter((match) => {
       // Filter by confidence score
       if (match.confidenceScore < filters.minConfidence) return false;
 
@@ -607,8 +608,17 @@ const MatchPredictor = () => {
       // Filter by expected goals
       if (match.expectedGoals < filters.minExpectedGoals) return false;
 
-      // Filter by upcoming time (between 90 mins ago and next 24 hours)
-      if (filters.showOnlyUpcoming) {
+      return true;
+    });
+
+    // If we're not filtering by time, return all matches
+    if (!filters.showOnlyUpcoming) {
+      return filteredBeforeTime;
+    }
+
+    // Apply time filter
+    const filterByTimeWindow = (matches: Match[], windowHours: number) => {
+      return matches.filter((match) => {
         try {
           // Create a date object from the match date and time
           // Handle different date/time formats more robustly
@@ -643,18 +653,17 @@ const MatchPredictor = () => {
           const currentHour = new Date(now);
           currentHour.setMinutes(0, 0, 0);
 
-          // Calculate 24 hours later from the current hour
-          const twentyFourHoursLater = new Date(
-            currentHour.getTime() + 24 * 60 * 60 * 1000
+          // Calculate hours later from the current hour
+          const laterTime = new Date(
+            currentHour.getTime() + windowHours * 60 * 60 * 1000
           );
 
           // Check if match time is in the desired range (current hour to 24 hours later)
-          if (
-            matchDateTime < currentHour ||
-            matchDateTime > twentyFourHoursLater
-          ) {
+          if (matchDateTime < currentHour || matchDateTime > laterTime) {
             return false;
           }
+
+          return true;
         } catch (error) {
           console.error(
             'Error parsing match date/time:',
@@ -665,10 +674,43 @@ const MatchPredictor = () => {
           // If there's an error parsing the date, exclude the match
           return false;
         }
-      }
+      });
+    };
 
-      return true;
-    });
+    // Try 24 hour window first
+    const matchesIn24Hours = filterByTimeWindow(filteredBeforeTime, 24);
+
+    // If we have a reasonable number of matches in the 24 hour window, return those
+    if (matchesIn24Hours.length >= 5) {
+      return matchesIn24Hours;
+    }
+
+    // If we have very few matches, try a 72 hour window
+    const matchesIn72Hours = filterByTimeWindow(filteredBeforeTime, 72);
+
+    // If we have a reasonable number of matches in the 72 hour window, use those
+    if (matchesIn72Hours.length >= 5) {
+      console.log(
+        `Using 72-hour window because 24-hour window only had ${matchesIn24Hours.length} matches`
+      );
+      return matchesIn72Hours;
+    }
+
+    // If there are still very few matches, try a 7-day window
+    const matchesIn7Days = filterByTimeWindow(filteredBeforeTime, 168); // 7 days = 168 hours
+
+    if (matchesIn7Days.length > 0) {
+      console.log(
+        `Using 7-day window because shorter windows had too few matches`
+      );
+      return matchesIn7Days;
+    }
+
+    // As a last resort, return all matches
+    console.log(
+      `No matches found in any time window, returning all ${filteredBeforeTime.length} matches`
+    );
+    return filteredBeforeTime;
   };
 
   // Handle sorting
@@ -736,7 +778,7 @@ const MatchPredictor = () => {
     }));
   };
 
-  // Generate a tooltip showing the actual time range for the filter
+  // Update tooltip to reflect adaptive time window
   const getTimeRangeTooltip = () => {
     const now = new Date();
     const currentHour = new Date(now);
@@ -764,9 +806,9 @@ const MatchPredictor = () => {
     });
 
     if (startDate === endDate) {
-      return `Shows matches from ${startTime} today to ${endTime} tomorrow`;
+      return `Prioritizes matches from ${startTime} today to ${endTime} tomorrow. Will show matches up to 7 days ahead if few matches are available in the next 24 hours.`;
     } else {
-      return `Shows matches from ${startTime} (${startDate}) to ${endTime} (${endDate})`;
+      return `Prioritizes matches from ${startTime} (${startDate}) to ${endTime} (${endDate}). Will show matches up to 7 days ahead if few matches are available in the next 24 hours.`;
     }
   };
 
@@ -834,10 +876,10 @@ const MatchPredictor = () => {
       // Show button when user scrolls down 300px
       setShowScrollTop(window.scrollY > 300);
     };
-    
+
     // Add scroll event listener
     window.addEventListener('scroll', handleScroll);
-    
+
     // Remove event listener on cleanup
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
@@ -845,7 +887,7 @@ const MatchPredictor = () => {
   const scrollToTop = () => {
     window.scrollTo({
       top: 0,
-      behavior: 'smooth'
+      behavior: 'smooth',
     });
   };
 
@@ -1019,12 +1061,10 @@ const MatchPredictor = () => {
                 title={
                   filters.showOnlyUpcoming
                     ? getTimeRangeTooltip()
-                    : 'Show matches from current hour through next 24 hours'
+                    : 'Prioritizes matches from current hour through next 24 hours'
                 }
               >
-                {filters.showOnlyUpcoming
-                  ? 'Current Hour to Next 24h'
-                  : 'All Times'}
+                {filters.showOnlyUpcoming ? 'Upcoming Matches' : 'All Times'}
               </button>
             </div>
 
@@ -1722,13 +1762,13 @@ const MatchPredictor = () => {
           </tbody>
         </table>
       </div>
-      
+
       {/* Scroll to top button */}
       {showScrollTop && (
         <button
           onClick={scrollToTop}
-          className="fixed bottom-6 right-6 bg-purple-600 hover:bg-purple-700 text-white p-3 rounded-full shadow-lg transition-opacity duration-300"
-          aria-label="Scroll to top"
+          className='fixed bottom-6 right-6 bg-purple-600 hover:bg-purple-700 text-white p-3 rounded-full shadow-lg transition-opacity duration-300'
+          aria-label='Scroll to top'
         >
           <ArrowUp size={20} />
         </button>
