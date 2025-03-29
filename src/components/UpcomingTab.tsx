@@ -506,15 +506,21 @@ const MatchPredictor = () => {
 
     // Generate a unique ID if the match ID is 0
     const uniqueId = id === 0 ? `match-${index}` : id;
-    console.log(`Toggling match in cart: ${matchToAdd.homeTeam.name} vs ${matchToAdd.awayTeam.name} (ID: ${uniqueId})`);
+    console.log(
+      `Toggling match in cart: ${matchToAdd.homeTeam.name} vs ${matchToAdd.awayTeam.name} (ID: ${uniqueId})`
+    );
 
     if (isUpcomingMatchInCart(uniqueId)) {
       // Remove from cart if already there
-      console.log(`Removing match from cart: ${matchToAdd.homeTeam.name} vs ${matchToAdd.awayTeam.name}`);
+      console.log(
+        `Removing match from cart: ${matchToAdd.homeTeam.name} vs ${matchToAdd.awayTeam.name}`
+      );
       removeUpcomingMatch(uniqueId);
     } else {
       // Add to cart if not there, ensure it has a unique ID
-      console.log(`Adding match to cart: ${matchToAdd.homeTeam.name} vs ${matchToAdd.awayTeam.name}`);
+      console.log(
+        `Adding match to cart: ${matchToAdd.homeTeam.name} vs ${matchToAdd.awayTeam.name}`
+      );
       if (id === 0) {
         // Clone the match and assign a unique ID
         const matchWithUniqueId = { ...matchToAdd, id: uniqueId };
@@ -523,9 +529,13 @@ const MatchPredictor = () => {
         addUpcomingMatch(matchToAdd);
       }
     }
-    
+
     // Log the current cart state after the change
-    console.log(`Cart now contains ${useCartStore.getState().upcomingMatches.length} matches`);
+    console.log(
+      `Cart now contains ${
+        useCartStore.getState().upcomingMatches.length
+      } matches`
+    );
   };
 
   const checkMatchInCart = (id: string | number, index: number): boolean => {
@@ -663,7 +673,7 @@ const MatchPredictor = () => {
   // Filter function for matches
   const filterMatches = (matches: Match[]): Match[] => {
     console.log(`Starting filtering with ${matches.length} total matches`);
-    
+
     // Apply all basic filters first (confidence, favorite, position gap, expected goals)
     let filteredMatches = matches.filter((match) => {
       // Filter by confidence score
@@ -702,19 +712,23 @@ const MatchPredictor = () => {
     if (showOnlyCart) {
       console.log(`Applying cart filter to ${filteredMatches.length} matches`);
       const beforeCartCount = filteredMatches.length;
-      
+
       filteredMatches = filteredMatches.filter((match, index) => {
         const uniqueId = match.id === 0 ? `match-${index}` : match.id;
         const isInCart = isUpcomingMatchInCart(uniqueId);
-        
+
         if (isInCart) {
-          console.log(`Match in cart: ${match.homeTeam.name} vs ${match.awayTeam.name} (ID: ${uniqueId})`);
+          console.log(
+            `Match in cart: ${match.homeTeam.name} vs ${match.awayTeam.name} (ID: ${uniqueId})`
+          );
         }
-        
+
         return isInCart;
       });
-      
-      console.log(`After cart filter: ${filteredMatches.length}/${beforeCartCount} matches remain`);
+
+      console.log(
+        `After cart filter: ${filteredMatches.length}/${beforeCartCount} matches remain`
+      );
     }
 
     return filteredMatches;
@@ -734,7 +748,7 @@ const MatchPredictor = () => {
     // If we have very few matches, try a 72 hour window
     const matchesIn72Hours = filterByTimeWindow(matches, 72);
     console.log(`Matches in 72h window: ${matchesIn72Hours.length}`);
-    
+
     // If we have a reasonable number of matches in the 72 hour window, return those
     if (matchesIn72Hours.length >= 5) {
       return matchesIn72Hours;
@@ -744,6 +758,112 @@ const MatchPredictor = () => {
     const matchesIn7Days = filterByTimeWindow(matches, 24 * 7);
     console.log(`Matches in 7 day window: ${matchesIn7Days.length}`);
     return matchesIn7Days;
+  };
+
+  // Apply time filter - checks if match time is within the specified window
+  const filterByTimeWindow = (matches: Match[], windowHours: number) => {
+    // Create the time window boundaries once to avoid recalculating
+    const now = new Date();
+    const currentHour = new Date(now);
+    currentHour.setMinutes(0, 0, 0);
+    const laterTime = new Date(
+      currentHour.getTime() + windowHours * 60 * 60 * 1000
+    );
+
+    const filtered = matches.filter((match) => {
+      try {
+        // Skip if missing date
+        if (!match.date) {
+          return false;
+        }
+
+        // If the date is from 2025, correct it to the current year for filtering purposes
+        let dateToUse = match.date;
+        if (match.date.startsWith('2025-')) {
+          const [_, month, day] = match.date.split('-');
+          const currentYear = new Date().getFullYear();
+          dateToUse = `${currentYear}-${month}-${day}`;
+        }
+
+        // Try to create a valid date object
+        let matchDateTime;
+
+        // Normalize the time if needed
+        const timeToUse = match.time || '12:00';
+
+        // Try parsing with standard ISO format
+        try {
+          // Make sure we have seconds
+          const timeWithSeconds =
+            timeToUse.includes(':') && timeToUse.split(':').length === 2
+              ? `${timeToUse}:00`
+              : timeToUse;
+
+          matchDateTime = new Date(`${dateToUse}T${timeWithSeconds}`);
+        } catch (e) {
+          // Fallback to manual parsing
+        }
+
+        // If that fails, parse manually
+        if (isNaN(matchDateTime?.getTime())) {
+          try {
+            const [year, month, day] = dateToUse.split('-').map(Number);
+            let hours = 12,
+              minutes = 0;
+
+            if (timeToUse) {
+              // Parse time - handle different formats
+              if (timeToUse.includes(':')) {
+                const timeParts = timeToUse.split(':');
+                hours = parseInt(timeParts[0]);
+                if (timeParts.length > 1) {
+                  minutes = parseInt(timeParts[1]);
+                }
+
+                // Check for AM/PM
+                if (timeToUse.toLowerCase().includes('pm') && hours < 12) {
+                  hours += 12;
+                } else if (
+                  timeToUse.toLowerCase().includes('am') &&
+                  hours === 12
+                ) {
+                  hours = 0;
+                }
+              }
+            }
+
+            // JavaScript months are 0-indexed
+            matchDateTime = new Date(year, month - 1, day, hours, minutes);
+          } catch (e) {
+            // If all else fails, use noon on the match date
+            matchDateTime = new Date(`${dateToUse}T12:00:00`);
+          }
+        }
+
+        // Check if the date is valid
+        if (isNaN(matchDateTime?.getTime())) {
+          console.error('Invalid date/time format:', match.date, match.time);
+          return false;
+        }
+
+        // Check if match time is in the desired range
+        if (matchDateTime < currentHour || matchDateTime > laterTime) {
+          return false;
+        }
+
+        return true;
+      } catch (error) {
+        console.error(
+          'Error parsing match date/time:',
+          error,
+          match.date,
+          match.time
+        );
+        return false;
+      }
+    });
+
+    return filtered;
   };
 
   // Handle sorting
