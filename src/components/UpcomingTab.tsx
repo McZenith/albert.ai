@@ -345,8 +345,12 @@ const MatchPredictor = () => {
   const [error, setError] = useState<string | null>(null);
 
   // Get cart functions from the global store
-  const { addUpcomingMatch, removeUpcomingMatch, isUpcomingMatchInCart } =
-    useCartStore();
+  const {
+    addUpcomingMatch,
+    removeUpcomingMatch,
+    isUpcomingMatchInCart,
+    clearUpcomingMatches,
+  } = useCartStore();
 
   // Fetch data from API
   useEffect(() => {
@@ -626,6 +630,29 @@ const MatchPredictor = () => {
     });
   };
 
+  // Add a function to select all visible matches
+  const selectAllVisibleMatches = () => {
+    const visibleMatches = filterMatches(sortMatches(upcomingMatches));
+    visibleMatches.forEach((match, index) => {
+      // Only add matches that are not already in the cart
+      if (!checkMatchInCart(match.id, index)) {
+        // Use the same logic as in toggleMatchInCart to handle adding matches
+        const uniqueId = match.id === 0 ? `match-${index}` : match.id;
+        if (match.id === 0) {
+          const matchWithUniqueId = { ...match, id: uniqueId };
+          addUpcomingMatch(matchWithUniqueId);
+        } else {
+          addUpcomingMatch(match);
+        }
+      }
+    });
+  };
+
+  // Add a function to clear all selected matches
+  const clearAllSelectedMatches = () => {
+    clearUpcomingMatches();
+  };
+
   if (isLoading) {
     return (
       <div className='max-w-full mx-auto p-4 bg-white rounded-lg shadow-sm'>
@@ -782,7 +809,21 @@ const MatchPredictor = () => {
               </select>
             </div>
 
-            <div className='ml-auto'>
+            <div className='ml-auto flex gap-2'>
+              <button
+                className='bg-green-600 hover:bg-green-700 text-white rounded-lg px-4 py-1 text-sm'
+                onClick={selectAllVisibleMatches}
+                title='Select all visible matches'
+              >
+                Select All
+              </button>
+              <button
+                className='bg-red-600 hover:bg-red-700 text-white rounded-lg px-4 py-1 text-sm'
+                onClick={clearAllSelectedMatches}
+                title='Clear all selected matches'
+              >
+                Clear All
+              </button>
               <button
                 className='bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 py-1 text-sm'
                 onClick={() =>
