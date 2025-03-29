@@ -6,6 +6,7 @@ import {
   Check,
   Plus,
   Loader2,
+  ArrowUp
 } from 'lucide-react';
 import { useCartStore } from '@/hooks/useStore';
 
@@ -117,6 +118,7 @@ interface Filters {
   favorite: 'all' | 'home' | 'away';
   positionGap: number;
   minExpectedGoals: number;
+  showOnlyUpcoming: boolean;
 }
 
 interface ThresholdValues {
@@ -212,21 +214,21 @@ const enhancedCleanTeamName = (name: string): string => {
 // Client-only wrapper for Loader2 to ensure hydration consistency
 const ClientOnlyLoader = () => {
   const [isClient, setIsClient] = useState(false);
-  
+
   useEffect(() => {
     setIsClient(true);
   }, []);
-  
+
   if (!isClient) {
     // Server rendering - use a div with the same dimensions
     return (
       <>
-        <div className="w-12 h-12 text-blue-500 mb-4" />
+        <div className='w-12 h-12 text-blue-500 mb-4' />
         <p className='text-gray-600'>Loading prediction data...</p>
       </>
     );
   }
-  
+
   // Client rendering - use the actual Loader2 component
   return (
     <>
@@ -248,7 +250,9 @@ const MatchPredictor = () => {
     favorite: 'all',
     positionGap: 0,
     minExpectedGoals: 0,
+    showOnlyUpcoming: false,
   });
+  const [showScrollTop, setShowScrollTop] = useState<boolean>(false);
 
   // New effect to load stored values after component mounts (client-side only)
   useEffect(() => {
@@ -603,6 +607,66 @@ const MatchPredictor = () => {
       // Filter by expected goals
       if (match.expectedGoals < filters.minExpectedGoals) return false;
 
+      // Filter by upcoming time (between 90 mins ago and next 24 hours)
+      if (filters.showOnlyUpcoming) {
+        try {
+          // Create a date object from the match date and time
+          // Handle different date/time formats more robustly
+          let matchDateTime;
+
+          if (match.date && match.time) {
+            // Try parsing with T separator first
+            matchDateTime = new Date(`${match.date}T${match.time}`);
+
+            // If that fails, try with space separator
+            if (isNaN(matchDateTime.getTime())) {
+              matchDateTime = new Date(`${match.date} ${match.time}`);
+            }
+          } else if (match.date) {
+            // If we only have a date but no time, use noon as default time
+            matchDateTime = new Date(`${match.date}T12:00:00`);
+          } else {
+            // If we have no valid date, skip this match
+            return false;
+          }
+
+          // Check if the date is valid
+          if (isNaN(matchDateTime.getTime())) {
+            console.error('Invalid date/time format:', match.date, match.time);
+            return false;
+          }
+
+          // Get current date and time
+          const now = new Date();
+
+          // Create a date for the current hour (minutes/seconds/ms set to 0)
+          const currentHour = new Date(now);
+          currentHour.setMinutes(0, 0, 0);
+
+          // Calculate 24 hours later from the current hour
+          const twentyFourHoursLater = new Date(
+            currentHour.getTime() + 24 * 60 * 60 * 1000
+          );
+
+          // Check if match time is in the desired range (current hour to 24 hours later)
+          if (
+            matchDateTime < currentHour ||
+            matchDateTime > twentyFourHoursLater
+          ) {
+            return false;
+          }
+        } catch (error) {
+          console.error(
+            'Error parsing match date/time:',
+            error,
+            match.date,
+            match.time
+          );
+          // If there's an error parsing the date, exclude the match
+          return false;
+        }
+      }
+
       return true;
     });
   };
@@ -651,6 +715,138 @@ const MatchPredictor = () => {
   // Add a function to clear all selected matches
   const clearAllSelectedMatches = () => {
     clearUpcomingMatches();
+  };
+
+  // Update the reset filters function to include the new filter
+  const resetFilters = () => {
+    setFilters({
+      minConfidence: 0,
+      favorite: 'all',
+      positionGap: 0,
+      minExpectedGoals: 0,
+      showOnlyUpcoming: false,
+    });
+  };
+
+  // Add a function to toggle the upcoming matches filter
+  const toggleUpcomingFilter = () => {
+    setFilters((prev) => ({
+      ...prev,
+      showOnlyUpcoming: !prev.showOnlyUpcoming,
+    }));
+  };
+
+  // Generate a tooltip showing the actual time range for the filter
+  const getTimeRangeTooltip = () => {
+    const now = new Date();
+    const currentHour = new Date(now);
+    currentHour.setMinutes(0, 0, 0);
+    const twentyFourHoursLater = new Date(
+      currentHour.getTime() + 24 * 60 * 60 * 1000
+    );
+
+    // Format the times in 12-hour format
+    const startTime = currentHour.toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+    const endTime = twentyFourHoursLater.toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+    const startDate = currentHour.toLocaleDateString([], {
+      month: 'short',
+      day: 'numeric',
+    });
+    const endDate = twentyFourHoursLater.toLocaleDateString([], {
+      month: 'short',
+      day: 'numeric',
+    });
+
+    if (startDate === endDate) {
+      return `Shows matches from ${startTime} today to ${endTime} tomorrow`;
+    } else {
+      return `Shows matches from ${startTime} (${startDate}) to ${endTime} (${endDate})`;
+    }
+  };
+
+  // Add this helper function to format the date nicely for display
+  const formatMatchDate = (date: string, time: string): string => {
+    try {
+      let matchDateTime;
+
+      if (date && time) {
+        // Try parsing with T separator first
+        matchDateTime = new Date(`${date}T${time}`);
+
+        // If that fails, try with space separator
+        if (isNaN(matchDateTime.getTime())) {
+          matchDateTime = new Date(`${date} ${time}`);
+        }
+      } else if (date) {
+        // If we only have a date but no time, use noon as default time
+        matchDateTime = new Date(`${date}T12:00:00`);
+      } else {
+        // If we have no valid date, return the original values
+        return `${date || 'N/A'} ${time || ''}`;
+      }
+
+      // Check if the date is valid
+      if (isNaN(matchDateTime.getTime())) {
+        return `${date || 'N/A'} ${time || ''}`;
+      }
+
+      // Format the date and time in a user-friendly way
+      const today = new Date();
+      const tomorrow = new Date(today);
+      tomorrow.setDate(today.getDate() + 1);
+
+      // Check if the match is today or tomorrow
+      if (matchDateTime.toDateString() === today.toDateString()) {
+        return `Today, ${matchDateTime.toLocaleTimeString([], {
+          hour: '2-digit',
+          minute: '2-digit',
+        })}`;
+      } else if (matchDateTime.toDateString() === tomorrow.toDateString()) {
+        return `Tomorrow, ${matchDateTime.toLocaleTimeString([], {
+          hour: '2-digit',
+          minute: '2-digit',
+        })}`;
+      } else {
+        // If not today or tomorrow, show the full date
+        return matchDateTime.toLocaleDateString([], {
+          weekday: 'short',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        });
+      }
+    } catch (error) {
+      console.error('Error formatting match date:', error);
+      return `${date || 'N/A'} ${time || ''}`;
+    }
+  };
+
+  // Add scroll to top effect
+  useEffect(() => {
+    const handleScroll = () => {
+      // Show button when user scrolls down 300px
+      setShowScrollTop(window.scrollY > 300);
+    };
+    
+    // Add scroll event listener
+    window.addEventListener('scroll', handleScroll);
+    
+    // Remove event listener on cleanup
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
   };
 
   if (isLoading) {
@@ -809,6 +1005,29 @@ const MatchPredictor = () => {
               </select>
             </div>
 
+            <div>
+              <label className='text-gray-500 text-xs block mb-1'>
+                Time Filter
+              </label>
+              <button
+                className={`px-3 py-1 text-sm rounded border ${
+                  filters.showOnlyUpcoming
+                    ? 'bg-purple-600 text-white border-purple-700'
+                    : 'bg-white text-gray-800 border-gray-300'
+                }`}
+                onClick={toggleUpcomingFilter}
+                title={
+                  filters.showOnlyUpcoming
+                    ? getTimeRangeTooltip()
+                    : 'Show matches from current hour through next 24 hours'
+                }
+              >
+                {filters.showOnlyUpcoming
+                  ? 'Current Hour to Next 24h'
+                  : 'All Times'}
+              </button>
+            </div>
+
             <div className='ml-auto flex gap-2'>
               <button
                 className='bg-green-600 hover:bg-green-700 text-white rounded-lg px-4 py-1 text-sm'
@@ -826,14 +1045,7 @@ const MatchPredictor = () => {
               </button>
               <button
                 className='bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 py-1 text-sm'
-                onClick={() =>
-                  setFilters({
-                    minConfidence: 0,
-                    favorite: 'all',
-                    positionGap: 0,
-                    minExpectedGoals: 0,
-                  })
-                }
+                onClick={resetFilters}
               >
                 Reset Filters
               </button>
@@ -1072,9 +1284,8 @@ const MatchPredictor = () => {
                     </td>
                     <td className='p-3 text-center whitespace-nowrap'>
                       <div className='text-gray-800'>
-                        {match.date.split('-').slice(1).join('/')}
+                        {formatMatchDate(match.date, match.time)}
                       </div>
-                      <div className='text-gray-500 text-sm'>{match.time}</div>
                     </td>
                     <td className='p-3 text-center'>
                       <div
@@ -1511,6 +1722,17 @@ const MatchPredictor = () => {
           </tbody>
         </table>
       </div>
+      
+      {/* Scroll to top button */}
+      {showScrollTop && (
+        <button
+          onClick={scrollToTop}
+          className="fixed bottom-6 right-6 bg-purple-600 hover:bg-purple-700 text-white p-3 rounded-full shadow-lg transition-opacity duration-300"
+          aria-label="Scroll to top"
+        >
+          <ArrowUp size={20} />
+        </button>
+      )}
     </div>
   );
 };
