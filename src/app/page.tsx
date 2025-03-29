@@ -314,7 +314,9 @@ const Stats = ({
           className={`px-4 py-2 rounded-lg relative ${
             activeTab === 'live' ? 'bg-blue-600 text-white' : 'bg-gray-100'
           } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-          onClick={() => setActiveTab('live')}
+          onClick={() => {
+            setActiveTab('live');
+          }}
           disabled={disabled}
         >
           Live Matches
@@ -328,7 +330,9 @@ const Stats = ({
           className={`px-4 py-2 rounded-lg relative ${
             activeTab === 'upcoming' ? 'bg-blue-600 text-white' : 'bg-gray-100'
           } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-          onClick={() => setActiveTab('upcoming')}
+          onClick={() => {
+            setActiveTab('upcoming');
+          }}
           disabled={disabled}
         >
           Upcoming Matches
@@ -397,13 +401,7 @@ const Stats = ({
   </div>
 );
 
-// Add the cleaning function at the top of the file
-const enhancedCleanTeamName = (name: string): string => {
-  if (!name) return '';
-  return name.replace(/^\d+\s+/, '').trim();
-};
-
-// Market Row Component// Market Row Component
+// Market Row Component
 const MarketRow = ({
   match,
   market,
@@ -577,14 +575,55 @@ const MarketRow = ({
 // Main Component
 const MatchesPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState<string>('live');
+  const [activeTab, setActiveTab] = useState<string>(() => {
+    // Initialize activeTab from localStorage if available
+    if (typeof window !== 'undefined') {
+      const savedTab = localStorage.getItem('activeTab');
+      return savedTab || 'live';
+    }
+    return 'live';
+  });
   const [copiedText, setCopiedText] = useState<string>('');
   const [showCartItems, setShowCartItems] = useState<boolean>(false);
   const [sortConfigs, setSortConfigs] = useState<
     Array<{ field: string; direction: SortDirection }>
-  >([{ field: 'playedSeconds', direction: 'asc' }]);
-  const [filters, setFilters] = useState<Record<string, string>>({});
+  >(() => {
+    // Initialize sortConfigs from localStorage if available
+    if (typeof window !== 'undefined') {
+      const savedSortConfigs = localStorage.getItem('sortConfigs');
+      if (savedSortConfigs) {
+        try {
+          return JSON.parse(savedSortConfigs) as Array<{
+            field: string;
+            direction: SortDirection;
+          }>;
+        } catch (e) {
+          console.error('Failed to parse saved sort configs', e);
+        }
+      }
+    }
+    return [{ field: 'playedSeconds', direction: 'asc' }];
+  });
+  const [filters, setFilters] = useState<Record<string, string>>(() => {
+    // Initialize filters from localStorage if available
+    if (typeof window !== 'undefined') {
+      const savedFilters = localStorage.getItem('liveFilters');
+      if (savedFilters) {
+        try {
+          return JSON.parse(savedFilters) as Record<string, string>;
+        } catch (e) {
+          console.error('Failed to parse saved filters', e);
+        }
+      }
+    }
+    return {};
+  });
   const [isInitialLoading, setIsInitialLoading] = useState(true);
+
+  // Update localStorage whenever activeTab changes
+  useEffect(() => {
+    localStorage.setItem('activeTab', activeTab);
+  }, [activeTab]);
 
   const {
     matches: liveMatches,
@@ -627,27 +666,37 @@ const MatchesPage = () => {
         (config) => config.field === field
       );
 
+      const asc: SortDirection = 'asc';
+      const desc: SortDirection = 'desc';
+
       if (existingIndex === -1) {
         // Add new sort
-        return [...current, { field, direction: 'asc' }];
+        const newConfigs = [...current, { field, direction: asc }];
+        localStorage.setItem('sortConfigs', JSON.stringify(newConfigs));
+        return newConfigs;
       } else {
         // Toggle direction or remove if it was desc
         const newConfigs = [...current];
         if (newConfigs[existingIndex].direction === 'asc') {
-          newConfigs[existingIndex].direction = 'desc';
+          newConfigs[existingIndex].direction = desc;
         } else {
           newConfigs.splice(existingIndex, 1);
         }
+        localStorage.setItem('sortConfigs', JSON.stringify(newConfigs));
         return newConfigs;
       }
     });
   };
 
   const handleFilter = (field: string, value: string) => {
-    setFilters((current) => ({
-      ...current,
-      [field]: value,
-    }));
+    setFilters((current) => {
+      const newFilters = {
+        ...current,
+        [field]: value,
+      };
+      localStorage.setItem('liveFilters', JSON.stringify(newFilters));
+      return newFilters;
+    });
   };
 
   // Helper function to get sort value for status

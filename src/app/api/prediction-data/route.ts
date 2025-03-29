@@ -122,17 +122,75 @@ const fetchAllPages = async (): Promise<PredictionData> => {
               return { data: { upcomingMatches: [] } };
             }
             return res.json();
-          }).then(pageData => pageData.data?.upcomingMatches || [])
+          })
         );
       }
 
       try {
-        const additionalPagesMatches = await Promise.all(pagePromises);
+        const additionalPagesResponses = await Promise.all(pagePromises);
 
-        // Combine all matches from all pages
-        additionalPagesMatches.forEach(matches => {
-          if (Array.isArray(matches)) {
-            allUpcomingMatches = [...allUpcomingMatches, ...matches];
+        // Combine all matches from all pages, ensuring proper data structure
+        additionalPagesResponses.forEach(pageResponse => {
+          // Extract upcomingMatches from the response
+          const pageMatches = pageResponse.data?.upcomingMatches || [];
+
+          if (Array.isArray(pageMatches)) {
+            // Verify and normalize each match before adding
+            const normalizedMatches = pageMatches.filter((match: any) => {
+              // Verify match has required properties
+              return match && match.homeTeam && match.awayTeam && match.id;
+            }).map((match: any) => {
+              // Ensure each match has all expected properties
+              return {
+                ...match,
+                // Ensure all required team properties exist
+                homeTeam: {
+                  name: match.homeTeam.name || '',
+                  position: match.homeTeam.position || 0,
+                  logo: match.homeTeam.logo || '',
+                  avgHomeGoals: match.homeTeam.avgHomeGoals || 0,
+                  avgAwayGoals: match.homeTeam.avgAwayGoals || 0,
+                  avgTotalGoals: match.homeTeam.avgTotalGoals || 0,
+                  form: match.homeTeam.form || '',
+                  cleanSheets: match.homeTeam.cleanSheets || 0,
+                  // Add other optional properties as needed
+                  ...match.homeTeam
+                },
+                awayTeam: {
+                  name: match.awayTeam.name || '',
+                  position: match.awayTeam.position || 0,
+                  logo: match.awayTeam.logo || '',
+                  avgHomeGoals: match.awayTeam.avgHomeGoals || 0,
+                  avgAwayGoals: match.awayTeam.avgAwayGoals || 0,
+                  avgTotalGoals: match.awayTeam.avgTotalGoals || 0,
+                  form: match.awayTeam.form || '',
+                  cleanSheets: match.awayTeam.cleanSheets || 0,
+                  // Add other optional properties as needed
+                  ...match.awayTeam
+                },
+                // Ensure other match properties
+                date: match.date || '',
+                time: match.time || '',
+                venue: match.venue || '',
+                positionGap: match.positionGap || 0,
+                favorite: match.favorite || null,
+                confidenceScore: match.confidenceScore || 0,
+                averageGoals: match.averageGoals || 0,
+                expectedGoals: match.expectedGoals || 0,
+                defensiveStrength: match.defensiveStrength || 1,
+                headToHead: match.headToHead || {
+                  matches: 0,
+                  wins: 0,
+                  draws: 0,
+                  losses: 0,
+                  goalsScored: 0,
+                  goalsConceded: 0
+                },
+                reasonsForPrediction: match.reasonsForPrediction || []
+              };
+            });
+
+            allUpcomingMatches = [...allUpcomingMatches, ...normalizedMatches];
           }
         });
 
@@ -144,13 +202,58 @@ const fetchAllPages = async (): Promise<PredictionData> => {
       }
     }
 
+    // Normalize the first page data as well for consistency
+    const normalizedMatches = allUpcomingMatches.map((match: any) => ({
+      ...match,
+      homeTeam: {
+        ...match.homeTeam,
+        avgHomeGoals: match.homeTeam.avgHomeGoals || 0,
+        avgAwayGoals: match.homeTeam.avgAwayGoals || 0,
+        avgTotalGoals: match.homeTeam.avgTotalGoals || 0,
+      },
+      awayTeam: {
+        ...match.awayTeam,
+        avgHomeGoals: match.awayTeam.avgHomeGoals || 0,
+        avgAwayGoals: match.awayTeam.avgAwayGoals || 0,
+        avgTotalGoals: match.awayTeam.avgTotalGoals || 0,
+      }
+    }));
+
     return {
-      upcomingMatches: allUpcomingMatches,
+      upcomingMatches: normalizedMatches,
       metadata: metadata
     };
   } else {
-    // Old structure - just return as is
-    return responseData;
+    // Old structure or direct data format
+    // Make sure to normalize this data too
+    const upcomingMatches = responseData.data?.upcomingMatches || responseData.upcomingMatches || [];
+    const metadata = responseData.data?.metadata || responseData.metadata || {
+      total: upcomingMatches.length,
+      date: new Date().toISOString().split('T')[0],
+      leagueData: {}
+    };
+
+    // Normalize all matches to ensure consistent structure
+    const normalizedMatches = upcomingMatches.map((match: any) => ({
+      ...match,
+      homeTeam: {
+        ...match.homeTeam,
+        avgHomeGoals: match.homeTeam.avgHomeGoals || 0,
+        avgAwayGoals: match.homeTeam.avgAwayGoals || 0,
+        avgTotalGoals: match.homeTeam.avgTotalGoals || 0,
+      },
+      awayTeam: {
+        ...match.awayTeam,
+        avgHomeGoals: match.awayTeam.avgHomeGoals || 0,
+        avgAwayGoals: match.awayTeam.avgAwayGoals || 0,
+        avgTotalGoals: match.awayTeam.avgTotalGoals || 0,
+      }
+    }));
+
+    return {
+      upcomingMatches: normalizedMatches,
+      metadata: metadata
+    };
   }
 };
 
