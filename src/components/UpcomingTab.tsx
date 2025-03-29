@@ -800,12 +800,13 @@ const MatchPredictor = () => {
               : timeToUse;
 
           matchDateTime = new Date(`${dateToUse}T${timeWithSeconds}`);
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
         } catch (_) {
           // Fallback to manual parsing
         }
 
         // If that fails, parse manually
-        if (isNaN(matchDateTime?.getTime())) {
+        if (!matchDateTime || isNaN(matchDateTime.getTime())) {
           try {
             const [year, month, day] = dateToUse.split('-').map(Number);
             let hours = 12,
@@ -834,6 +835,7 @@ const MatchPredictor = () => {
 
             // JavaScript months are 0-indexed
             matchDateTime = new Date(year, month - 1, day, hours, minutes);
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
           } catch (_) {
             // If all else fails, use noon on the match date
             matchDateTime = new Date(`${dateToUse}T12:00:00`);
@@ -841,7 +843,7 @@ const MatchPredictor = () => {
         }
 
         // Check if the date is valid
-        if (isNaN(matchDateTime?.getTime())) {
+        if (!matchDateTime || isNaN(matchDateTime.getTime())) {
           console.error('Invalid date/time format:', match.date, match.time);
           return false;
         }
@@ -1085,7 +1087,9 @@ const MatchPredictor = () => {
   // Now replace the showMatchesByHour function
   const showMatchesByHour = () => {
     // Get all matches
-    const dateGroups = {
+    const dateGroups: {
+      [key: string]: Match[];
+    } = {
       Today: [],
       Tomorrow: [],
       Future: [],
