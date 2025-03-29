@@ -382,11 +382,7 @@ const Stats = ({
                 {cartItemsCount + upcomingMatchesCount}
               </span>
             )}
-            {isClient
-              ? showCartItems
-                ? 'Show All'
-                : 'Show Cart'
-              : 'Show Cart'}
+            {showCartItems ? 'Show All Matches' : 'Show Cart Items'}
           </button>
           <button
             onClick={onClearCart}
@@ -394,7 +390,12 @@ const Stats = ({
               disabled ||
               (isClient && cartItemsCount + upcomingMatchesCount === 0)
             }
-            className='flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors opacity-50 cursor-not-allowed'
+            className={`flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors ${
+              disabled ||
+              (isClient && cartItemsCount + upcomingMatchesCount === 0)
+                ? 'opacity-50 cursor-not-allowed'
+                : ''
+            }`}
           >
             <span className='mr-2'>🗑️</span>
             Clear Cart
@@ -405,7 +406,12 @@ const Stats = ({
               disabled ||
               (isClient && cartItemsCount + upcomingMatchesCount === 0)
             }
-            className='flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors opacity-50 cursor-not-allowed'
+            className={`flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors ${
+              disabled ||
+              (isClient && cartItemsCount + upcomingMatchesCount === 0)
+                ? 'opacity-50 cursor-not-allowed'
+                : ''
+            }`}
           >
             <span className='mr-2'>📋</span>
             Copy Selected Teams
@@ -880,31 +886,36 @@ const MatchesPage = () => {
       (item) => `${item.teams.home.name} vs ${item.teams.away.name}`
     );
 
-    // Get names from upcoming matches cart
-    const upcomingTeamNames = upcomingMatches.map((match) => {
-      const favoriteTeam =
-        match.favorite === 'home'
-          ? match.homeTeam.name
-          : match.favorite === 'away'
-          ? match.awayTeam.name
-          : 'No favorite';
+    // Get only favorite team names from upcoming matches cart
+    const upcomingTeamNames = upcomingMatches
+      .filter((match) => match.favorite === 'home' || match.favorite === 'away')
+      .map((match) => {
+        // Get only the name of the favorite team
+        const favoriteTeam =
+          match.favorite === 'home' ? match.homeTeam.name : match.awayTeam.name;
 
-      const opponent =
-        match.favorite === 'home'
-          ? match.awayTeam.name
-          : match.favorite === 'away'
-          ? match.homeTeam.name
-          : '';
+        return favoriteTeam; // Just return the team name without additional text
+      });
 
-      return `${favoriteTeam} to score over 1.5 goals vs ${opponent}`;
-    });
-
-    // Combine both lists
+    // Combine both lists and ensure each name is on a separate line
     const allTeams = [...cartTeamNames, ...upcomingTeamNames].join('\n');
+
+    // Debug the content
+    console.log('Copied content:', allTeams);
+    console.log(
+      'Number of items:',
+      cartTeamNames.length + upcomingTeamNames.length
+    );
 
     navigator.clipboard
       .writeText(allTeams)
-      .then(() => setCopiedText('Team names copied!'))
+      .then(() =>
+        setCopiedText(
+          `${
+            cartTeamNames.length + upcomingTeamNames.length
+          } team names copied!`
+        )
+      )
       .catch((err) => console.error('Failed to copy:', err));
   };
 
