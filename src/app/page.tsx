@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useMatchData } from '../hooks/useMatchData';
 import { useCartStore } from '@/hooks/useStore';
 import { ChevronUp, ChevronDown, Filter, ShoppingCart } from 'lucide-react';
@@ -450,9 +450,56 @@ const MarketRow = ({
   removeItem: (matchId: string, marketId: string) => void;
   disabled?: boolean;
 }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
   const isInCart = cartItems.some(
     (item) => item.matchId === match.id && item.marketId === market.id
   );
+
+  // Get the predictionData directly from the store instead of just the function
+  const { findPredictionForMatch, predictionData } = useCartStore((state) => ({
+    findPredictionForMatch: state.findPredictionForMatch,
+    predictionData: state.predictionData,
+  }));
+
+  // Find prediction for this match - now depends on predictionData to refresh when it changes
+  const predictionMatch = useMemo(() => {
+    console.log(
+      `Looking up match prediction for ${match.teams.home.name} vs ${match.teams.away.name} (${predictionData.length} matches available)`
+    );
+    return findPredictionForMatch(match.teams.home.name, match.teams.away.name);
+  }, [
+    match.teams.home.name,
+    match.teams.away.name,
+    findPredictionForMatch,
+    predictionData,
+  ]);
+
+  // Add debug logging for prediction match
+  useEffect(() => {
+    if (isExpanded) {
+      console.log(
+        `Expanded row for ${match.teams.home.name} vs ${match.teams.away.name}`,
+        predictionMatch ? 'Found prediction' : 'No prediction found'
+      );
+    }
+  }, [
+    isExpanded,
+    match.teams.home.name,
+    match.teams.away.name,
+    predictionMatch,
+  ]);
+
+  // Simple boolean to check if we have prediction data
+  const hasPrediction = Boolean(predictionMatch);
+
+  // Handle expanding the row to show prediction details
+  const handleRowClick = (e: React.MouseEvent<HTMLTableRowElement>) => {
+    if (hasPrediction) {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsExpanded((prev) => !prev);
+    }
+  };
 
   const TOTAL_INVESTMENT = 100000;
 
@@ -466,142 +513,688 @@ const MarketRow = ({
   };
 
   return (
-    <tr className='border-t hover:bg-gray-50 transition-colors'>
-      {/* Teams & Status Column */}
-      <td className='px-4 py-3'>
-        <div className='flex flex-col'>
-          <span className='font-medium'>{match.teams.home.name}</span>
-          <span className='text-sm text-gray-600'>{match.teams.away.name}</span>
-          <div className='mt-1 flex items-center gap-2'>
-            <span className='inline-block px-2 py-1 text-xs font-medium rounded-sm bg-blue-100 text-blue-800'>
-              {match.status}
+    <>
+      <tr
+        className={`border-t transition-colors ${
+          hasPrediction
+            ? 'border-l-4 border-l-blue-600 bg-blue-50 hover:bg-blue-100'
+            : 'hover:bg-gray-50'
+        }`}
+        onClick={handleRowClick}
+        style={{ cursor: hasPrediction ? 'pointer' : 'default' }}
+      >
+        {/* Teams & Status Column */}
+        <td className='px-4 py-3'>
+          <div className='flex flex-col'>
+            <div className='flex items-center'>
+              <span className='font-medium'>{match.teams.home.name}</span>
+              {hasPrediction && (
+                <span className='ml-2 inline-block px-2 py-1 text-xs font-medium rounded-full bg-green-500 text-white'>
+                  Prediction
+                </span>
+              )}
+            </div>
+            <span className='text-sm text-gray-600'>
+              {match.teams.away.name}
             </span>
-            {match.status !== 'FT' && (
-              <span className='text-xs text-gray-600'>
-                {formatPlayedTime(match.playedSeconds)}
+            <div className='mt-1 flex items-center gap-2'>
+              <span className='inline-block px-2 py-1 text-xs font-medium rounded-sm bg-blue-100 text-blue-800'>
+                {match.status}
               </span>
-            )}
+              {match.status !== 'FT' && (
+                <span className='text-xs text-gray-600'>
+                  {formatPlayedTime(match.playedSeconds)}
+                </span>
+              )}
+            </div>
           </div>
-        </div>
-      </td>
+        </td>
 
-      {/* Score Column */}
-      <td className='px-4 py-3 text-center'>
-        <span className='text-sm font-medium'>{match.score || '-'}</span>
-      </td>
+        {/* Score Column */}
+        <td className='px-4 py-3 text-center'>
+          <span className='text-sm font-medium'>{match.score || '-'}</span>
+        </td>
 
-      {/* Tournament Column */}
-      <td className='px-4 py-3 text-sm'>{match.tournamentName}</td>
+        {/* Tournament Column */}
+        <td className='px-4 py-3 text-sm'>{match.tournamentName}</td>
 
-      {/* Market Column */}
-      <td className='px-4 py-3 text-sm'>{market.description}</td>
+        {/* Market Column */}
+        <td className='px-4 py-3 text-sm'>{market.description}</td>
 
-      {/* Profit % Column */}
-      <td className='px-4 py-3 text-right'>
-        <span
-          className={`px-2 py-1 rounded text-sm ${
-            market.profitPercentage > 5
-              ? 'bg-green-100 text-green-800'
-              : market.profitPercentage > 2
-              ? 'bg-yellow-100 text-yellow-800'
-              : 'bg-gray-100 text-gray-800'
-          }`}
-        >
-          {market.profitPercentage.toFixed(2)}%
-        </span>
-      </td>
+        {/* Profit % Column */}
+        <td className='px-4 py-3 text-right'>
+          <span
+            className={`px-2 py-1 rounded text-sm ${
+              market.profitPercentage > 5
+                ? 'bg-green-100 text-green-800'
+                : market.profitPercentage > 2
+                ? 'bg-yellow-100 text-yellow-800'
+                : 'bg-gray-100 text-gray-800'
+            }`}
+          >
+            {market.profitPercentage.toFixed(2)}%
+          </span>
+        </td>
 
-      {/* Margin Column */}
-      <td className='px-4 py-3 text-right text-sm'>
-        {market.margin.toFixed(2)}%
-      </td>
+        {/* Margin Column */}
+        <td className='px-4 py-3 text-right text-sm'>
+          {market.margin.toFixed(2)}%
+        </td>
 
-      {/* Outcomes Column */}
-      <td className='px-4 py-3'>
-        <div className='space-y-1'>
-          {market.outcomes.map((outcome, index) => (
-            <div key={createOutcomeKey(outcome.id, index)} className='text-sm'>
-              {outcome.description}
+        {/* Outcomes Column */}
+        <td className='px-4 py-3'>
+          <div className='space-y-1'>
+            {market.outcomes.map((outcome, index) => (
+              <div
+                key={createOutcomeKey(outcome.id, index)}
+                className='text-sm'
+              >
+                {outcome.description}
+              </div>
+            ))}
+          </div>
+        </td>
+
+        {/* Odds Column */}
+        <td className='px-4 py-3'>
+          <div className='space-y-1'>
+            {market.outcomes.map((outcome, index) => (
+              <div
+                key={createOutcomeKey(outcome.id, index)}
+                className={getOddsClassName(outcome)}
+              >
+                {outcome.odds.toFixed(2)}
+              </div>
+            ))}
+          </div>
+        </td>
+
+        {/* Stake % Column */}
+        <td className='px-4 py-3'>
+          <div className='space-y-1'>
+            {market.outcomes.map((outcome, index) => (
+              <div
+                key={createOutcomeKey(outcome.id, index)}
+                className='text-sm text-right'
+              >
+                {outcome.stakePercentage.toFixed(2)}%
+              </div>
+            ))}
+          </div>
+        </td>
+
+        {/* Investment Column */}
+        <td className='px-4 py-3'>
+          <div className='space-y-1'>
+            {market.outcomes.map((outcome, index) => (
+              <div
+                key={createOutcomeKey(outcome.id, index)}
+                className='text-sm text-right'
+              >
+                $
+                {((outcome.stakePercentage / 100) * TOTAL_INVESTMENT).toFixed(
+                  2
+                )}
+              </div>
+            ))}
+          </div>
+        </td>
+
+        <td className='px-4 py-3 text-center'>
+          <span className='text-sm font-medium'>{market.favourite}</span>
+        </td>
+        {/* Actions Column */}
+        <td className='px-4 py-3 text-center'>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              if (isInCart) {
+                removeItem(match.id, market.id);
+              } else {
+                addItem({
+                  matchId: match.id,
+                  marketId: market.id,
+                  teams: match.teams,
+                  market: {
+                    ...market,
+                    outcomes: market.outcomes,
+                  },
+                  addedAt: new Date().toISOString(),
+                });
+              }
+            }}
+            disabled={disabled}
+            className={`px-3 py-1 rounded-lg text-sm transition-colors ${
+              isInCart
+                ? 'bg-red-600 text-white hover:bg-red-700'
+                : 'bg-blue-600 text-white hover:bg-blue-700'
+            } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+          >
+            {isInCart ? 'Remove' : 'Add'}
+          </button>
+        </td>
+      </tr>
+
+      {/* Expanded prediction details */}
+      {isExpanded && hasPrediction && predictionMatch && (
+        <tr className='bg-blue-50'>
+          <td colSpan={12} className='p-4'>
+            <div className='border border-blue-200 rounded-lg bg-white p-4 shadow-sm'>
+              {/* Complete match row from Upcoming tab */}
+              <div className='mb-6 pb-4 border-b border-gray-100'>
+                <div className='overflow-x-auto'>
+                  <table className='w-full border-collapse'>
+                    <thead>
+                      <tr className='bg-gray-50 text-left'>
+                        <th className='p-2 text-sm font-medium text-gray-500'>
+                          Teams
+                        </th>
+                        <th className='p-2 text-sm font-medium text-gray-500 text-center'>
+                          Date
+                        </th>
+                        <th className='p-2 text-sm font-medium text-gray-500 text-center'>
+                          Home Avg
+                        </th>
+                        <th className='p-2 text-sm font-medium text-gray-500 text-center'>
+                          Away Avg
+                        </th>
+                        <th className='p-2 text-sm font-medium text-gray-500 text-center'>
+                          Pos Gap
+                        </th>
+                        <th className='p-2 text-sm font-medium text-gray-500 text-center'>
+                          Position
+                        </th>
+                        <th className='p-2 text-sm font-medium text-gray-500 text-center'>
+                          Home/Away
+                        </th>
+                        <th className='p-2 text-sm font-medium text-gray-500 text-center'>
+                          Form
+                        </th>
+                        <th className='p-2 text-sm font-medium text-gray-500 text-center'>
+                          Fav Form
+                        </th>
+                        <th className='p-2 text-sm font-medium text-gray-500 text-center'>
+                          H2H
+                        </th>
+                        <th className='p-2 text-sm font-medium text-gray-500 text-center'>
+                          Exp Goals
+                        </th>
+                        <th className='p-2 text-sm font-medium text-gray-500 text-center'>
+                          Def Rating
+                        </th>
+                        <th className='p-2 text-sm font-medium text-gray-500 text-center'>
+                          Favorite
+                        </th>
+                        <th className='p-2 text-sm font-medium text-gray-500 text-center'>
+                          Confidence
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr className='border-b border-gray-100'>
+                        {/* Teams Column */}
+                        <td className='p-2'>
+                          <div className='flex flex-col'>
+                            <div className='flex items-center'>
+                              <span className='text-xl mr-2'>🏆</span>
+                              <span className='font-medium text-gray-800'>
+                                {predictionMatch.homeTeam.name}
+                              </span>
+                              <span className='text-xs text-gray-500 ml-2'>
+                                ({predictionMatch.homeTeam.position || '-'})
+                              </span>
+                            </div>
+                            <div className='flex items-center mt-1'>
+                              <span className='text-xl mr-2'>🏆</span>
+                              <span className='font-medium text-gray-800'>
+                                {predictionMatch.awayTeam.name}
+                              </span>
+                              <span className='text-xs text-gray-500 ml-2'>
+                                ({predictionMatch.awayTeam.position || '-'})
+                              </span>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Date Column */}
+                        <td className='p-2 text-center whitespace-nowrap'>
+                          <div className='text-gray-800'>
+                            {predictionMatch.date} {predictionMatch.time}
+                          </div>
+                        </td>
+
+                        {/* Home Avg Column */}
+                        <td className='p-2 text-center'>
+                          <div
+                            className={`px-2 py-1 rounded-lg bg-blue-50 text-blue-800`}
+                          >
+                            {((predictionMatch.homeTeam.avgHomeGoals ?? 0) > 0
+                              ? predictionMatch.homeTeam.avgHomeGoals ?? 0
+                              : (predictionMatch.expectedGoals ?? 0) / 2
+                            ).toFixed(2)}
+                          </div>
+                        </td>
+
+                        {/* Away Avg Column */}
+                        <td className='p-2 text-center'>
+                          <div
+                            className={`px-2 py-1 rounded-lg bg-purple-50 text-purple-800`}
+                          >
+                            {((predictionMatch.awayTeam.avgAwayGoals ?? 0) > 0
+                              ? predictionMatch.awayTeam.avgAwayGoals ?? 0
+                              : (predictionMatch.expectedGoals ?? 0) / 2
+                            ).toFixed(2)}
+                          </div>
+                        </td>
+
+                        {/* Position Gap Column */}
+                        <td className='p-2 text-center'>
+                          <div
+                            className={`px-2 py-1 rounded-lg ${
+                              predictionMatch.positionGap >= 10
+                                ? 'bg-green-50 text-green-800'
+                                : predictionMatch.positionGap >= 5
+                                ? 'bg-yellow-50 text-yellow-800'
+                                : 'bg-gray-50 text-gray-800'
+                            }`}
+                          >
+                            {predictionMatch.positionGap || '-'}
+                          </div>
+                        </td>
+
+                        {/* Position Column */}
+                        <td className='p-2 text-center'>
+                          <div className='flex items-center justify-center gap-1 text-sm'>
+                            <span className='px-2 py-1 rounded-lg bg-blue-50 text-blue-800'>
+                              {predictionMatch.homeTeam.position || '-'}
+                            </span>
+                            <span className='text-gray-500'>/</span>
+                            <span className='px-2 py-1 rounded-lg bg-purple-50 text-purple-800'>
+                              {predictionMatch.awayTeam.position || '-'}
+                            </span>
+                          </div>
+                        </td>
+
+                        {/* Home/Away Form Column */}
+                        <td className='p-2 text-center'>
+                          <div className='flex flex-col gap-1'>
+                            <div className='px-2 py-1 rounded-lg bg-blue-50 text-blue-800 text-xs'>
+                              H:{' '}
+                              {predictionMatch.homeTeam.homeForm ||
+                                predictionMatch.homeTeam.form ||
+                                '-'}
+                            </div>
+                            <div className='px-2 py-1 rounded-lg bg-purple-50 text-purple-800 text-xs'>
+                              A:{' '}
+                              {predictionMatch.awayTeam.awayForm ||
+                                predictionMatch.awayTeam.form ||
+                                '-'}
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Form Column */}
+                        <td className='p-2 text-center'>
+                          <div className='flex items-center justify-center gap-1 text-sm'>
+                            <span
+                              className={`px-2 py-1 rounded-lg ${
+                                (predictionMatch.homeTeam.form || '').includes(
+                                  'W'
+                                )
+                                  ? 'bg-green-50 text-green-800'
+                                  : 'bg-red-50 text-red-800'
+                              }`}
+                            >
+                              {predictionMatch.homeTeam.form || '-'}
+                            </span>
+                            <span className='text-gray-500'>/</span>
+                            <span
+                              className={`px-2 py-1 rounded-lg ${
+                                (predictionMatch.awayTeam.form || '').includes(
+                                  'W'
+                                )
+                                  ? 'bg-green-50 text-green-800'
+                                  : 'bg-red-50 text-red-800'
+                              }`}
+                            >
+                              {predictionMatch.awayTeam.form || '-'}
+                            </span>
+                          </div>
+                        </td>
+
+                        {/* Favorite Form Column */}
+                        <td className='p-2 text-center'>
+                          <div
+                            className={`px-2 py-1 rounded-lg ${
+                              predictionMatch.favorite === 'home'
+                                ? 'bg-blue-50 text-blue-800'
+                                : predictionMatch.favorite === 'away'
+                                ? 'bg-purple-50 text-purple-800'
+                                : 'bg-gray-50 text-gray-800'
+                            }`}
+                          >
+                            {predictionMatch.favorite === 'home'
+                              ? predictionMatch.homeTeam.form
+                              : predictionMatch.favorite === 'away'
+                              ? predictionMatch.awayTeam.form
+                              : '-'}
+                          </div>
+                        </td>
+
+                        {/* H2H Column */}
+                        <td className='p-2 text-center'>
+                          {predictionMatch.headToHead &&
+                          predictionMatch.headToHead.matches > 0 ? (
+                            <div
+                              className={`px-2 py-1 rounded-lg ${
+                                predictionMatch.headToHead.wins /
+                                  predictionMatch.headToHead.matches >
+                                0.7
+                                  ? 'bg-green-50 text-green-800'
+                                  : predictionMatch.headToHead.wins /
+                                      predictionMatch.headToHead.matches >
+                                    0.4
+                                  ? 'bg-yellow-50 text-yellow-800'
+                                  : 'bg-red-50 text-red-800'
+                              }`}
+                            >
+                              {predictionMatch.headToHead.wins}-
+                              {predictionMatch.headToHead.draws}-
+                              {predictionMatch.headToHead.losses}
+                            </div>
+                          ) : (
+                            <div className='px-2 py-1 rounded-lg bg-gray-100 text-gray-600'>
+                              N/A
+                            </div>
+                          )}
+                        </td>
+
+                        {/* Expected Goals Column */}
+                        <td className='p-2 text-center'>
+                          <div
+                            className={`px-2 py-1 rounded-lg ${
+                              predictionMatch.expectedGoals >= 2.2
+                                ? 'bg-green-50 text-green-800'
+                                : predictionMatch.expectedGoals >= 1.5
+                                ? 'bg-yellow-50 text-yellow-800'
+                                : 'bg-red-50 text-red-800'
+                            }`}
+                          >
+                            {predictionMatch.expectedGoals?.toFixed(1) || '-'}
+                          </div>
+                        </td>
+
+                        {/* Defensive Strength Column */}
+                        <td className='p-2 text-center'>
+                          <div
+                            className={`px-2 py-1 rounded-lg ${
+                              1 / (predictionMatch.defensiveStrength || 1) >=
+                              1.2
+                                ? 'bg-green-50 text-green-800'
+                                : 1 /
+                                    (predictionMatch.defensiveStrength || 1) >=
+                                  1.0
+                                ? 'bg-yellow-50 text-yellow-800'
+                                : 'bg-gray-50 text-gray-800'
+                            }`}
+                          >
+                            {predictionMatch.defensiveStrength?.toFixed(2) ||
+                              '-'}
+                          </div>
+                        </td>
+
+                        {/* Favorite Column */}
+                        <td className='p-2 text-center'>
+                          {predictionMatch.favorite ? (
+                            <div
+                              className={`px-3 py-1 rounded-lg inline-flex items-center ${
+                                predictionMatch.favorite === 'home'
+                                  ? 'bg-blue-50 text-blue-800 border border-blue-200'
+                                  : 'bg-purple-50 text-purple-800 border border-purple-200'
+                              }`}
+                            >
+                              <span className='text-2xl mr-2'>🏆</span>
+                              <span className='truncate max-w-[100px]'>
+                                {predictionMatch.favorite === 'home'
+                                  ? predictionMatch.homeTeam.name
+                                  : predictionMatch.awayTeam.name}
+                              </span>
+                            </div>
+                          ) : (
+                            <div className='px-3 py-1 rounded-lg bg-gray-100 text-gray-600 border border-gray-200'>
+                              None
+                            </div>
+                          )}
+                        </td>
+
+                        {/* Confidence Column */}
+                        <td className='p-2 text-center'>
+                          <div
+                            className={`px-2 py-1 rounded-lg ${
+                              predictionMatch.confidenceScore >= 80
+                                ? 'bg-green-50 text-green-800'
+                                : predictionMatch.confidenceScore >= 60
+                                ? 'bg-yellow-50 text-yellow-800'
+                                : 'bg-red-50 text-red-800'
+                            }`}
+                          >
+                            {predictionMatch.confidenceScore}%
+                          </div>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Prediction details section - match details, teams comparison, and reasons */}
+              <div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
+                {/* Match Details */}
+                <div className='border-r border-gray-100 pr-4'>
+                  <h3 className='font-semibold text-gray-700 mb-2'>
+                    Match Details
+                  </h3>
+                  <div className='space-y-2'>
+                    <div className='flex justify-between'>
+                      <span className='text-gray-500'>Date:</span>
+                      <span className='font-medium'>
+                        {predictionMatch.date}
+                      </span>
+                    </div>
+                    <div className='flex justify-between'>
+                      <span className='text-gray-500'>Time:</span>
+                      <span className='font-medium'>
+                        {predictionMatch.time}
+                      </span>
+                    </div>
+                    <div className='flex justify-between'>
+                      <span className='text-gray-500'>Venue:</span>
+                      <span className='font-medium'>
+                        {predictionMatch.venue}
+                      </span>
+                    </div>
+                    <div className='flex justify-between'>
+                      <span className='text-gray-500'>Expected Goals:</span>
+                      <span className='font-medium'>
+                        {predictionMatch.expectedGoals?.toFixed(2) || 'N/A'}
+                      </span>
+                    </div>
+                    {/* Fix the odds property TypeScript errors */}
+                    {(predictionMatch as any).odds && (
+                      <>
+                        <div className='flex justify-between'>
+                          <span className='text-gray-500'>Over 1.5 Goals:</span>
+                          <span className='font-medium'>
+                            {(
+                              predictionMatch as any
+                            ).odds?.over15Goals?.toFixed(2) || 'N/A'}
+                          </span>
+                        </div>
+                        <div className='flex justify-between'>
+                          <span className='text-gray-500'>Home/Draw/Away:</span>
+                          <span className='font-medium'>
+                            {(predictionMatch as any).odds?.homeWin?.toFixed(
+                              2
+                            ) || 'N/A'}{' '}
+                            /{' '}
+                            {(predictionMatch as any).odds?.draw?.toFixed(2) ||
+                              'N/A'}{' '}
+                            /{' '}
+                            {(predictionMatch as any).odds?.awayWin?.toFixed(
+                              2
+                            ) || 'N/A'}
+                          </span>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* Teams Comparison */}
+                <div className='border-r border-gray-100 px-4'>
+                  <h3 className='font-semibold text-gray-700 mb-2'>
+                    Teams Comparison
+                  </h3>
+                  <table className='w-full text-sm'>
+                    <thead>
+                      <tr>
+                        <th className='text-left font-medium text-gray-500'>
+                          Metric
+                        </th>
+                        <th className='text-center font-medium text-gray-500'>
+                          {predictionMatch.homeTeam.name}
+                        </th>
+                        <th className='text-center font-medium text-gray-500'>
+                          {predictionMatch.awayTeam.name}
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className='divide-y divide-gray-100'>
+                      <tr>
+                        <td className='py-1 text-gray-500'>Position</td>
+                        <td className='py-1 text-center'>
+                          {predictionMatch.homeTeam.position || '-'}
+                        </td>
+                        <td className='py-1 text-center'>
+                          {predictionMatch.awayTeam.position || '-'}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className='py-1 text-gray-500'>Form</td>
+                        <td className='py-1 text-center'>
+                          {predictionMatch.homeTeam.form || '-'}
+                        </td>
+                        <td className='py-1 text-center'>
+                          {predictionMatch.awayTeam.form || '-'}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className='py-1 text-gray-500'>Avg Goals</td>
+                        <td className='py-1 text-center'>
+                          {predictionMatch.homeTeam.avgHomeGoals?.toFixed(2) ||
+                            'N/A'}
+                        </td>
+                        <td className='py-1 text-center'>
+                          {predictionMatch.awayTeam.avgAwayGoals?.toFixed(2) ||
+                            'N/A'}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className='py-1 text-gray-500'>Clean Sheets</td>
+                        <td className='py-1 text-center'>
+                          {predictionMatch.homeTeam.cleanSheets || '-'}
+                        </td>
+                        <td className='py-1 text-center'>
+                          {predictionMatch.awayTeam.cleanSheets || '-'}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Prediction Reasons */}
+                <div className='pl-4'>
+                  <h3 className='font-semibold text-gray-700 mb-2'>
+                    Prediction Reasons
+                  </h3>
+                  <ul className='list-disc pl-4 space-y-1'>
+                    {predictionMatch.reasonsForPrediction?.map(
+                      (reason: string, idx: number) => (
+                        <li key={idx} className='text-gray-700 text-sm'>
+                          {reason}
+                        </li>
+                      )
+                    )}
+                  </ul>
+
+                  {/* H2H Records */}
+                  {predictionMatch.headToHead &&
+                    predictionMatch.headToHead.matches > 0 && (
+                      <div className='mt-4'>
+                        <h4 className='font-medium text-gray-700 mb-1'>
+                          Head-to-Head
+                        </h4>
+                        <div className='text-sm text-gray-600 mb-2'>
+                          Record: {predictionMatch.headToHead.wins}W{' '}
+                          {predictionMatch.headToHead.draws}D{' '}
+                          {predictionMatch.headToHead.losses}L (
+                          {predictionMatch.headToHead.goalsScored}-
+                          {predictionMatch.headToHead.goalsConceded})
+                        </div>
+                        {(predictionMatch.headToHead as any).recentMatches && (
+                          <div>
+                            <h5 className='text-xs font-medium text-gray-500 mb-1'>
+                              Recent Matches:
+                            </h5>
+                            <ul className='text-xs space-y-1'>
+                              {(
+                                predictionMatch.headToHead as any
+                              ).recentMatches.map(
+                                (h2hMatch: any, idx: number) => (
+                                  <li key={idx} className='text-gray-600'>
+                                    {h2hMatch.date?.substring(0, 10)}:{' '}
+                                    {h2hMatch.result}
+                                  </li>
+                                )
+                              )}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                </div>
+              </div>
+
+              {/* Confidence score progress bar */}
+              <div className='mt-4'>
+                <p className='text-sm font-medium text-gray-700'>
+                  Confidence Score:
+                </p>
+                <div className='mt-1 flex items-center'>
+                  <div className='w-full bg-gray-200 rounded-full h-2.5'>
+                    <div
+                      className={`h-2.5 rounded-full ${
+                        predictionMatch.confidenceScore >= 80
+                          ? 'bg-green-600'
+                          : predictionMatch.confidenceScore >= 60
+                          ? 'bg-yellow-500'
+                          : 'bg-red-500'
+                      }`}
+                      style={{
+                        width: `${predictionMatch.confidenceScore}%`,
+                      }}
+                    ></div>
+                  </div>
+                  <span className='ml-2 text-sm'>
+                    {predictionMatch.confidenceScore}%
+                  </span>
+                </div>
+              </div>
             </div>
-          ))}
-        </div>
-      </td>
-
-      {/* Odds Column */}
-      <td className='px-4 py-3'>
-        <div className='space-y-1'>
-          {market.outcomes.map((outcome, index) => (
-            <div
-              key={createOutcomeKey(outcome.id, index)}
-              className={getOddsClassName(outcome)}
-            >
-              {outcome.odds.toFixed(2)}
-            </div>
-          ))}
-        </div>
-      </td>
-
-      {/* Stake % Column */}
-      <td className='px-4 py-3'>
-        <div className='space-y-1'>
-          {market.outcomes.map((outcome, index) => (
-            <div
-              key={createOutcomeKey(outcome.id, index)}
-              className='text-sm text-right'
-            >
-              {outcome.stakePercentage.toFixed(2)}%
-            </div>
-          ))}
-        </div>
-      </td>
-
-      {/* Investment Column */}
-      <td className='px-4 py-3'>
-        <div className='space-y-1'>
-          {market.outcomes.map((outcome, index) => (
-            <div
-              key={createOutcomeKey(outcome.id, index)}
-              className='text-sm text-right'
-            >
-              ${((outcome.stakePercentage / 100) * TOTAL_INVESTMENT).toFixed(2)}
-            </div>
-          ))}
-        </div>
-      </td>
-
-      <td className='px-4 py-3 text-center'>
-        <span className='text-sm font-medium'>{market.favourite}</span>
-      </td>
-      {/* Actions Column */}
-      <td className='px-4 py-3 text-center'>
-        <button
-          onClick={() => {
-            if (isInCart) {
-              removeItem(match.id, market.id);
-            } else {
-              addItem({
-                matchId: match.id,
-                marketId: market.id,
-                teams: match.teams,
-                market: {
-                  ...market,
-                  outcomes: market.outcomes,
-                },
-                addedAt: new Date().toISOString(),
-              });
-            }
-          }}
-          disabled={disabled}
-          className={`px-3 py-1 rounded-lg text-sm transition-colors ${
-            isInCart
-              ? 'bg-red-600 text-white hover:bg-red-700'
-              : 'bg-blue-600 text-white hover:bg-blue-700'
-          } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-        >
-          {isInCart ? 'Remove' : 'Add'}
-        </button>
-      </td>
-    </tr>
+          </td>
+        </tr>
+      )}
+    </>
   );
 };
 
@@ -664,6 +1257,7 @@ const MatchesPage = () => {
     togglePause,
     isConnected,
   } = useMatchData();
+
   const {
     items: cartItems,
     addItem,
@@ -672,7 +1266,22 @@ const MatchesPage = () => {
     upcomingMatches,
     clearUpcomingMatches,
     getUpcomingMatchesCount,
+    // Add prediction data related items
+    loadPredictionData,
+    predictionData,
+    isPredictionDataLoaded,
   } = useCartStore();
+
+  // Update the useEffect to check if data is already loaded
+  useEffect(() => {
+    // Only load prediction data if it hasn't been loaded already
+    if (!isPredictionDataLoaded) {
+      console.log('Initial prediction data load');
+      loadPredictionData();
+    } else {
+      console.log('Prediction data already loaded, skipping initial load');
+    }
+  }, [loadPredictionData, isPredictionDataLoaded]);
 
   // Handle initial loading state
   useEffect(() => {
@@ -681,6 +1290,16 @@ const MatchesPage = () => {
     }
   }, [isConnected, isInitialLoading, liveMatches.length]);
 
+  // Show feedback about prediction data loading
+  useEffect(() => {
+    if (predictionData.length > 0) {
+      console.log(
+        `Prediction data loaded: ${predictionData.length} matches available for cross-reference`
+      );
+    }
+  }, [predictionData.length]);
+
+  // Restore the timer effect for copiedText
   useEffect(() => {
     // Reset the timer whenever new text comes in
     if (copiedText) {
@@ -882,9 +1501,7 @@ const MatchesPage = () => {
   // Update the copy function to handle both carts
   const copyAllNames = () => {
     // Get only home team names from regular cart
-    const cartTeamNames = cartItems.map(
-      (item) => item.teams.home.name
-    );
+    const cartTeamNames = cartItems.map((item) => item.teams.home.name);
 
     // Get only favorite team names from upcoming matches cart
     const upcomingTeamNames = upcomingMatches
