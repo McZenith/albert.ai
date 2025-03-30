@@ -497,6 +497,7 @@ const MatchPredictor = () => {
     return () => clearInterval(refreshInterval);
   }, []);
 
+  // Fix the toggleMatchInCart function
   const toggleMatchInCart = (id: string | number, index: number): void => {
     const matchToAdd = upcomingMatches.find((m) => m.id === id);
     if (!matchToAdd) {
@@ -521,13 +522,25 @@ const MatchPredictor = () => {
       console.log(
         `Adding match to cart: ${matchToAdd.homeTeam.name} vs ${matchToAdd.awayTeam.name}`
       );
-      if (id === 0) {
-        // Clone the match and assign a unique ID
-        const matchWithUniqueId = { ...matchToAdd, id: uniqueId };
-        addUpcomingMatch(matchWithUniqueId);
-      } else {
-        addUpcomingMatch(matchToAdd);
-      }
+
+      // Create new team objects with required id properties
+      const homeTeamWithId = {
+        ...matchToAdd.homeTeam,
+        id: String(matchToAdd.homeTeam.name.replace(/\s+/g, '_').toLowerCase()),
+      };
+
+      const awayTeamWithId = {
+        ...matchToAdd.awayTeam,
+        id: String(matchToAdd.awayTeam.name.replace(/\s+/g, '_').toLowerCase()),
+      };
+
+      // Add to cart with proper structure
+      addUpcomingMatch({
+        ...matchToAdd,
+        id: uniqueId,
+        homeTeam: homeTeamWithId,
+        awayTeam: awayTeamWithId,
+      });
     }
 
     // Log the current cart state after the change
@@ -902,12 +915,25 @@ const MatchPredictor = () => {
       // Only add matches that are not already in the cart
       const uniqueId = match.id === 0 ? `match-${index}` : match.id;
       if (!isUpcomingMatchInCart(uniqueId)) {
-        if (match.id === 0) {
-          const matchWithUniqueId = { ...match, id: uniqueId };
-          addUpcomingMatch(matchWithUniqueId);
-        } else {
-          addUpcomingMatch(match);
-        }
+        // Create new team objects with required id properties
+        const homeTeamWithId = {
+          ...match.homeTeam,
+          id: String(match.homeTeam.name.replace(/\s+/g, '_').toLowerCase()),
+        };
+
+        const awayTeamWithId = {
+          ...match.awayTeam,
+          id: String(match.awayTeam.name.replace(/\s+/g, '_').toLowerCase()),
+        };
+
+        // Add to cart with proper structure
+        addUpcomingMatch({
+          ...match,
+          id: uniqueId,
+          homeTeam: homeTeamWithId,
+          awayTeam: awayTeamWithId,
+        });
+
         addedCount++;
       }
     });
@@ -1833,9 +1859,9 @@ const MatchPredictor = () => {
                       >
                         {Math.round(
                           match.favorite === 'home'
-                            ? match.homeTeam.bttsRate
+                            ? match.homeTeam.bttsRate || 0
                             : match.favorite === 'away'
-                            ? match.awayTeam.bttsRate
+                            ? match.awayTeam.bttsRate || 0
                             : 0
                         )}
                         %
@@ -1962,10 +1988,14 @@ const MatchPredictor = () => {
                                       Avg Goals
                                     </td>
                                     <td className='py-1 text-center'>
-                                      {Math.round(match.homeTeam.avgHomeGoals)}
+                                      {Math.round(
+                                        match.homeTeam.avgHomeGoals || 0
+                                      )}
                                     </td>
                                     <td className='py-1 text-center'>
-                                      {Math.round(match.awayTeam.avgAwayGoals)}
+                                      {Math.round(
+                                        match.awayTeam.avgAwayGoals || 0
+                                      )}
                                     </td>
                                   </tr>
                                   <tr>

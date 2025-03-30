@@ -23,7 +23,7 @@ interface CartItem {
 }
 
 export type UpcomingMatch = {
-  id: string;
+  id: string | number;
   date: string;
   time: string;
   venue: string;
@@ -70,7 +70,7 @@ interface CartStore {
   clearCart: () => void;
   upcomingMatches: UpcomingMatch[];
   addUpcomingMatch: (match: UpcomingMatch) => void;
-  removeUpcomingMatch: (matchId: string) => void;
+  removeUpcomingMatch: (matchId: string | number) => void;
   clearUpcomingMatches: () => void;
   isUpcomingMatchInCart: (matchId: string | number) => boolean;
   getUpcomingMatchesCount: () => number;
