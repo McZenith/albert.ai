@@ -1622,10 +1622,11 @@ const MatchPredictor = () => {
                           { high: 1.8, medium: 1.3 }
                         )}`}
                       >
-                        {((match.homeTeam.avgHomeGoals ?? 0) > 0
-                          ? match.homeTeam.avgHomeGoals ?? 0
-                          : (match.expectedGoals ?? 0) / 2
-                        ).toFixed(2)}
+                        {Math.round(
+                          (match.homeTeam.avgHomeGoals ?? 0) > 0
+                            ? match.homeTeam.avgHomeGoals ?? 0
+                            : (match.expectedGoals ?? 0) / 2
+                        )}
                       </div>
                     </td>
                     <td className='p-3 text-center'>
@@ -1637,10 +1638,11 @@ const MatchPredictor = () => {
                           { high: 1.4, medium: 1.0 }
                         )}`}
                       >
-                        {((match.awayTeam.avgAwayGoals ?? 0) > 0
-                          ? match.awayTeam.avgAwayGoals ?? 0
-                          : (match.expectedGoals ?? 0) / 2
-                        ).toFixed(2)}
+                        {Math.round(
+                          (match.awayTeam.avgAwayGoals ?? 0) > 0
+                            ? match.awayTeam.avgAwayGoals ?? 0
+                            : (match.expectedGoals ?? 0) / 2
+                        )}
                       </div>
                     </td>
                     <td className='p-3 text-center'>
@@ -1746,7 +1748,7 @@ const MatchPredictor = () => {
                           { high: 2.2, medium: 1.5 }
                         )}`}
                       >
-                        {match.expectedGoals?.toFixed(1)}
+                        {Math.round(match.expectedGoals)}
                       </div>
                     </td>
                     <td className='p-3 text-center'>
@@ -1760,7 +1762,7 @@ const MatchPredictor = () => {
                               : 'bg-red-100 text-red-800'
                           }`}
                         >
-                          {match.odds.over15Goals?.toFixed(2)}
+                          {Math.round(match.odds.over15Goals)}
                         </div>
                       ) : (
                         <div className='px-2 py-1 rounded-lg bg-gray-100 text-gray-600'>
@@ -1775,7 +1777,7 @@ const MatchPredictor = () => {
                           { high: 1.2, medium: 1.0 }
                         )}`}
                       >
-                        {match.defensiveStrength?.toFixed(2)}
+                        {Math.round(1 / match.defensiveStrength)}
                       </div>
                     </td>
                     <td className='p-3 text-center'>
@@ -1829,11 +1831,13 @@ const MatchPredictor = () => {
                           { high: 70, medium: 50 }
                         )}`}
                       >
-                        {match.favorite === 'home'
-                          ? match.homeTeam.bttsRate
-                          : match.favorite === 'away'
-                          ? match.awayTeam.bttsRate
-                          : '-'}
+                        {Math.round(
+                          match.favorite === 'home'
+                            ? match.homeTeam.bttsRate
+                            : match.favorite === 'away'
+                            ? match.awayTeam.bttsRate
+                            : 0
+                        )}
                         %
                       </div>
                     </td>
@@ -1872,7 +1876,7 @@ const MatchPredictor = () => {
                                     Expected Goals:
                                   </span>
                                   <span className='font-medium'>
-                                    {match.expectedGoals.toFixed(2)}
+                                    {Math.round(match.expectedGoals)}
                                   </span>
                                 </div>
                                 {match.odds && (
@@ -1882,7 +1886,7 @@ const MatchPredictor = () => {
                                         Over 1.5 Goals:
                                       </span>
                                       <span className='font-medium'>
-                                        {match.odds.over15Goals.toFixed(2)}
+                                        {Math.round(match.odds.over15Goals)}
                                       </span>
                                     </div>
                                     <div className='flex justify-between'>
@@ -1890,9 +1894,9 @@ const MatchPredictor = () => {
                                         Home/Draw/Away:
                                       </span>
                                       <span className='font-medium'>
-                                        {match.odds.homeWin.toFixed(2)} /{' '}
-                                        {match.odds.draw.toFixed(2)} /{' '}
-                                        {match.odds.awayWin.toFixed(2)}
+                                        {Math.round(match.odds.homeWin)} /{' '}
+                                        {Math.round(match.odds.draw)} /{' '}
+                                        {Math.round(match.odds.awayWin)}
                                       </span>
                                     </div>
                                   </>
@@ -1958,14 +1962,10 @@ const MatchPredictor = () => {
                                       Avg Goals
                                     </td>
                                     <td className='py-1 text-center'>
-                                      {match.homeTeam.avgHomeGoals?.toFixed(
-                                        2
-                                      ) || 'N/A'}
+                                      {Math.round(match.homeTeam.avgHomeGoals)}
                                     </td>
                                     <td className='py-1 text-center'>
-                                      {match.awayTeam.avgAwayGoals?.toFixed(
-                                        2
-                                      ) || 'N/A'}
+                                      {Math.round(match.awayTeam.avgAwayGoals)}
                                     </td>
                                   </tr>
                                   <tr>

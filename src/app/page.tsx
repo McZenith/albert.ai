@@ -455,13 +455,13 @@ const MarketRow = ({
     (item) => item.matchId === match.id && item.marketId === market.id
   );
 
-  // Get the predictionData directly from the store instead of just the function
-  const { findPredictionForMatch, predictionData } = useCartStore((state) => ({
-    findPredictionForMatch: state.findPredictionForMatch,
-    predictionData: state.predictionData,
-  }));
+  // Fix the infinite loop by using individual selectors instead of returning an object
+  const findPredictionForMatch = useCartStore(
+    (state) => state.findPredictionForMatch
+  );
+  const predictionData = useCartStore((state) => state.predictionData);
 
-  // Find prediction for this match - now depends on predictionData to refresh when it changes
+  // Find prediction for this match
   const predictionMatch = useMemo(() => {
     console.log(
       `Looking up match prediction for ${match.teams.home.name} vs ${match.teams.away.name} (${predictionData.length} matches available)`
@@ -768,10 +768,11 @@ const MarketRow = ({
                           <div
                             className={`px-2 py-1 rounded-lg bg-blue-50 text-blue-800`}
                           >
-                            {((predictionMatch.homeTeam.avgHomeGoals ?? 0) > 0
-                              ? predictionMatch.homeTeam.avgHomeGoals ?? 0
-                              : (predictionMatch.expectedGoals ?? 0) / 2
-                            ).toFixed(2)}
+                            {Math.round(
+                              (predictionMatch.homeTeam.avgHomeGoals ?? 0) > 0
+                                ? predictionMatch.homeTeam.avgHomeGoals ?? 0
+                                : (predictionMatch.expectedGoals ?? 0) / 2
+                            )}
                           </div>
                         </td>
 
@@ -780,10 +781,11 @@ const MarketRow = ({
                           <div
                             className={`px-2 py-1 rounded-lg bg-purple-50 text-purple-800`}
                           >
-                            {((predictionMatch.awayTeam.avgAwayGoals ?? 0) > 0
-                              ? predictionMatch.awayTeam.avgAwayGoals ?? 0
-                              : (predictionMatch.expectedGoals ?? 0) / 2
-                            ).toFixed(2)}
+                            {Math.round(
+                              (predictionMatch.awayTeam.avgAwayGoals ?? 0) > 0
+                                ? predictionMatch.awayTeam.avgAwayGoals ?? 0
+                                : (predictionMatch.expectedGoals ?? 0) / 2
+                            )}
                           </div>
                         </td>
 
@@ -920,7 +922,7 @@ const MarketRow = ({
                                 : 'bg-red-50 text-red-800'
                             }`}
                           >
-                            {predictionMatch.expectedGoals?.toFixed(1) || '-'}
+                            {Math.round(predictionMatch.expectedGoals) || '-'}
                           </div>
                         </td>
 
@@ -1016,7 +1018,7 @@ const MarketRow = ({
                     <div className='flex justify-between'>
                       <span className='text-gray-500'>Expected Goals:</span>
                       <span className='font-medium'>
-                        {predictionMatch.expectedGoals?.toFixed(2) || 'N/A'}
+                        {Math.round(predictionMatch.expectedGoals) || 'N/A'}
                       </span>
                     </div>
                     {/* Fix the odds property TypeScript errors */}
@@ -1091,12 +1093,14 @@ const MarketRow = ({
                       <tr>
                         <td className='py-1 text-gray-500'>Avg Goals</td>
                         <td className='py-1 text-center'>
-                          {predictionMatch.homeTeam.avgHomeGoals?.toFixed(2) ||
-                            'N/A'}
+                          {predictionMatch.homeTeam.avgHomeGoals
+                            ? Math.round(predictionMatch.homeTeam.avgHomeGoals)
+                            : 'N/A'}
                         </td>
                         <td className='py-1 text-center'>
-                          {predictionMatch.awayTeam.avgAwayGoals?.toFixed(2) ||
-                            'N/A'}
+                          {predictionMatch.awayTeam.avgAwayGoals
+                            ? Math.round(predictionMatch.awayTeam.avgAwayGoals)
+                            : 'N/A'}
                         </td>
                       </tr>
                       <tr>
