@@ -221,17 +221,24 @@ export const useCartStore = create<CartStore>()(
           }
         }
 
-        // 2. Fall back to team name matching
+        // 2. Fall back to team name matching with more flexible matching
         const cleanTeamName = (name: string): string => {
           if (!name) return '';
-          return name.toLowerCase().trim();
+          return name
+            .toLowerCase()
+            .trim()
+            .replace(/[^a-z0-9]/g, '') // Remove special characters
+            .replace(/\s+/g, ''); // Remove spaces
         };
 
         const cleanHomeTeam = cleanTeamName(homeTeam);
         const cleanAwayTeam = cleanTeamName(awayTeam);
 
         console.log(
-          `Looking for match by team names: ${homeTeam} vs ${awayTeam}`
+          `Looking for match by team names: "${homeTeam}" vs "${awayTeam}"`
+        );
+        console.log(
+          `Cleaned team names: "${cleanHomeTeam}" vs "${cleanAwayTeam}"`
         );
 
         // Try direct match with cleaned names
@@ -243,23 +250,37 @@ export const useCartStore = create<CartStore>()(
             prediction.awayTeam?.name || ''
           );
 
+          console.log(
+            `Comparing with prediction: "${prediction.homeTeam?.name}" vs "${prediction.awayTeam?.name}"`
+          );
+          console.log(
+            `Cleaned prediction names: "${predictionHomeClean}" vs "${predictionAwayClean}"`
+          );
+
+          // Try both orders of team names (home/away and away/home)
           const isMatch =
-            predictionHomeClean === cleanHomeTeam &&
-            predictionAwayClean === cleanAwayTeam;
+            (predictionHomeClean === cleanHomeTeam &&
+              predictionAwayClean === cleanAwayTeam) ||
+            (predictionHomeClean === cleanAwayTeam &&
+              predictionAwayClean === cleanHomeTeam);
 
           if (isMatch) {
-            console.log(
-              `✅ Found exact match by team names: ${prediction.homeTeam?.name} vs ${prediction.awayTeam?.name}`
-            );
+            console.log('✅ Found match by team names');
+          } else {
+            console.log('❌ No match found');
           }
 
           return isMatch;
         });
 
-        if (match) return match;
+        if (match) {
+          console.log('✅ Found prediction match');
+          return match;
+        }
 
-        // Try reverse match
-        const reverseMatch = predictionData.find((prediction) => {
+        // 3. Try partial matching if no exact match found
+        console.log('Trying partial matching...');
+        const partialMatch = predictionData.find((prediction) => {
           const predictionHomeClean = cleanTeamName(
             prediction.homeTeam?.name || ''
           );
@@ -267,40 +288,29 @@ export const useCartStore = create<CartStore>()(
             prediction.awayTeam?.name || ''
           );
 
-          const isMatch =
-            predictionHomeClean === cleanAwayTeam &&
-            predictionAwayClean === cleanHomeTeam;
+          // Check if either team name contains the other
+          const homeTeamMatch =
+            predictionHomeClean.includes(cleanHomeTeam) ||
+            cleanHomeTeam.includes(predictionHomeClean);
+          const awayTeamMatch =
+            predictionAwayClean.includes(cleanAwayTeam) ||
+            cleanAwayTeam.includes(predictionAwayClean);
 
-          if (isMatch) {
-            console.log(
-              `✅ Found reverse match by team names: ${prediction.homeTeam?.name} vs ${prediction.awayTeam?.name}`
-            );
+          if (homeTeamMatch && awayTeamMatch) {
+            console.log('✅ Found partial match');
+            return true;
           }
 
-          return isMatch;
+          return false;
         });
 
-        if (!match && !reverseMatch) {
-          console.log(
-            `❌ No match found for: ${homeTeam} vs ${awayTeam}${
-              matchId ? ` (ID: ${matchId})` : ''
-            }`
-          );
-
-          // Debug available data
-          if (predictionData.length > 0) {
-            console.log(`Available teams in prediction data (first 5):`);
-            predictionData.slice(0, 5).forEach((match, index) => {
-              console.log(
-                `${index + 1}. ${match.homeTeam?.name} vs ${
-                  match.awayTeam?.name
-                } (ID: ${match.id})`
-              );
-            });
-          }
+        if (partialMatch) {
+          console.log('✅ Found prediction match through partial matching');
+          return partialMatch;
         }
 
-        return reverseMatch || null;
+        console.log('❌ No prediction match found after all attempts');
+        return null;
       },
     }),
     {

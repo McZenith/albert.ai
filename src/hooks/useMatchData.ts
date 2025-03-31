@@ -78,6 +78,7 @@ export const useMatchData = () => {
     const connectionRef = useRef<HubConnection | null>(null);
     const latestMatchesRef = useRef<Map<string, ClientMatch>>(new Map());
     const [allMatchesChecked, setAllMatchesChecked] = useState(false);
+    const lastPredictionDataLengthRef = useRef<number>(0);
 
     // Get findPredictionForMatch function from the store
     const findPredictionForMatch = useCartStore((state) => state.findPredictionForMatch);
@@ -122,14 +123,24 @@ export const useMatchData = () => {
         return { status, playedSeconds };
     };
 
-    // Add a new useEffect to check all existing matches when prediction data first loads
+    // Add a new useEffect to check all existing matches when prediction data first loads or updates
     useEffect(() => {
-        // Only run this effect when prediction data is loaded and we haven't checked all matches yet
-        if (isPredictionDataLoaded && predictionData.length > 0 && !allMatchesChecked && matches.length > 0) {
+        // Check if prediction data has changed
+        const hasPredictionDataChanged = predictionData.length !== lastPredictionDataLengthRef.current;
+
+        // Run this effect when prediction data is loaded and either:
+        // 1. We haven't checked all matches yet, or
+        // 2. The prediction data has changed
+        if (isPredictionDataLoaded && predictionData.length > 0 &&
+            (!allMatchesChecked || hasPredictionDataChanged) &&
+            matches.length > 0) {
+
             console.log(`Checking all ${matches.length} existing matches against prediction data...`);
+            console.log(`Prediction data length: ${predictionData.length}`);
 
             const checkAllExistingMatches = () => {
                 let matchesWithPredictions = 0;
+                let matchesWithoutPredictions = 0;
 
                 matches.forEach(match => {
                     const prediction = findPredictionForMatch(
@@ -140,12 +151,24 @@ export const useMatchData = () => {
 
                     if (prediction) {
                         matchesWithPredictions++;
-                        console.log(`✅ Found prediction for existing match: ${match.teams.home.name} vs ${match.teams.away.name}`);
+                        console.log(`✅ Found prediction for match: ${match.teams.home.name} vs ${match.teams.away.name} (ID: ${match.id})`);
+                    } else {
+                        matchesWithoutPredictions++;
+                        console.log(`❌ No prediction found for match: ${match.teams.home.name} vs ${match.teams.away.name} (ID: ${match.id})`);
                     }
                 });
 
-                console.log(`Found predictions for ${matchesWithPredictions}/${matches.length} existing matches`);
-                setAllMatchesChecked(true);
+                console.log(`Found predictions for ${matchesWithPredictions}/${matches.length} matches`);
+                console.log(`Missing predictions for ${matchesWithoutPredictions} matches`);
+
+                // Update the reference length
+                lastPredictionDataLengthRef.current = predictionData.length;
+
+                // Only set allMatchesChecked if we have predictions for all matches
+                // or if we've explicitly checked all matches
+                if (matchesWithPredictions === matches.length || allMatchesChecked) {
+                    setAllMatchesChecked(true);
+                }
             };
 
             // Use setTimeout to avoid blocking the UI
@@ -198,6 +221,10 @@ export const useMatchData = () => {
 
                                         if (prediction) {
                                             console.log(`✅ Found prediction for new match: ${match.teams.home.name} vs ${match.teams.away.name}`);
+                                        } else {
+                                            console.log(`❌ No prediction found for new match: ${match.teams.home.name} vs ${match.teams.away.name}`);
+                                            // Reset allMatchesChecked to trigger a recheck
+                                            setAllMatchesChecked(false);
                                         }
                                     }
                                 });
