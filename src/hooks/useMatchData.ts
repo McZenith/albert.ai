@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { HubConnection, HubConnectionBuilder } from '@microsoft/signalr';
+import { useCartStore } from './useStore';
 
 // Updated interfaces to match server models
 interface ClientTeam {
@@ -76,6 +77,12 @@ export const useMatchData = () => {
     const [isPaused, setIsPaused] = useState(false);
     const connectionRef = useRef<HubConnection | null>(null);
     const latestMatchesRef = useRef<Map<string, ClientMatch>>(new Map());
+    const [allMatchesChecked, setAllMatchesChecked] = useState(false);
+
+    // Get findPredictionForMatch function from the store
+    const findPredictionForMatch = useCartStore((state) => state.findPredictionForMatch);
+    const isPredictionDataLoaded = useCartStore((state) => state.isPredictionDataLoaded);
+    const predictionData = useCartStore((state) => state.predictionData);
 
     // Transform server match status and time to UI format
     const transformMatchStatus = (match: ClientMatch): { status: 'FT' | '1H' | '2H' | 'HT' | 'NS'; playedSeconds: number } => {
@@ -115,6 +122,37 @@ export const useMatchData = () => {
         return { status, playedSeconds };
     };
 
+    // Add a new useEffect to check all existing matches when prediction data first loads
+    useEffect(() => {
+        // Only run this effect when prediction data is loaded and we haven't checked all matches yet
+        if (isPredictionDataLoaded && predictionData.length > 0 && !allMatchesChecked && matches.length > 0) {
+            console.log(`Checking all ${matches.length} existing matches against prediction data...`);
+
+            const checkAllExistingMatches = () => {
+                let matchesWithPredictions = 0;
+
+                matches.forEach(match => {
+                    const prediction = findPredictionForMatch(
+                        match.teams.home.name,
+                        match.teams.away.name,
+                        match.id
+                    );
+
+                    if (prediction) {
+                        matchesWithPredictions++;
+                        console.log(`✅ Found prediction for existing match: ${match.teams.home.name} vs ${match.teams.away.name}`);
+                    }
+                });
+
+                console.log(`Found predictions for ${matchesWithPredictions}/${matches.length} existing matches`);
+                setAllMatchesChecked(true);
+            };
+
+            // Use setTimeout to avoid blocking the UI
+            setTimeout(checkAllExistingMatches, 100);
+        }
+    }, [isPredictionDataLoaded, predictionData.length, matches, findPredictionForMatch, allMatchesChecked]);
+
     useEffect(() => {
         let isMounted = true;
         if (typeof window === 'undefined') return;
@@ -139,6 +177,35 @@ export const useMatchData = () => {
                 connection.on('ReceiveArbitrageLiveMatches', (data: ClientMatch[]) => {
                     if (!isPaused && isMounted) {
                         const newMatchesMap = new Map(data.map(match => [match.id, match]));
+
+                        // Check for any new matches that weren't in our previous state
+                        if (isPredictionDataLoaded && predictionData.length > 0) {
+                            const checkNewMatchesForPredictions = () => {
+                                data.forEach(match => {
+                                    const matchId = match.id;
+                                    // Only look for matches that weren't in our previous state
+                                    const isNewMatch = !latestMatchesRef.current.has(matchId);
+
+                                    if (isNewMatch) {
+                                        console.log(`New match detected: ${match.teams.home.name} vs ${match.teams.away.name} (ID: ${matchId})`);
+
+                                        // Find prediction for this match
+                                        const prediction = findPredictionForMatch(
+                                            match.teams.home.name,
+                                            match.teams.away.name,
+                                            matchId
+                                        );
+
+                                        if (prediction) {
+                                            console.log(`✅ Found prediction for new match: ${match.teams.home.name} vs ${match.teams.away.name}`);
+                                        }
+                                    }
+                                });
+                            };
+
+                            // Run the prediction check asynchronously to not block the UI update
+                            setTimeout(checkNewMatchesForPredictions, 10);
+                        }
 
                         // Update our reference map for future comparisons
                         const updatedMatches = data.map(newMatch => {
@@ -195,7 +262,7 @@ export const useMatchData = () => {
                 connectionRef.current.stop();
             }
         };
-    }, [isPaused]);
+    }, [isPaused, findPredictionForMatch, isPredictionDataLoaded, predictionData.length]);
 
     // Transform matches to UI format
     const transformedMatches: TransformedMatch[] = matches.map(match => ({
