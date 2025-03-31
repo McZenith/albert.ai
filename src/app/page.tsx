@@ -512,6 +512,19 @@ const MarketRow = ({
     return 'text-sm font-medium text-right bg-yellow-100 transition-colors duration-500';
   };
 
+  // Add the calculateFormPoints helper function at the top with other helper functions
+  const calculateFormPoints = (form: string): number => {
+    if (!form) return 0;
+
+    const wins = (form.match(/W/g) || []).length;
+    const draws = (form.match(/D/g) || []).length;
+
+    const points = wins * 3 + draws * 1;
+    const maxPoints = form.length * 3;
+
+    return Math.round((points / maxPoints) * 100);
+  };
+
   return (
     <>
       <tr
@@ -1088,6 +1101,21 @@ const MarketRow = ({
                         </td>
                         <td className='py-1 text-center'>
                           {predictionMatch.awayTeam.form || '-'}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className='py-1 text-gray-500'>Form Points</td>
+                        <td className='py-1 text-center'>
+                          {calculateFormPoints(
+                            predictionMatch.homeTeam.form || ''
+                          )}
+                          %
+                        </td>
+                        <td className='py-1 text-center'>
+                          {calculateFormPoints(
+                            predictionMatch.awayTeam.form || ''
+                          )}
+                          %
                         </td>
                       </tr>
                       <tr>
