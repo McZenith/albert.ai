@@ -492,6 +492,15 @@ const MarketRow = ({
   useEffect(() => {
     if (isPredictionDataLoaded && predictionData.length > 0) {
       const timeoutId = setTimeout(() => {
+        console.log(`\n=== Checking Prediction for Market Row ===`);
+        console.log(
+          `Match: ${match.teams.home.name} vs ${match.teams.away.name}`
+        );
+        console.log(`Match ID: ${match.id}`);
+        console.log(
+          `Total prediction data available: ${predictionData.length}`
+        );
+
         let foundMatch = findPredictionForMatch(
           match.teams.home.name,
           match.teams.away.name,
@@ -499,6 +508,9 @@ const MarketRow = ({
         );
 
         if (!foundMatch) {
+          console.log(
+            'Initial match not found, trying with trimmed team names...'
+          );
           const trimmedHomeTeam = match.teams.home.name.trim();
           const trimmedAwayTeam = match.teams.away.name.trim();
 
@@ -506,12 +518,48 @@ const MarketRow = ({
             trimmedHomeTeam !== match.teams.home.name ||
             trimmedAwayTeam !== match.teams.away.name
           ) {
+            console.log(
+              'Team names had whitespace, trying trimmed versions...'
+            );
             foundMatch = findPredictionForMatch(
               trimmedHomeTeam,
               trimmedAwayTeam,
               match.id
             );
           }
+        }
+
+        if (!foundMatch) {
+          console.log(
+            'Still no match found, trying with reversed team order...'
+          );
+          foundMatch = findPredictionForMatch(
+            match.teams.away.name,
+            match.teams.home.name,
+            match.id
+          );
+        }
+
+        if (foundMatch) {
+          console.log('✅ Found prediction match');
+          console.log(
+            'Prediction details:',
+            JSON.stringify(foundMatch, null, 2)
+          );
+        } else {
+          console.log('❌ No prediction match found after all attempts');
+          console.log(
+            'Available prediction data:',
+            JSON.stringify(
+              predictionData.map((m) => ({
+                id: m.id,
+                homeTeam: m.homeTeam?.name,
+                awayTeam: m.awayTeam?.name,
+              })),
+              null,
+              2
+            )
+          );
         }
 
         setPredictionMatch(foundMatch);
@@ -1410,7 +1458,7 @@ const MatchesPage = () => {
     }
   }, [copiedText]);
 
-  const handleSort = (field: string) => {
+  const handleSort = (field: string): void => {
     setSortConfigs((current) => {
       const existingIndex = current.findIndex(
         (config) => config.field === field
@@ -1438,7 +1486,7 @@ const MatchesPage = () => {
     });
   };
 
-  const handleFilter = (field: string, value: string) => {
+  const handleFilter = (field: string, value: string): void => {
     setFilters((current) => {
       const newFilters = {
         ...current,
@@ -1450,7 +1498,7 @@ const MatchesPage = () => {
   };
 
   // Helper function to get sort value for status
-  const getStatusSortValue = (status: string) => {
+  const getStatusSortValue = (status: string): number => {
     const statusOrder = {
       NS: 0, // Not Started
       '1H': 1, // First Half
@@ -1461,7 +1509,7 @@ const MatchesPage = () => {
     return statusOrder[status as keyof typeof statusOrder] || 0;
   };
 
-  const getSortedAndFilteredMatches = (matches: Match[]) => {
+  const getSortedAndFilteredMatches = (matches: Match[]): Match[] => {
     const filtered = matches.filter((match) => {
       // Apply text search
       const searchLower = searchQuery.toLowerCase();
@@ -1511,7 +1559,8 @@ const MatchesPage = () => {
       filtered.sort((a, b) => {
         for (const sortConfig of sortConfigs) {
           let comparison = 0;
-          let aValue, bValue;
+          let aValue: number | undefined;
+          let bValue: number | undefined;
 
           switch (sortConfig.field) {
             case 'status':
@@ -1593,13 +1642,13 @@ const MatchesPage = () => {
   );
 
   // Function to clear all carts
-  const clearAllCarts = () => {
+  const clearAllCarts = (): void => {
     clearCart();
     clearUpcomingMatches();
   };
 
   // Update the copy function to handle both carts
-  const copyAllNames = () => {
+  const copyAllNames = (): void => {
     const cartTeamNames = cartItems.map((item) => item.teams.home.name);
     const upcomingTeamNames = upcomingMatches
       .filter((match) => match.favorite === 'home' || match.favorite === 'away')

@@ -127,22 +127,14 @@ export const useMatchData = () => {
 
     // Add a new useEffect to check all existing matches when prediction data first loads or updates
     useEffect(() => {
-        // Check if prediction data has changed
         const hasPredictionDataChanged = predictionData.length !== lastPredictionDataLengthRef.current;
 
-        // Run this effect when prediction data is loaded and either:
-        // 1. We haven't checked all matches yet, or
-        // 2. The prediction data has changed
         if (isPredictionDataLoaded && predictionData.length > 0 &&
             (!allMatchesChecked || hasPredictionDataChanged) &&
             matches.length > 0) {
 
-            console.log(`Checking all ${matches.length} existing matches against prediction data...`);
-            console.log(`Prediction data length: ${predictionData.length}`);
-
             const checkAllExistingMatches = () => {
                 let matchesWithPredictions = 0;
-                let matchesWithoutPredictions = 0;
 
                 matches.forEach(match => {
                     const prediction = findPredictionForMatch(
@@ -153,30 +145,34 @@ export const useMatchData = () => {
 
                     if (prediction) {
                         matchesWithPredictions++;
-                        console.log(`✅ Found prediction for match: ${match.teams.home.name} vs ${match.teams.away.name} (ID: ${match.id})`);
                     } else {
-                        matchesWithoutPredictions++;
-                        console.log(`❌ No prediction found for match: ${match.teams.home.name} vs ${match.teams.away.name} (ID: ${match.id})`);
+                        const trimmedHomeTeam = match.teams.home.name.trim();
+                        const trimmedAwayTeam = match.teams.away.name.trim();
+
+                        if (trimmedHomeTeam !== match.teams.home.name || trimmedAwayTeam !== match.teams.away.name) {
+                            const predictionWithTrimmed = findPredictionForMatch(
+                                trimmedHomeTeam,
+                                trimmedAwayTeam,
+                                match.id
+                            );
+
+                            if (predictionWithTrimmed) {
+                                matchesWithPredictions++;
+                            }
+                        }
                     }
                 });
 
-                console.log(`Found predictions for ${matchesWithPredictions}/${matches.length} matches`);
-                console.log(`Missing predictions for ${matchesWithoutPredictions} matches`);
-
-                // Update the reference length
                 lastPredictionDataLengthRef.current = predictionData.length;
 
-                // Only set allMatchesChecked if we have predictions for all matches
-                // or if we've explicitly checked all matches
                 if (matchesWithPredictions === matches.length || allMatchesChecked) {
                     setAllMatchesChecked(true);
                 }
             };
 
-            // Use setTimeout to avoid blocking the UI
             setTimeout(checkAllExistingMatches, 100);
         }
-    }, [isPredictionDataLoaded, predictionData.length, matches, findPredictionForMatch, allMatchesChecked]);
+    }, [isPredictionDataLoaded, predictionData, matches, allMatchesChecked, findPredictionForMatch]);
 
     useEffect(() => {
         let isMounted = true;
