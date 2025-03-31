@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useMatchData } from '../hooks/useMatchData';
 import { useCartStore } from '@/hooks/useStore';
 import { ChevronUp, ChevronDown, Filter, ShoppingCart } from 'lucide-react';
@@ -460,19 +460,78 @@ const MarketRow = ({
     (state) => state.findPredictionForMatch
   );
   const predictionData = useCartStore((state) => state.predictionData);
+  const isPredictionDataLoaded = useCartStore(
+    (state) => state.isPredictionDataLoaded
+  );
 
-  // Find prediction for this match
-  const predictionMatch = useMemo(() => {
-    console.log(
-      `Looking up match prediction for ${match.teams.home.name} vs ${match.teams.away.name} (${predictionData.length} matches available)`
-    );
-    return findPredictionForMatch(match.teams.home.name, match.teams.away.name);
+  // Store the prediction match in state to persist it
+  const [predictionMatch, setPredictionMatch] = useState<any>(null);
+  const [matchLookupAttempted, setMatchLookupAttempted] = useState(false);
+
+  // Update prediction match when data changes or component mounts
+  useEffect(() => {
+    // Only proceed if prediction data is fully loaded and available
+    if (isPredictionDataLoaded && predictionData.length > 0) {
+      console.log(
+        `Attempting match lookup for ${match.teams.home.name} vs ${match.teams.away.name}`
+      );
+
+      // First wait a small delay to ensure all data is available
+      const timeoutId = setTimeout(() => {
+        // Try with match ID first, then fall back to team names
+        let foundMatch = findPredictionForMatch(
+          match.teams.home.name,
+          match.teams.away.name,
+          match.id
+        );
+
+        // Log the result
+        console.log(
+          `Prediction lookup for ${match.teams.home.name} vs ${
+            match.teams.away.name
+          } (ID: ${match.id}): ${
+            foundMatch ? 'Found' : 'Not found on first attempt'
+          }`
+        );
+
+        // If no match was found, try with trimmed team names as fallback
+        if (!foundMatch) {
+          const trimmedHomeTeam = match.teams.home.name.trim();
+          const trimmedAwayTeam = match.teams.away.name.trim();
+
+          if (
+            trimmedHomeTeam !== match.teams.home.name ||
+            trimmedAwayTeam !== match.teams.away.name
+          ) {
+            console.log(
+              `Trying again with trimmed names: "${trimmedHomeTeam}" vs "${trimmedAwayTeam}"`
+            );
+            foundMatch = findPredictionForMatch(
+              trimmedHomeTeam,
+              trimmedAwayTeam,
+              match.id
+            );
+          }
+        }
+
+        setPredictionMatch(foundMatch);
+        setMatchLookupAttempted(true);
+      }, 100); // Small delay to ensure data is ready
+
+      // Cleanup timeout on unmount
+      return () => clearTimeout(timeoutId);
+    }
   }, [
     match.teams.home.name,
     match.teams.away.name,
+    match.id,
     findPredictionForMatch,
-    predictionData,
+    predictionData.length,
+    isPredictionDataLoaded,
   ]);
+
+  // Simple boolean to check if we have prediction data
+  const hasPrediction = Boolean(predictionMatch);
 
   // Add debug logging for prediction match
   useEffect(() => {
@@ -488,9 +547,6 @@ const MarketRow = ({
     match.teams.away.name,
     predictionMatch,
   ]);
-
-  // Simple boolean to check if we have prediction data
-  const hasPrediction = Boolean(predictionMatch);
 
   // Handle expanding the row to show prediction details
   const handleRowClick = (e: React.MouseEvent<HTMLTableRowElement>) => {
@@ -524,6 +580,21 @@ const MarketRow = ({
 
     return Math.round((points / maxPoints) * 100);
   };
+
+  // Use matchLookupAttempted in a conditional for debugging
+  useEffect(() => {
+    if (matchLookupAttempted && !predictionMatch && isPredictionDataLoaded) {
+      console.log(
+        `Match lookup attempted but no prediction found for: ${match.teams.home.name} vs ${match.teams.away.name}`
+      );
+    }
+  }, [
+    matchLookupAttempted,
+    predictionMatch,
+    match.teams.home.name,
+    match.teams.away.name,
+    isPredictionDataLoaded,
+  ]);
 
   return (
     <>
@@ -1302,17 +1373,52 @@ const MatchesPage = () => {
     loadPredictionData,
     predictionData,
     isPredictionDataLoaded,
+    findPredictionForMatch,
   } = useCartStore();
 
-  // Update the useEffect to check if data is already loaded
+  // Update the useEffect to add retry logic for prediction data loading
   useEffect(() => {
-    // Only load prediction data if it hasn't been loaded already
-    if (!isPredictionDataLoaded) {
-      console.log('Initial prediction data load');
-      loadPredictionData();
-    } else {
-      console.log('Prediction data already loaded, skipping initial load');
-    }
+    // Track retry attempts
+    let retryCount = 0;
+    const maxRetries = 3;
+
+    const loadWithRetry = async () => {
+      // Only load prediction data if it hasn't been loaded already
+      if (!isPredictionDataLoaded) {
+        console.log(
+          `Attempting to load prediction data (attempt ${retryCount + 1}/${
+            maxRetries + 1
+          })`
+        );
+
+        await loadPredictionData();
+
+        // Check if the load was successful
+        const { isPredictionDataLoaded, predictionData } =
+          useCartStore.getState();
+
+        if (!isPredictionDataLoaded && retryCount < maxRetries) {
+          // If not successful and we have retries left, try again after a delay
+          retryCount++;
+          console.log(
+            `Prediction data load unsuccessful, retrying in 2 seconds... (${retryCount}/${maxRetries})`
+          );
+          setTimeout(loadWithRetry, 2000);
+        } else if (isPredictionDataLoaded) {
+          console.log(
+            `Prediction data successfully loaded with ${predictionData.length} matches`
+          );
+        } else {
+          console.warn(
+            'Failed to load prediction data after all retry attempts'
+          );
+        }
+      } else {
+        console.log('Prediction data already loaded, skipping initial load');
+      }
+    };
+
+    loadWithRetry();
   }, [loadPredictionData, isPredictionDataLoaded]);
 
   // Handle initial loading state
@@ -1567,6 +1673,80 @@ const MatchesPage = () => {
       )
       .catch((err) => console.error('Failed to copy:', err));
   };
+
+  // Add this after the existing useEffect hooks
+  useEffect(() => {
+    if (
+      isPredictionDataLoaded &&
+      predictionData.length > 0 &&
+      liveMatches.length > 0
+    ) {
+      // Add a small delay to ensure data is fully ready
+      const timeoutId = setTimeout(() => {
+        console.log('========== LIVE MATCHES WITH PREDICTION DATA ==========');
+        console.log(`Total live matches: ${liveMatches.length}`);
+        console.log(`Total prediction matches: ${predictionData.length}`);
+
+        // First, let's check for ID matches
+        const idMatches = liveMatches.filter((match) => {
+          return predictionData.some(
+            (prediction) => prediction.id?.toString() === match.id
+          );
+        });
+
+        console.log(
+          `Matches found by ID: ${idMatches.length}/${liveMatches.length}`
+        );
+
+        // Then check for team name matches
+        const matchesWithPredictions = liveMatches.filter((match) => {
+          const foundPrediction = findPredictionForMatch(
+            match.teams.home.name,
+            match.teams.away.name,
+            match.id
+          );
+          return foundPrediction !== null;
+        });
+
+        console.log(
+          `Live matches with prediction data (by name or ID): ${matchesWithPredictions.length}/${liveMatches.length}`
+        );
+
+        // List all live matches and whether they have prediction data
+        console.log('All live matches:');
+        liveMatches.forEach((match, index) => {
+          const hasPrediction =
+            findPredictionForMatch(
+              match.teams.home.name,
+              match.teams.away.name,
+              match.id
+            ) !== null;
+
+          const matchById = predictionData.some(
+            (prediction) => prediction.id?.toString() === match.id
+          );
+
+          console.log(
+            `${index + 1}. ${match.teams.home.name} vs ${
+              match.teams.away.name
+            } ` +
+              `(ID: ${match.id}) - ${
+                hasPrediction ? '✅ Has prediction' : '❌ No prediction'
+              }${matchById ? ' (matched by ID)' : ''}`
+          );
+        });
+
+        console.log('=======================================================');
+      }, 500); // Longer delay for the debug check to ensure MarketRow has had time to check
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [
+    isPredictionDataLoaded,
+    predictionData.length,
+    liveMatches,
+    findPredictionForMatch,
+  ]);
 
   return (
     <div className='min-h-screen bg-gray-50'>

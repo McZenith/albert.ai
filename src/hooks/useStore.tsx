@@ -81,7 +81,8 @@ interface CartStore {
   loadPredictionData: () => Promise<void>;
   findPredictionForMatch: (
     homeTeam: string,
-    awayTeam: string
+    awayTeam: string,
+    matchId?: string
   ) => UpcomingMatch | null;
 }
 
@@ -116,17 +117,53 @@ export const useCartStore = create<CartStore>()(
           const upcomingMatches =
             data?.data?.upcomingMatches || data?.upcomingMatches || [];
 
+          // Validate that the data is complete before setting as loaded
+          if (upcomingMatches.length === 0) {
+            console.warn(
+              'Prediction data loaded but contains 0 matches. Setting isPredictionDataLoaded=false'
+            );
+            set({
+              predictionData: [],
+              isPredictionDataLoaded: false,
+              isPredictionDataLoading: false,
+            });
+            return;
+          }
+
+          // Check that the first item has required fields
+          const firstMatch = upcomingMatches[0];
+          const hasRequiredFields =
+            firstMatch?.homeTeam?.name &&
+            firstMatch?.awayTeam?.name &&
+            firstMatch?.id;
+
+          if (!hasRequiredFields) {
+            console.warn(
+              'Prediction data loaded but is missing required fields. Setting isPredictionDataLoaded=false'
+            );
+            console.log('Sample data:', firstMatch);
+            set({
+              predictionData: [],
+              isPredictionDataLoaded: false,
+              isPredictionDataLoading: false,
+            });
+            return;
+          }
+
+          console.log(`Loaded ${upcomingMatches.length} prediction matches`);
+
+          // All validation passed - set the data as loaded
           set({
             predictionData: upcomingMatches,
             isPredictionDataLoaded: true,
             isPredictionDataLoading: false,
           });
-          console.log(`Loaded ${upcomingMatches.length} prediction matches`);
         } catch (error) {
           console.error('Error loading prediction data:', error);
           set({
             predictionDataError: error as Error,
             isPredictionDataLoading: false,
+            isPredictionDataLoaded: false,
           });
         }
       },
@@ -169,24 +206,99 @@ export const useCartStore = create<CartStore>()(
         return get().upcomingMatches.some((match) => match.id === matchId);
       },
 
-      findPredictionForMatch: (homeTeam, awayTeam) => {
+      findPredictionForMatch: (homeTeam, awayTeam, matchId?: string) => {
         const { predictionData } = get();
 
-        const match = predictionData.find(
-          (prediction) =>
-            prediction.homeTeam?.name?.toLowerCase() ===
-              homeTeam.toLowerCase() &&
-            prediction.awayTeam?.name?.toLowerCase() === awayTeam.toLowerCase()
+        // 1. Try matching by ID first if provided
+        if (matchId) {
+          const matchById = predictionData.find(
+            (prediction) => prediction.id?.toString() === matchId
+          );
+
+          if (matchById) {
+            console.log(`✅ Found match by ID: ${matchId}`);
+            return matchById;
+          }
+        }
+
+        // 2. Fall back to team name matching
+        const cleanTeamName = (name: string): string => {
+          if (!name) return '';
+          return name.toLowerCase().trim();
+        };
+
+        const cleanHomeTeam = cleanTeamName(homeTeam);
+        const cleanAwayTeam = cleanTeamName(awayTeam);
+
+        console.log(
+          `Looking for match by team names: ${homeTeam} vs ${awayTeam}`
         );
+
+        // Try direct match with cleaned names
+        const match = predictionData.find((prediction) => {
+          const predictionHomeClean = cleanTeamName(
+            prediction.homeTeam?.name || ''
+          );
+          const predictionAwayClean = cleanTeamName(
+            prediction.awayTeam?.name || ''
+          );
+
+          const isMatch =
+            predictionHomeClean === cleanHomeTeam &&
+            predictionAwayClean === cleanAwayTeam;
+
+          if (isMatch) {
+            console.log(
+              `✅ Found exact match by team names: ${prediction.homeTeam?.name} vs ${prediction.awayTeam?.name}`
+            );
+          }
+
+          return isMatch;
+        });
 
         if (match) return match;
 
-        const reverseMatch = predictionData.find(
-          (prediction) =>
-            prediction.homeTeam?.name?.toLowerCase() ===
-              awayTeam.toLowerCase() &&
-            prediction.awayTeam?.name?.toLowerCase() === homeTeam.toLowerCase()
-        );
+        // Try reverse match
+        const reverseMatch = predictionData.find((prediction) => {
+          const predictionHomeClean = cleanTeamName(
+            prediction.homeTeam?.name || ''
+          );
+          const predictionAwayClean = cleanTeamName(
+            prediction.awayTeam?.name || ''
+          );
+
+          const isMatch =
+            predictionHomeClean === cleanAwayTeam &&
+            predictionAwayClean === cleanHomeTeam;
+
+          if (isMatch) {
+            console.log(
+              `✅ Found reverse match by team names: ${prediction.homeTeam?.name} vs ${prediction.awayTeam?.name}`
+            );
+          }
+
+          return isMatch;
+        });
+
+        if (!match && !reverseMatch) {
+          console.log(
+            `❌ No match found for: ${homeTeam} vs ${awayTeam}${
+              matchId ? ` (ID: ${matchId})` : ''
+            }`
+          );
+
+          // Debug available data
+          if (predictionData.length > 0) {
+            console.log(`Available teams in prediction data (first 5):`);
+            predictionData.slice(0, 5).forEach((match, index) => {
+              console.log(
+                `${index + 1}. ${match.homeTeam?.name} vs ${
+                  match.awayTeam?.name
+                } (ID: ${match.id})`
+              );
+            });
+          }
+        }
 
         return reverseMatch || null;
       },
