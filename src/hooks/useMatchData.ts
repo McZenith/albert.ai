@@ -73,10 +73,12 @@ interface TransformedMatch {
 
 export const useMatchData = () => {
     const [matches, setMatches] = useState<ClientMatch[]>([]);
+    const [allLiveMatches, setAllLiveMatches] = useState<ClientMatch[]>([]);
     const [isConnected, setIsConnected] = useState(false);
     const [isPaused, setIsPaused] = useState(false);
     const connectionRef = useRef<HubConnection | null>(null);
     const latestMatchesRef = useRef<Map<string, ClientMatch>>(new Map());
+    const latestAllMatchesRef = useRef<Map<string, ClientMatch>>(new Map());
     const [allMatchesChecked, setAllMatchesChecked] = useState(false);
     const lastPredictionDataLengthRef = useRef<number>(0);
 
@@ -184,7 +186,7 @@ export const useMatchData = () => {
             try {
                 const connection = new HubConnectionBuilder() 
                     .withUrl('https://fredapi-5da7cd50ded2.herokuapp.com/livematchhub')
-                    .withAutomaticReconnect([0, 2000, 5000, 10000, 20000]) // Progressive retry intervals
+                    .withAutomaticReconnect([0, 2000, 5000, 10000, 20000])
                     .build();
 
                 connection.onreconnecting(() => {
@@ -197,6 +199,7 @@ export const useMatchData = () => {
                     setIsConnected(true);
                 });
 
+                // Handle arbitrage matches
                 connection.on('ReceiveArbitrageLiveMatches', (data: ClientMatch[]) => {
                     if (!isPaused && isMounted) {
                         const newMatchesMap = new Map(data.map(match => [match.id, match]));
@@ -206,13 +209,11 @@ export const useMatchData = () => {
                             const checkNewMatchesForPredictions = () => {
                                 data.forEach(match => {
                                     const matchId = match.id;
-                                    // Only look for matches that weren't in our previous state
                                     const isNewMatch = !latestMatchesRef.current.has(matchId);
 
                                     if (isNewMatch) {
                                         console.log(`New match detected: ${match.teams.home.name} vs ${match.teams.away.name} (ID: ${matchId})`);
 
-                                        // Find prediction for this match
                                         const prediction = findPredictionForMatch(
                                             match.teams.home.name,
                                             match.teams.away.name,
@@ -223,22 +224,18 @@ export const useMatchData = () => {
                                             console.log(`✅ Found prediction for new match: ${match.teams.home.name} vs ${match.teams.away.name}`);
                                         } else {
                                             console.log(`❌ No prediction found for new match: ${match.teams.home.name} vs ${match.teams.away.name}`);
-                                            // Reset allMatchesChecked to trigger a recheck
                                             setAllMatchesChecked(false);
                                         }
                                     }
                                 });
                             };
 
-                            // Run the prediction check asynchronously to not block the UI update
                             setTimeout(checkNewMatchesForPredictions, 10);
                         }
 
-                        // Update our reference map for future comparisons
                         const updatedMatches = data.map(newMatch => {
                             const existingMatch = latestMatchesRef.current.get(newMatch.id);
 
-                            // Process markets and track odds changes
                             const processedMarkets = newMatch.markets.map(newMarket => {
                                 const existingMarket = existingMatch?.markets.find(m => m.id === newMarket.id);
 
@@ -262,9 +259,44 @@ export const useMatchData = () => {
                             };
                         });
 
-                        // Update our reference and state
                         latestMatchesRef.current = newMatchesMap;
                         setMatches(updatedMatches);
+                    }
+                });
+
+                // Handle all live matches
+                connection.on('ReceiveAllLiveMatches', (data: ClientMatch[]) => {
+                    if (!isPaused && isMounted) {
+                        const newMatchesMap = new Map(data.map(match => [match.id, match]));
+
+                        const updatedMatches = data.map(newMatch => {
+                            const existingMatch = latestAllMatchesRef.current.get(newMatch.id);
+
+                            const processedMarkets = newMatch.markets.map(newMarket => {
+                                const existingMarket = existingMatch?.markets.find(m => m.id === newMarket.id);
+
+                                return {
+                                    ...newMarket,
+                                    outcomes: newMarket.outcomes.map(newOutcome => {
+                                        const existingOutcome = existingMarket?.outcomes.find(o => o.id === newOutcome.id);
+                                        return {
+                                            ...newOutcome,
+                                            isChanged: existingOutcome
+                                                ? newOutcome.odds !== existingOutcome.odds
+                                                : false
+                                        };
+                                    })
+                                };
+                            });
+
+                            return {
+                                ...newMatch,
+                                markets: processedMarkets
+                            };
+                        });
+
+                        latestAllMatchesRef.current = newMatchesMap;
+                        setAllLiveMatches(updatedMatches);
                     }
                 });
 
@@ -318,10 +350,38 @@ export const useMatchData = () => {
         matchTime: match.lastUpdated
     }));
 
+    // Transform all live matches to UI format
+    const transformedAllLiveMatches: TransformedMatch[] = allLiveMatches.map(match => ({
+        id: match.id,
+        seasonId: match.seasonId,
+        teams: match.teams,
+        tournamentName: match.tournamentName,
+        ...transformMatchStatus(match),
+        markets: match.markets.map(market => ({
+            id: market.id,
+            description: market.description,
+            specifier: market.specifier,
+            favourite: market.favourite,
+            profitPercentage: market.profitPercentage,
+            margin: market.margin,
+            outcomes: market.outcomes.map(outcome => ({
+                id: outcome.id,
+                description: outcome.description,
+                odds: outcome.odds,
+                stakePercentage: outcome.stakePercentage,
+                isChanged: outcome.isChanged
+            }))
+        })),
+        score: match.score,
+        createdAt: match.lastUpdated,
+        matchTime: match.lastUpdated
+    }));
+
     const togglePause = () => setIsPaused(prev => !prev);
 
     return {
         matches: transformedMatches,
+        allLiveMatches: transformedAllLiveMatches,
         isConnected,
         isPaused,
         togglePause

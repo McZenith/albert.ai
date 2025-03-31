@@ -350,6 +350,28 @@ const Stats = ({
             className={
               isClient
                 ? `px-4 py-2 rounded-lg relative ${
+                    activeTab === 'all-live'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-100'
+                  } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`
+                : defaultButtonStyle
+            }
+            onClick={() => {
+              setActiveTab('all-live');
+            }}
+            disabled={disabled}
+          >
+            All Live
+            {isClient && activeTab === 'all-live' && (
+              <span className='absolute -top-2 -right-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full'>
+                {matchCount}
+              </span>
+            )}
+          </button>
+          <button
+            className={
+              isClient
+                ? `px-4 py-2 rounded-lg relative ${
                     activeTab === 'upcoming'
                       ? 'bg-blue-600 text-white'
                       : 'bg-gray-100'
@@ -1295,6 +1317,7 @@ const MatchesPage = () => {
 
   const {
     matches: liveMatches,
+    allLiveMatches,
     isPaused,
     togglePause,
     isConnected,
@@ -1565,7 +1588,9 @@ const MatchesPage = () => {
     return filteredMatches;
   };
 
-  const filteredMatches = getSortedAndFilteredMatches(liveMatches);
+  const filteredMatches = getSortedAndFilteredMatches(
+    activeTab === 'live' ? liveMatches : allLiveMatches
+  );
 
   // Function to clear all carts
   const clearAllCarts = () => {
@@ -1638,7 +1663,7 @@ const MatchesPage = () => {
           onClearCart={clearAllCarts}
           disabled={isInitialLoading}
         />
-        {activeTab === 'live' ? (
+        {activeTab === 'live' || activeTab === 'all-live' ? (
           <div className='container mx-auto px-4'>
             <SearchBar
               value={searchQuery}
@@ -1760,17 +1785,24 @@ const MatchesPage = () => {
                     </thead>
                     <tbody className='divide-y divide-gray-200'>
                       {filteredMatches.flatMap((match, matchIndex) =>
-                        match.markets.map((market, marketIndex) => (
-                          <MarketRow
-                            key={`${match.id}-${market.id}-${matchIndex}-${marketIndex}`}
-                            match={match}
-                            market={market}
-                            cartItems={cartItems}
-                            addItem={addItem}
-                            removeItem={removeItem}
-                            disabled={isInitialLoading}
-                          />
-                        ))
+                        match.markets
+                          .filter((market) =>
+                            activeTab === 'live'
+                              ? market.description !==
+                                '1st Half - Correct Score'
+                              : true
+                          )
+                          .map((market, marketIndex) => (
+                            <MarketRow
+                              key={`${match.id}-${market.id}-${matchIndex}-${marketIndex}`}
+                              match={match}
+                              market={market}
+                              cartItems={cartItems}
+                              addItem={addItem}
+                              removeItem={removeItem}
+                              disabled={isInitialLoading}
+                            />
+                          ))
                       )}
                     </tbody>
                   </table>
