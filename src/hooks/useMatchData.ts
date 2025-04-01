@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { HubConnection, HubConnectionBuilder } from '@microsoft/signalr';
 import { useCartStore } from './useStore';
-import { ClientMatch, TransformedMatch } from '@/types/match';
+import { TransformedMatch } from '@/types/match';
 import { transformMatch, findPredictionForMatch } from '@/utils/matchUtils';
 
 // Updated interfaces to match server models
@@ -130,7 +130,7 @@ export const useMatchData = () => {
     const lastPredictionDataLengthRef = useRef<number>(0);
 
     // Get findPredictionForMatch function from the store
-    const findPredictionForMatchStore = useCartStore((state) => state.findPredictionForMatch);
+    // const findPredictionForMatchStore = useCartStore((state) => state.findPredictionForMatch);
     const isPredictionDataLoaded = useCartStore((state) => state.isPredictionDataLoaded);
     const predictionData = useCartStore((state) => state.predictionData);
 
@@ -191,7 +191,7 @@ export const useMatchData = () => {
                 });
 
                 // Handle arbitrage matches
-                connection.on('ReceiveArbitrageMatches', (data: ClientMatch[]) => {
+                connection.on('ReceiveArbitrageLiveMatches', (data: ClientMatch[]) => {
                     if (!isPaused && isMounted) {
                         const newMatchesMap = new Map(data.map(match => [match.id, transformMatch(match)]));
 
