@@ -860,7 +860,7 @@ const MarketRow = ({
       {isExpanded && hasPrediction && predictionMatch && (
         <tr className='bg-blue-50/50'>
           <td colSpan={12} className='p-4'>
-            <div className='border border-blue-100 rounded-lg bg-white p-4 shadow-sm max-w-full'>
+            <div className='border border-blue-100 rounded-lg bg-white p-4 shadow-sm w-full max-w-full overflow-x-auto'>
               {/* Complete match row from Upcoming tab */}
               <div className='mb-6 pb-4 border-b border-gray-100'>
                 <div className='w-full overflow-x-auto'>
@@ -2283,7 +2283,7 @@ const MatchesPage = () => {
           disabled={isInitialLoading}
         />
         {activeTab === 'live' || activeTab === 'all-live' ? (
-          <div className='container mx-auto px-4'>
+          <div className='container mx-auto px-4 max-w-[2000px]'>
             <SearchBar
               value={searchQuery}
               onChange={setSearchQuery}
@@ -2294,8 +2294,8 @@ const MatchesPage = () => {
               <LoadingTable />
             ) : (
               <div className='mt-4 bg-white rounded-lg shadow-sm'>
-                <div className='w-full overflow-x-auto'>
-                  <table className='w-full divide-y divide-gray-200'>
+                <div className='w-full overflow-x-auto min-w-0'>
+                  <table className='w-full divide-y divide-gray-200 table-fixed'>
                     <thead>
                       <tr className='bg-gray-50 sticky top-0 z-10'>
                         <HeaderCell
