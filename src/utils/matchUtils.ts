@@ -1,4 +1,5 @@
 import { ClientMatch, TransformedMatch } from '@/types/match';
+import { UpcomingMatch } from '@/types/match';
 
 // Transform server match status and time to UI format
 export const transformMatchStatus = (match: ClientMatch): { status: 'FT' | '1H' | '2H' | 'HT' | 'NS'; playedSeconds: number } => {
@@ -179,8 +180,8 @@ export const findPredictionForMatch = (
     homeTeamName: string,
     awayTeamName: string,
     matchId: string,
-    predictionData: any[]
-): any => {
+    predictionData: UpcomingMatch[]
+): UpcomingMatch | null => {
     if (!predictionData?.length) return null;
 
     const normalizedHomeTeam = normalizeTeamName(homeTeamName);

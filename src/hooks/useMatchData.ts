@@ -297,7 +297,7 @@ export const useMatchData = () => {
                 connectionRef.current.stop();
             }
         };
-    }, [isPaused, isPredictionDataLoaded, predictionData.length]);
+    }, [isPaused, isPredictionDataLoaded, predictionData.length, predictionData]);
 
     const togglePause = () => setIsPaused(prev => !prev);
 

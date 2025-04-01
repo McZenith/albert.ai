@@ -81,8 +81,7 @@ interface CartStore {
   loadPredictionData: () => Promise<void>;
   findPredictionForMatch: (
     homeTeam: string,
-    awayTeam: string,
-    matchId?: string
+    awayTeam: string
   ) => UpcomingMatch | null;
 }
 
@@ -183,11 +182,7 @@ export const useCartStore = create<CartStore>((set, get) => ({
     return get().upcomingMatches.some((match) => match.id === matchId);
   },
 
-  findPredictionForMatch: (
-    homeTeam: string,
-    awayTeam: string,
-    matchId?: string
-  ) => {
+  findPredictionForMatch: (homeTeam: string, awayTeam: string) => {
     const { predictionData } = get();
 
     if (!predictionData?.length) return null;
