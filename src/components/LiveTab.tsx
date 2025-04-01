@@ -472,15 +472,16 @@
             </tr>
             {expandedMatch === match.id && (
               <tr className='bg-gray-50'>
-                <td colSpan={17} className='p-4'>
-                  <div className='bg-white border border-gray-200 rounded-lg p-4 shadow-sm transition-all duration-200'>
-                    <div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
-                      {/* Match Details */}
-                      <div className='border-r border-gray-100 pr-4'>
-                        <h3 className='font-semibold text-gray-700 mb-2'>
-                          Match Details
+                <td colSpan={17} className='p-3'>
+                  <div className='bg-white border border-gray-200 rounded-lg p-3 shadow-sm transition-all duration-200'>
+                    {/* Main Stats Grid */}
+                    <div className='grid grid-cols-1 md:grid-cols-4 gap-3'>
+                      {/* Match Overview */}
+                      <div className='space-y-2'>
+                        <h3 className='text-sm font-semibold text-gray-700'>
+                          Match Overview
                         </h3>
-                        <div className='space-y-2'>
+                        <div className='text-xs space-y-1'>
                           <div className='flex justify-between'>
                             <span className='text-gray-500'>Time:</span>
                             <span className='font-medium'>
@@ -496,367 +497,355 @@
                             <span className='font-medium'>{match.venue}</span>
                           </div>
                           <div className='flex justify-between'>
-                            <span className='text-gray-500'>
-                              Expected Goals:
-                            </span>
+                            <span className='text-gray-500'>xGoals:</span>
                             <span className='font-medium'>
                               {Math.round(match.expectedGoals)}
                             </span>
                           </div>
+                        </div>
+                      </div>
+
+                      {/* Odds & Betting */}
+                      <div className='space-y-2'>
+                        <h3 className='text-sm font-semibold text-gray-700'>
+                          Odds & Betting
+                        </h3>
+                        <div className='text-xs space-y-1'>
                           {match.odds && (
                             <>
                               <div className='flex justify-between'>
-                                <span className='text-gray-500'>
-                                  Over 1.5 Goals:
-                                </span>
+                                <span className='text-gray-500'>Over 1.5:</span>
                                 <span className='font-medium'>
                                   {Math.round(match.odds.over15Goals)}
                                 </span>
                               </div>
                               <div className='flex justify-between'>
-                                <span className='text-gray-500'>
-                                  Home/Draw/Away:
-                                </span>
+                                <span className='text-gray-500'>H/D/A:</span>
                                 <span className='font-medium'>
-                                  {Math.round(match.odds.homeWin)} /{' '}
-                                  {Math.round(match.odds.draw)} /{' '}
+                                  {Math.round(match.odds.homeWin)}/
+                                  {Math.round(match.odds.draw)}/
                                   {Math.round(match.odds.awayWin)}
                                 </span>
                               </div>
                             </>
                           )}
+                          <div className='flex justify-between'>
+                            <span className='text-gray-500'>Favorite:</span>
+                            <span className='font-medium'>
+                              {match.favorite === 'home'
+                                ? match.homeTeam.name
+                                : match.favorite === 'away'
+                                ? match.awayTeam.name
+                                : 'None'}
+                            </span>
+                          </div>
+                          <div className='flex justify-between'>
+                            <span className='text-gray-500'>Confidence:</span>
+                            <span className='font-medium'>
+                              {match.confidenceScore}%
+                            </span>
+                          </div>
                         </div>
                       </div>
 
-                      {/* Teams Comparison */}
-                      <div className='border-r border-gray-100 px-4'>
-                        <h3 className='font-semibold text-gray-700 mb-2'>
-                          Teams Comparison
+                      {/* Team Comparison */}
+                      <div className='space-y-2'>
+                        <h3 className='text-sm font-semibold text-gray-700'>
+                          Team Comparison
                         </h3>
-                        <table className='w-full text-sm'>
-                          <thead>
-                            <tr>
-                              <th className='text-left font-medium text-gray-500'>
-                                Metric
-                              </th>
-                              <th className='text-center font-medium text-gray-500'>
-                                {match.homeTeam.name}
-                              </th>
-                              <th className='text-center font-medium text-gray-500'>
-                                {match.awayTeam.name}
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody className='divide-y divide-gray-100'>
-                            <tr>
-                              <td className='py-1 text-gray-500'>Position</td>
-                              <td className='py-1 text-center'>
-                                {match.homeTeam.position}
-                              </td>
-                              <td className='py-1 text-center'>
-                                {match.awayTeam.position}
-                              </td>
-                            </tr>
-                            <tr>
-                              <td className='py-1 text-gray-500'>Form</td>
-                              <td className='py-1 text-center'>
-                                {match.homeTeam.form}
-                              </td>
-                              <td className='py-1 text-center'>
-                                {match.awayTeam.form}
-                              </td>
-                            </tr>
-                            <tr>
-                              <td className='py-1 text-gray-500'>
-                                Form Points
-                              </td>
-                              <td className='py-1 text-center'>
-                                {calculateFormPoints(match.homeTeam.form)}%
-                              </td>
-                              <td className='py-1 text-center'>
-                                {calculateFormPoints(match.awayTeam.form)}%
-                              </td>
-                            </tr>
-                            <tr>
-                              <td className='py-1 text-gray-500'>Avg Goals</td>
-                              <td className='py-1 text-center'>
+                        <div className='grid grid-cols-2 gap-2 text-xs'>
+                          <div className='space-y-1'>
+                            <div className='font-medium text-blue-600'>
+                              Home
+                            </div>
+                            <div className='flex justify-between'>
+                              <span className='text-gray-500'>Pos:</span>
+                              <span>{match.homeTeam.position}</span>
+                            </div>
+                            <div className='flex justify-between'>
+                              <span className='text-gray-500'>Form:</span>
+                              <span>{match.homeTeam.form}</span>
+                            </div>
+                            <div className='flex justify-between'>
+                              <span className='text-gray-500'>Avg Goals:</span>
+                              <span>
                                 {Math.round(match.homeTeam.avgHomeGoals || 0)}
-                              </td>
-                              <td className='py-1 text-center'>
+                              </span>
+                            </div>
+                            <div className='flex justify-between'>
+                              <span className='text-gray-500'>
+                                Clean Sheets:
+                              </span>
+                              <span>{match.homeTeam.cleanSheets}</span>
+                            </div>
+                          </div>
+                          <div className='space-y-1'>
+                            <div className='font-medium text-purple-600'>
+                              Away
+                            </div>
+                            <div className='flex justify-between'>
+                              <span className='text-gray-500'>Pos:</span>
+                              <span>{match.awayTeam.position}</span>
+                            </div>
+                            <div className='flex justify-between'>
+                              <span className='text-gray-500'>Form:</span>
+                              <span>{match.awayTeam.form}</span>
+                            </div>
+                            <div className='flex justify-between'>
+                              <span className='text-gray-500'>Avg Goals:</span>
+                              <span>
                                 {Math.round(match.awayTeam.avgAwayGoals || 0)}
-                              </td>
-                            </tr>
-                            <tr>
-                              <td className='py-1 text-gray-500'>
-                                Clean Sheets
-                              </td>
-                              <td className='py-1 text-center'>
-                                {match.homeTeam.cleanSheets}
-                              </td>
-                              <td className='py-1 text-center'>
-                                {match.awayTeam.cleanSheets}
-                              </td>
-                            </tr>
-                          </tbody>
-                        </table>
+                              </span>
+                            </div>
+                            <div className='flex justify-between'>
+                              <span className='text-gray-500'>
+                                Clean Sheets:
+                              </span>
+                              <span>{match.awayTeam.cleanSheets}</span>
+                            </div>
+                          </div>
+                        </div>
                       </div>
 
-                      {/* Prediction Reasons */}
-                      <div className='pl-4'>
-                        <h3 className='font-semibold text-gray-700 mb-2'>
-                          Prediction Reasons
+                      {/* H2H & Recent */}
+                      <div className='space-y-2'>
+                        <h3 className='text-sm font-semibold text-gray-700'>
+                          Head-to-Head
                         </h3>
-                        <ul className='list-disc pl-4 space-y-1'>
-                          {match.reasonsForPrediction.map((reason, idx) => (
-                            <li key={idx} className='text-gray-700 text-sm'>
-                              {reason}
-                            </li>
-                          ))}
-                        </ul>
-
-                        {/* H2H Records */}
-                        {match.headToHead.matches > 0 && (
-                          <div className='mt-4'>
-                            <h4 className='font-medium text-gray-700 mb-1'>
-                              Head-to-Head
-                            </h4>
-                            <div className='text-sm text-gray-600 mb-2'>
-                              Record: {match.headToHead.wins}W{' '}
-                              {match.headToHead.draws}D{' '}
-                              {match.headToHead.losses}L (
-                              {match.headToHead.goalsScored}-
-                              {match.headToHead.goalsConceded})
+                        {match.headToHead.matches > 0 ? (
+                          <div className='text-xs space-y-1'>
+                            <div className='flex justify-between'>
+                              <span className='text-gray-500'>Record:</span>
+                              <span>
+                                {match.headToHead.wins}W{' '}
+                                {match.headToHead.draws}D{' '}
+                                {match.headToHead.losses}L
+                              </span>
+                            </div>
+                            <div className='flex justify-between'>
+                              <span className='text-gray-500'>Goals:</span>
+                              <span>
+                                {match.headToHead.goalsScored}-
+                                {match.headToHead.goalsConceded}
+                              </span>
                             </div>
                             {match.headToHead.recentMatches && (
-                              <div>
-                                <h5 className='text-xs font-medium text-gray-500 mb-1'>
-                                  Recent Matches:
-                                </h5>
-                                <ul className='text-xs space-y-1'>
-                                  {match.headToHead.recentMatches.map(
-                                    (h2hMatch, idx) => (
-                                      <li key={idx} className='text-gray-600'>
+                              <div className='mt-1'>
+                                <div className='text-gray-500 mb-0.5'>
+                                  Recent:
+                                </div>
+                                <div className='space-y-0.5'>
+                                  {match.headToHead.recentMatches
+                                    .slice(0, 3)
+                                    .map((h2hMatch, idx) => (
+                                      <div key={idx} className='text-gray-600'>
                                         {h2hMatch.date.substring(0, 10)}:{' '}
                                         {h2hMatch.result}
-                                      </li>
-                                    )
-                                  )}
-                                </ul>
+                                      </div>
+                                    ))}
+                                </div>
                               </div>
                             )}
+                          </div>
+                        ) : (
+                          <div className='text-xs text-gray-500'>
+                            No H2H data available
                           </div>
                         )}
                       </div>
                     </div>
 
-                    {/* Team Statistics Section */}
-                    <div className='mt-6 pt-4 border-t border-gray-100'>
-                      <h3 className='font-semibold text-gray-700 mb-4'>
-                        Team Statistics
-                      </h3>
-                      <div className='grid grid-cols-1 lg:grid-cols-2 gap-4'>
-                        {/* Clean Sheets & Scoring Stats */}
-                        <div className='bg-gray-50 rounded-lg border border-gray-100 p-3'>
-                          <h4 className='text-sm font-medium text-gray-700 mb-3'>
+                    {/* Detailed Stats Grid */}
+                    <div className='mt-3 pt-3 border-t border-gray-100'>
+                      <div className='grid grid-cols-1 md:grid-cols-2 gap-3'>
+                        {/* Clean Sheets & Scoring */}
+                        <div className='bg-gray-50 rounded-lg p-2'>
+                          <h4 className='text-xs font-medium text-gray-700 mb-2'>
                             Clean Sheets & Scoring
                           </h4>
-                          <div className='grid grid-cols-2 gap-3'>
-                            <div className='space-y-2'>
-                              <h5 className='text-xs font-medium text-blue-600 mb-2'>
-                                Home Team
-                              </h5>
-                              <div className='space-y-1.5'>
-                                <div className='flex justify-between items-center'>
-                                  <span className='text-gray-600 text-xs'>
-                                    Total Clean Sheets:
-                                  </span>
-                                  <span className='font-medium text-gray-900 text-xs'>
-                                    {match.homeTeam.cleanSheets || '0'}
-                                  </span>
-                                </div>
-                                <div className='flex justify-between items-center'>
-                                  <span className='text-gray-600 text-xs'>
-                                    Home Clean Sheets:
-                                  </span>
-                                  <span className='font-medium text-gray-900 text-xs'>
-                                    {match.homeTeam.homeCleanSheets || '0'}
-                                  </span>
-                                </div>
-                                <div className='flex justify-between items-center'>
-                                  <span className='text-gray-600 text-xs'>
-                                    Scoring First Win %:
-                                  </span>
-                                  <span className='font-medium text-gray-900 text-xs'>
-                                    {(
-                                      match.homeTeam.scoringFirstWinRate || 0
-                                    ).toFixed(1)}
-                                    %
-                                  </span>
-                                </div>
-                                <div className='flex justify-between items-center'>
-                                  <span className='text-gray-600 text-xs'>
-                                    Conceding First Win %:
-                                  </span>
-                                  <span className='font-medium text-gray-900 text-xs'>
-                                    {(
-                                      match.homeTeam.concedingFirstWinRate || 0
-                                    ).toFixed(1)}
-                                    %
-                                  </span>
-                                </div>
+                          <div className='grid grid-cols-2 gap-2 text-xs'>
+                            <div className='space-y-1'>
+                              <div className='font-medium text-blue-600'>
+                                Home
+                              </div>
+                              <div className='flex justify-between'>
+                                <span className='text-gray-500'>Total CS:</span>
+                                <span>{match.homeTeam.cleanSheets || '0'}</span>
+                              </div>
+                              <div className='flex justify-between'>
+                                <span className='text-gray-500'>Home CS:</span>
+                                <span>
+                                  {match.homeTeam.homeCleanSheets || '0'}
+                                </span>
+                              </div>
+                              <div className='flex justify-between'>
+                                <span className='text-gray-500'>
+                                  Score 1st Win%:
+                                </span>
+                                <span>
+                                  {(
+                                    match.homeTeam.scoringFirstWinRate || 0
+                                  ).toFixed(1)}
+                                  %
+                                </span>
+                              </div>
+                              <div className='flex justify-between'>
+                                <span className='text-gray-500'>
+                                  Concede 1st Win%:
+                                </span>
+                                <span>
+                                  {(
+                                    match.homeTeam.concedingFirstWinRate || 0
+                                  ).toFixed(1)}
+                                  %
+                                </span>
                               </div>
                             </div>
-                            <div className='space-y-2'>
-                              <h5 className='text-xs font-medium text-purple-600 mb-2'>
-                                Away Team
-                              </h5>
-                              <div className='space-y-1.5'>
-                                <div className='flex justify-between items-center'>
-                                  <span className='text-gray-600 text-xs'>
-                                    Total Clean Sheets:
-                                  </span>
-                                  <span className='font-medium text-gray-900 text-xs'>
-                                    {match.awayTeam.cleanSheets || '0'}
-                                  </span>
-                                </div>
-                                <div className='flex justify-between items-center'>
-                                  <span className='text-gray-600 text-xs'>
-                                    Away Clean Sheets:
-                                  </span>
-                                  <span className='font-medium text-gray-900 text-xs'>
-                                    {match.awayTeam.awayCleanSheets || '0'}
-                                  </span>
-                                </div>
-                                <div className='flex justify-between items-center'>
-                                  <span className='text-gray-600 text-xs'>
-                                    Scoring First Win %:
-                                  </span>
-                                  <span className='font-medium text-gray-900 text-xs'>
-                                    {(
-                                      match.awayTeam.scoringFirstWinRate || 0
-                                    ).toFixed(1)}
-                                    %
-                                  </span>
-                                </div>
-                                <div className='flex justify-between items-center'>
-                                  <span className='text-gray-600 text-xs'>
-                                    Conceding First Win %:
-                                  </span>
-                                  <span className='font-medium text-gray-900 text-xs'>
-                                    {(
-                                      match.awayTeam.concedingFirstWinRate || 0
-                                    ).toFixed(1)}
-                                    %
-                                  </span>
-                                </div>
+                            <div className='space-y-1'>
+                              <div className='font-medium text-purple-600'>
+                                Away
+                              </div>
+                              <div className='flex justify-between'>
+                                <span className='text-gray-500'>Total CS:</span>
+                                <span>{match.awayTeam.cleanSheets || '0'}</span>
+                              </div>
+                              <div className='flex justify-between'>
+                                <span className='text-gray-500'>Away CS:</span>
+                                <span>
+                                  {match.awayTeam.awayCleanSheets || '0'}
+                                </span>
+                              </div>
+                              <div className='flex justify-between'>
+                                <span className='text-gray-500'>
+                                  Score 1st Win%:
+                                </span>
+                                <span>
+                                  {(
+                                    match.awayTeam.scoringFirstWinRate || 0
+                                  ).toFixed(1)}
+                                  %
+                                </span>
+                              </div>
+                              <div className='flex justify-between'>
+                                <span className='text-gray-500'>
+                                  Concede 1st Win%:
+                                </span>
+                                <span>
+                                  {(
+                                    match.awayTeam.concedingFirstWinRate || 0
+                                  ).toFixed(1)}
+                                  %
+                                </span>
                               </div>
                             </div>
                           </div>
                         </div>
 
-                        {/* Match Pattern Stats */}
-                        <div className='bg-gray-50 rounded-lg border border-gray-100 p-3'>
-                          <h4 className='text-sm font-medium text-gray-700 mb-3'>
+                        {/* Match Patterns */}
+                        <div className='bg-gray-50 rounded-lg p-2'>
+                          <h4 className='text-xs font-medium text-gray-700 mb-2'>
                             Match Patterns
                           </h4>
-                          <div className='grid grid-cols-2 gap-3'>
-                            <div className='space-y-2'>
-                              <h5 className='text-xs font-medium text-blue-600 mb-2'>
-                                Home Team
-                              </h5>
-                              <div className='space-y-1.5'>
-                                <div className='flex justify-between items-center'>
-                                  <span className='text-gray-600 text-xs'>
-                                    Avg Corners:
-                                  </span>
-                                  <span className='font-medium text-gray-900 text-xs'>
-                                    {(match.homeTeam.avgCorners || 0).toFixed(
-                                      1
-                                    )}
-                                  </span>
-                                </div>
-                                <div className='flex justify-between items-center'>
-                                  <span className='text-gray-600 text-xs'>
-                                    BTTS Rate:
-                                  </span>
-                                  <span className='font-medium text-gray-900 text-xs'>
-                                    {(match.homeTeam.bttsRate || 0).toFixed(1)}%
-                                  </span>
-                                </div>
-                                <div className='flex justify-between items-center'>
-                                  <span className='text-gray-600 text-xs'>
-                                    Home BTTS Rate:
-                                  </span>
-                                  <span className='font-medium text-gray-900 text-xs'>
-                                    {(match.homeTeam.homeBttsRate || 0).toFixed(
-                                      1
-                                    )}
-                                    %
-                                  </span>
-                                </div>
-                                <div className='flex justify-between items-center'>
-                                  <span className='text-gray-600 text-xs'>
-                                    Late Goal Rate:
-                                  </span>
-                                  <span className='font-medium text-gray-900 text-xs'>
-                                    {(match.homeTeam.lateGoalRate || 0).toFixed(
-                                      1
-                                    )}
-                                    %
-                                  </span>
-                                </div>
+                          <div className='grid grid-cols-2 gap-2 text-xs'>
+                            <div className='space-y-1'>
+                              <div className='font-medium text-blue-600'>
+                                Home
+                              </div>
+                              <div className='flex justify-between'>
+                                <span className='text-gray-500'>Corners:</span>
+                                <span>
+                                  {(match.homeTeam.avgCorners || 0).toFixed(1)}
+                                </span>
+                              </div>
+                              <div className='flex justify-between'>
+                                <span className='text-gray-500'>
+                                  BTTS Rate:
+                                </span>
+                                <span>
+                                  {(match.homeTeam.bttsRate || 0).toFixed(1)}%
+                                </span>
+                              </div>
+                              <div className='flex justify-between'>
+                                <span className='text-gray-500'>
+                                  Home BTTS:
+                                </span>
+                                <span>
+                                  {(match.homeTeam.homeBttsRate || 0).toFixed(
+                                    1
+                                  )}
+                                  %
+                                </span>
+                              </div>
+                              <div className='flex justify-between'>
+                                <span className='text-gray-500'>
+                                  Late Goals:
+                                </span>
+                                <span>
+                                  {(match.homeTeam.lateGoalRate || 0).toFixed(
+                                    1
+                                  )}
+                                  %
+                                </span>
                               </div>
                             </div>
-                            <div className='space-y-2'>
-                              <h5 className='text-xs font-medium text-purple-600 mb-2'>
-                                Away Team
-                              </h5>
-                              <div className='space-y-1.5'>
-                                <div className='flex justify-between items-center'>
-                                  <span className='text-gray-600 text-xs'>
-                                    Avg Corners:
-                                  </span>
-                                  <span className='font-medium text-gray-900 text-xs'>
-                                    {(match.awayTeam.avgCorners || 0).toFixed(
-                                      1
-                                    )}
-                                  </span>
-                                </div>
-                                <div className='flex justify-between items-center'>
-                                  <span className='text-gray-600 text-xs'>
-                                    BTTS Rate:
-                                  </span>
-                                  <span className='font-medium text-gray-900 text-xs'>
-                                    {(match.awayTeam.bttsRate || 0).toFixed(1)}%
-                                  </span>
-                                </div>
-                                <div className='flex justify-between items-center'>
-                                  <span className='text-gray-600 text-xs'>
-                                    Away BTTS Rate:
-                                  </span>
-                                  <span className='font-medium text-gray-900 text-xs'>
-                                    {(match.awayTeam.awayBttsRate || 0).toFixed(
-                                      1
-                                    )}
-                                    %
-                                  </span>
-                                </div>
-                                <div className='flex justify-between items-center'>
-                                  <span className='text-gray-600 text-xs'>
-                                    Late Goal Rate:
-                                  </span>
-                                  <span className='font-medium text-gray-900 text-xs'>
-                                    {(match.awayTeam.lateGoalRate || 0).toFixed(
-                                      1
-                                    )}
-                                    %
-                                  </span>
-                                </div>
+                            <div className='space-y-1'>
+                              <div className='font-medium text-purple-600'>
+                                Away
+                              </div>
+                              <div className='flex justify-between'>
+                                <span className='text-gray-500'>Corners:</span>
+                                <span>
+                                  {(match.awayTeam.avgCorners || 0).toFixed(1)}
+                                </span>
+                              </div>
+                              <div className='flex justify-between'>
+                                <span className='text-gray-500'>
+                                  BTTS Rate:
+                                </span>
+                                <span>
+                                  {(match.awayTeam.bttsRate || 0).toFixed(1)}%
+                                </span>
+                              </div>
+                              <div className='flex justify-between'>
+                                <span className='text-gray-500'>
+                                  Away BTTS:
+                                </span>
+                                <span>
+                                  {(match.awayTeam.awayBttsRate || 0).toFixed(
+                                    1
+                                  )}
+                                  %
+                                </span>
+                              </div>
+                              <div className='flex justify-between'>
+                                <span className='text-gray-500'>
+                                  Late Goals:
+                                </span>
+                                <span>
+                                  {(match.awayTeam.lateGoalRate || 0).toFixed(
+                                    1
+                                  )}
+                                  %
+                                </span>
                               </div>
                             </div>
                           </div>
                         </div>
                       </div>
+                    </div>
+
+                    {/* Prediction Reasons */}
+                    <div className='mt-3 pt-3 border-t border-gray-100'>
+                      <h4 className='text-xs font-medium text-gray-700 mb-2'>
+                        Prediction Reasons
+                      </h4>
+                      <ul className='text-xs space-y-1 list-disc pl-4'>
+                        {match.reasonsForPrediction.map((reason, idx) => (
+                          <li key={idx} className='text-gray-600'>
+                            {reason}
+                          </li>
+                        ))}
+                      </ul>
                     </div>
                   </div>
                 </td>
