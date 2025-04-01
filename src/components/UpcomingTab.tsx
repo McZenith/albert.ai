@@ -1637,7 +1637,7 @@ const MatchPredictor = () => {
                     </td>
                     <td className='p-2 text-center w-[100px]'>
                       <div
-                        className={`px-2 py-1 rounded-lg text-sm ${getMetricColor(
+                        className={`px-1.5 py-0.5 rounded text-sm inline-block ${getMetricColor(
                           (match.homeTeam.avgHomeGoals ?? 0) > 0
                             ? match.homeTeam.avgHomeGoals ?? 0
                             : (match.expectedGoals ?? 0) / 2,
