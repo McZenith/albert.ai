@@ -1410,12 +1410,12 @@ const MatchPredictor = () => {
         <table className='w-full bg-white rounded-lg overflow-hidden border border-gray-200 min-w-[1400px] table-fixed'>
           <thead>
             <tr className='bg-gray-50 border-b border-gray-200'>
-              <th className='p-2 text-left whitespace-nowrap'></th>
-              <th className='p-2 text-left whitespace-nowrap text-sm font-medium text-gray-500 min-w-[180px]'>
+              <th className='p-2 text-left whitespace-nowrap w-[50px]'></th>
+              <th className='p-2 text-left whitespace-nowrap text-sm font-medium text-gray-500 w-[180px]'>
                 Match
               </th>
               <th
-                className='p-2 text-center whitespace-nowrap cursor-pointer hover:bg-gray-100 text-sm font-medium text-gray-500 min-w-[70px]'
+                className='p-2 text-center whitespace-nowrap cursor-pointer hover:bg-gray-100 text-sm font-medium text-gray-500 w-[70px]'
                 onClick={() => handleSort('matchTime')}
               >
                 Date
@@ -1426,7 +1426,7 @@ const MatchPredictor = () => {
                 )}
               </th>
               <th
-                className='p-2 text-center whitespace-nowrap cursor-pointer hover:bg-gray-100 text-sm font-medium text-gray-500 min-w-[70px]'
+                className='p-2 text-center whitespace-nowrap cursor-pointer hover:bg-gray-100 text-sm font-medium text-gray-500 w-[70px]'
                 onClick={() => handleSort('homeAvg')}
               >
                 Home Avg
@@ -1437,7 +1437,7 @@ const MatchPredictor = () => {
                 )}
               </th>
               <th
-                className='p-2 text-center whitespace-nowrap cursor-pointer hover:bg-gray-100 text-sm font-medium text-gray-500 min-w-[70px]'
+                className='p-2 text-center whitespace-nowrap cursor-pointer hover:bg-gray-100 text-sm font-medium text-gray-500 w-[70px]'
                 onClick={() => handleSort('awayAvg')}
               >
                 Away Avg
@@ -1448,7 +1448,7 @@ const MatchPredictor = () => {
                 )}
               </th>
               <th
-                className='p-2 text-center whitespace-nowrap cursor-pointer hover:bg-gray-100 text-sm font-medium text-gray-500 min-w-[60px]'
+                className='p-2 text-center whitespace-nowrap cursor-pointer hover:bg-gray-100 text-sm font-medium text-gray-500 w-[60px]'
                 onClick={() => handleSort('positionGap')}
               >
                 Pos Gap
@@ -1458,11 +1458,11 @@ const MatchPredictor = () => {
                   </span>
                 )}
               </th>
-              <th className='p-2 text-center whitespace-nowrap cursor-pointer hover:bg-gray-100 text-sm font-medium text-gray-500 min-w-[70px]'>
+              <th className='p-2 text-center whitespace-nowrap cursor-pointer hover:bg-gray-100 text-sm font-medium text-gray-500 w-[70px]'>
                 H/A Pos
               </th>
               <th
-                className='p-2 text-center whitespace-nowrap cursor-pointer hover:bg-gray-100 text-sm font-medium text-gray-500 min-w-[70px]'
+                className='p-2 text-center whitespace-nowrap cursor-pointer hover:bg-gray-100 text-sm font-medium text-gray-500 w-[70px]'
                 onClick={() => handleSort('homeAwayForm')}
               >
                 H/A Form
@@ -1473,7 +1473,7 @@ const MatchPredictor = () => {
                 )}
               </th>
               <th
-                className='p-2 text-center whitespace-nowrap cursor-pointer hover:bg-gray-100 text-sm font-medium text-gray-500 min-w-[80px]'
+                className='p-2 text-center whitespace-nowrap cursor-pointer hover:bg-gray-100 text-sm font-medium text-gray-500 w-[80px]'
                 onClick={() => handleSort('formPoints')}
               >
                 Form Pts %
@@ -1484,7 +1484,7 @@ const MatchPredictor = () => {
                 )}
               </th>
               <th
-                className='p-2 text-center whitespace-nowrap cursor-pointer hover:bg-gray-100 text-sm font-medium text-gray-500 min-w-[60px]'
+                className='p-2 text-center whitespace-nowrap cursor-pointer hover:bg-gray-100 text-sm font-medium text-gray-500 w-[60px]'
                 onClick={() => handleSort('form')}
               >
                 Form
@@ -1495,7 +1495,7 @@ const MatchPredictor = () => {
                 )}
               </th>
               <th
-                className='p-2 text-center whitespace-nowrap cursor-pointer hover:bg-gray-100 text-sm font-medium text-gray-500 min-w-[60px]'
+                className='p-2 text-center whitespace-nowrap cursor-pointer hover:bg-gray-100 text-sm font-medium text-gray-500 w-[60px]'
                 onClick={() => handleSort('h2h')}
               >
                 H2H
@@ -1506,7 +1506,7 @@ const MatchPredictor = () => {
                 )}
               </th>
               <th
-                className='p-2 text-center whitespace-nowrap cursor-pointer hover:bg-gray-100 text-sm font-medium text-gray-500 min-w-[60px]'
+                className='p-2 text-center whitespace-nowrap cursor-pointer hover:bg-gray-100 text-sm font-medium text-gray-500 w-[60px]'
                 onClick={() => handleSort('expectedGoals')}
               >
                 xGoals
@@ -1517,7 +1517,7 @@ const MatchPredictor = () => {
                 )}
               </th>
               <th
-                className='p-2 text-center whitespace-nowrap cursor-pointer hover:bg-gray-100 text-sm font-medium text-gray-500 min-w-[70px]'
+                className='p-2 text-center whitespace-nowrap cursor-pointer hover:bg-gray-100 text-sm font-medium text-gray-500 w-[70px]'
                 onClick={() => handleSort('odds.over15Goals')}
               >
                 Over 1.5
@@ -1528,7 +1528,7 @@ const MatchPredictor = () => {
                 )}
               </th>
               <th
-                className='p-2 text-center whitespace-nowrap cursor-pointer hover:bg-gray-100 text-sm font-medium text-gray-500 min-w-[80px]'
+                className='p-2 text-center whitespace-nowrap cursor-pointer hover:bg-gray-100 text-sm font-medium text-gray-500 w-[80px]'
                 onClick={() => handleSort('defensiveStrength')}
               >
                 Def Rating
@@ -1538,11 +1538,11 @@ const MatchPredictor = () => {
                   </span>
                 )}
               </th>
-              <th className='p-2 text-center whitespace-nowrap text-sm font-medium text-gray-500 min-w-[120px]'>
+              <th className='p-2 text-center whitespace-nowrap text-sm font-medium text-gray-500 w-[120px]'>
                 Favorite
               </th>
               <th
-                className='p-2 text-center whitespace-nowrap cursor-pointer hover:bg-gray-100 text-sm font-medium text-gray-500 min-w-[80px]'
+                className='p-2 text-center whitespace-nowrap cursor-pointer hover:bg-gray-100 text-sm font-medium text-gray-500 w-[80px]'
                 onClick={() => handleSort('confidenceScore')}
               >
                 Confidence
@@ -1553,7 +1553,7 @@ const MatchPredictor = () => {
                 )}
               </th>
               <th
-                className='p-2 text-center whitespace-nowrap cursor-pointer hover:bg-gray-100 text-sm font-medium text-gray-500 min-w-[70px]'
+                className='p-2 text-center whitespace-nowrap cursor-pointer hover:bg-gray-100 text-sm font-medium text-gray-500 w-[70px]'
                 onClick={() => handleSort('bttsRate')}
               >
                 BTTS %
@@ -1589,7 +1589,7 @@ const MatchPredictor = () => {
                       )
                     }
                   >
-                    <td className='p-2'>
+                    <td className='p-2 w-[50px]'>
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -1597,49 +1597,45 @@ const MatchPredictor = () => {
                         }}
                         className={`w-6 h-6 rounded-full border ${
                           checkMatchInCart(match.id, index)
-                            ? 'bg-green-500 border-green-500 text-white'
-                            : 'border-gray-300 bg-white hover:border-blue-400'
-                        } flex items-center justify-center`}
+                            ? 'bg-green-100 border-green-300 text-green-600'
+                            : 'bg-gray-100 border-gray-300 text-gray-600'
+                        } flex items-center justify-center hover:bg-opacity-80 transition-colors duration-200`}
                       >
                         {checkMatchInCart(match.id, index) ? (
                           <Check size={14} />
                         ) : (
-                          <Plus size={14} className='text-gray-500' />
+                          <Plus size={14} />
                         )}
                       </button>
                     </td>
-                    <td className='p-2'>
-                      <div className='flex flex-col'>
-                        <div className='flex items-center'>
-                          <span className='text-lg mr-2'>
-                            {renderTeamLogo(match.homeTeam.logo)}
-                          </span>
-                          <span className='font-medium text-gray-800 text-sm'>
+                    <td className='p-2 w-[180px]'>
+                      <div className='flex flex-col gap-1'>
+                        <div className='flex items-center gap-2'>
+                          <span className='text-xl'>🏆</span>
+                          <span className='font-medium text-gray-800 truncate'>
                             {match.homeTeam.name}
                           </span>
-                          <span className='text-xs text-gray-500 ml-2'>
-                            ({match.homeTeam.position})
+                          <span className='text-xs text-gray-500'>
+                            ({match.homeTeam.position || '-'})
                           </span>
                         </div>
-                        <div className='flex items-center mt-1'>
-                          <span className='text-lg mr-2'>
-                            {renderTeamLogo(match.awayTeam.logo)}
-                          </span>
-                          <span className='font-medium text-gray-800 text-sm'>
+                        <div className='flex items-center gap-2'>
+                          <span className='text-xl'>🏆</span>
+                          <span className='font-medium text-gray-800 truncate'>
                             {match.awayTeam.name}
                           </span>
-                          <span className='text-xs text-gray-500 ml-2'>
-                            ({match.awayTeam.position})
+                          <span className='text-xs text-gray-500'>
+                            ({match.awayTeam.position || '-'})
                           </span>
                         </div>
                       </div>
                     </td>
-                    <td className='p-2 text-center whitespace-nowrap'>
-                      <div className='text-gray-800 text-sm'>
-                        {formatMatchDate(match.date, match.time)}
+                    <td className='p-2 text-center w-[70px]'>
+                      <div className='text-gray-800 font-medium whitespace-nowrap'>
+                        {match.date} {match.time}
                       </div>
                     </td>
-                    <td className='p-2 text-center'>
+                    <td className='p-2 text-center w-[70px]'>
                       <div
                         className={`px-2 py-1 rounded-lg text-sm ${getMetricColor(
                           (match.homeTeam.avgHomeGoals ?? 0) > 0
@@ -1655,7 +1651,7 @@ const MatchPredictor = () => {
                         )}
                       </div>
                     </td>
-                    <td className='p-2 text-center'>
+                    <td className='p-2 text-center w-[70px]'>
                       <div
                         className={`px-2 py-1 rounded-lg text-sm ${getMetricColor(
                           (match.awayTeam.avgAwayGoals ?? 0) > 0
@@ -1671,7 +1667,7 @@ const MatchPredictor = () => {
                         )}
                       </div>
                     </td>
-                    <td className='p-2 text-center'>
+                    <td className='p-2 text-center w-[60px]'>
                       <div
                         className={`px-2 py-1 rounded-lg text-sm ${getMetricColor(
                           match.positionGap,
@@ -1681,59 +1677,38 @@ const MatchPredictor = () => {
                         {match.positionGap}
                       </div>
                     </td>
-                    <td className='p-2 text-center'>
-                      <div className='flex items-center justify-center gap-1 text-xs'>
-                        <span className='px-2 py-1 rounded-lg bg-blue-50 text-blue-800'>
-                          {match.homeTeam.position}
+                    <td className='p-2 text-center w-[70px]'>
+                      <div className='flex items-center justify-center gap-2 text-sm'>
+                        <span className='px-2 py-1 rounded-lg bg-blue-50 text-blue-800 font-medium'>
+                          {match.homeTeam.position || '-'}
                         </span>
                         <span className='text-gray-500'>/</span>
-                        <span className='px-2 py-1 rounded-lg bg-purple-50 text-purple-800'>
-                          {match.awayTeam.position}
+                        <span className='px-2 py-1 rounded-lg bg-purple-50 text-purple-800 font-medium'>
+                          {match.awayTeam.position || '-'}
                         </span>
                       </div>
                     </td>
-                    <td className='p-2 text-center'>
+                    <td className='p-2 text-center w-[70px]'>
+                      <div className='flex flex-col gap-2'>
+                        <div className='px-2 py-1 rounded-lg bg-blue-50 text-blue-800 text-sm font-medium'>
+                          H: {match.homeTeam.homeForm || match.homeTeam.form || '-'}
+                        </div>
+                        <div className='px-2 py-1 rounded-lg bg-purple-50 text-purple-800 text-sm font-medium'>
+                          A: {match.awayTeam.awayForm || match.awayTeam.form || '-'}
+                        </div>
+                      </div>
+                    </td>
+                    <td className='p-2 text-center w-[80px]'>
                       <div className='flex flex-col gap-1'>
-                        <div
-                          className={`px-2 py-1 rounded-lg bg-blue-50 text-blue-800 text-xs`}
-                        >
-                          H: {match.homeTeam.homeForm || '-'}
-                        </div>
-                        <div
-                          className={`px-2 py-1 rounded-lg bg-purple-50 text-purple-800 text-xs`}
-                        >
-                          A: {match.awayTeam.awayForm || '-'}
-                        </div>
-                      </div>
-                    </td>
-                    <td className='p-2 text-center'>
-                      <div className='flex items-center justify-center gap-1 text-xs'>
-                        <span
-                          className={`px-2 py-1 rounded-lg ${
-                            calculateFormPoints(match.homeTeam.form) >= 60
-                              ? 'bg-green-50 text-green-800'
-                              : calculateFormPoints(match.homeTeam.form) >= 40
-                              ? 'bg-yellow-50 text-yellow-800'
-                              : 'bg-red-50 text-red-800'
-                          }`}
-                        >
-                          {calculateFormPoints(match.homeTeam.form)}%
+                        <span className='px-2 py-1 rounded-lg text-xs font-medium bg-blue-50 text-blue-800'>
+                          {calculateFormPoints(match.homeTeam.form || '')}%
                         </span>
-                        <span className='text-gray-500'>/</span>
-                        <span
-                          className={`px-2 py-1 rounded-lg ${
-                            calculateFormPoints(match.awayTeam.form) >= 60
-                              ? 'bg-green-50 text-green-800'
-                              : calculateFormPoints(match.awayTeam.form) >= 40
-                              ? 'bg-yellow-50 text-yellow-800'
-                              : 'bg-red-50 text-red-800'
-                          }`}
-                        >
-                          {calculateFormPoints(match.awayTeam.form)}%
+                        <span className='px-2 py-1 rounded-lg text-xs font-medium bg-purple-50 text-purple-800'>
+                          {calculateFormPoints(match.awayTeam.form || '')}%
                         </span>
                       </div>
                     </td>
-                    <td className='p-2 text-center'>
+                    <td className='p-2 text-center w-[60px]'>
                       <div
                         className={`px-2 py-1 rounded-lg text-sm ${getFormColor(
                           match.favorite === 'home'
@@ -1750,7 +1725,7 @@ const MatchPredictor = () => {
                           : '-'}
                       </div>
                     </td>
-                    <td className='p-2 text-center'>
+                    <td className='p-2 text-center w-[60px]'>
                       {match.headToHead.matches > 0 ? (
                         <div
                           className={`px-2 py-1 rounded-lg text-sm ${getMetricColor(
@@ -1767,7 +1742,7 @@ const MatchPredictor = () => {
                         </div>
                       )}
                     </td>
-                    <td className='p-2 text-center'>
+                    <td className='p-2 text-center w-[60px]'>
                       <div
                         className={`px-2 py-1 rounded-lg text-sm ${getMetricColor(
                           match.expectedGoals,
@@ -1777,36 +1752,27 @@ const MatchPredictor = () => {
                         {Math.round(match.expectedGoals)}
                       </div>
                     </td>
-                    <td className='p-2 text-center'>
-                      {match.odds ? (
-                        <div
-                          className={`px-2 py-1 rounded-lg text-sm ${
-                            match.odds.over15Goals < 1.8
-                              ? 'bg-green-100 text-green-800'
-                              : match.odds.over15Goals < 2.2
-                              ? 'bg-yellow-100 text-yellow-800'
-                              : 'bg-red-100 text-red-800'
-                          }`}
-                        >
-                          {Math.round(match.odds.over15Goals)}
-                        </div>
-                      ) : (
-                        <div className='px-2 py-1 rounded-lg bg-gray-100 text-gray-600 text-sm'>
-                          N/A
-                        </div>
-                      )}
-                    </td>
-                    <td className='p-2 text-center'>
+                    <td className='p-2 text-center w-[70px]'>
                       <div
                         className={`px-2 py-1 rounded-lg text-sm ${getMetricColor(
-                          1 / match.defensiveStrength,
+                          match.odds?.over15Goals || 0,
+                          { high: 1.5, medium: 1.2 }
+                        )}`}
+                      >
+                        {match.odds?.over15Goals?.toFixed(2) || 'N/A'}
+                      </div>
+                    </td>
+                    <td className='p-2 text-center w-[80px]'>
+                      <div
+                        className={`px-2 py-1 rounded-lg text-sm ${getMetricColor(
+                          1 / (match.defensiveStrength || 1),
                           { high: 1.2, medium: 1.0 }
                         )}`}
                       >
-                        {Math.round(1 / match.defensiveStrength)}
+                        {match.defensiveStrength?.toFixed(2) || '-'}
                       </div>
                     </td>
-                    <td className='p-2 text-center'>
+                    <td className='p-2 text-center w-[120px]'>
                       {match.favorite ? (
                         <div
                           className={`px-2 py-1 rounded-lg inline-flex items-center text-sm ${selectedFavoriteColor}`}
@@ -1831,7 +1797,7 @@ const MatchPredictor = () => {
                         </div>
                       )}
                     </td>
-                    <td className='p-2 text-center'>
+                    <td className='p-2 text-center w-[80px]'>
                       <div
                         className={`px-2 py-1 rounded-lg flex items-center justify-between text-sm ${getMetricColor(
                           match.confidenceScore,
@@ -1846,7 +1812,7 @@ const MatchPredictor = () => {
                         )}
                       </div>
                     </td>
-                    <td className='p-2 text-center'>
+                    <td className='p-2 text-center w-[70px]'>
                       <div
                         className={`px-2 py-1 rounded-lg text-sm ${getMetricColor(
                           match.favorite === 'home'

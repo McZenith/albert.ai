@@ -860,11 +860,11 @@ const MarketRow = ({
       {isExpanded && hasPrediction && predictionMatch && (
         <tr className='bg-blue-50/50'>
           <td colSpan={12} className='p-4'>
-            <div className='border border-blue-100 rounded-lg bg-white p-4 shadow-sm w-full max-w-full overflow-x-auto'>
+            <div className='border border-blue-100 rounded-lg bg-white p-4 shadow-sm w-full max-w-full overflow-x-auto min-w-0'>
               {/* Complete match row from Upcoming tab */}
               <div className='mb-6 pb-4 border-b border-gray-100'>
-                <div className='w-full overflow-x-auto'>
-                  <table className='w-full border-collapse'>
+                <div className='w-full overflow-x-auto min-w-0'>
+                  <table className='w-full border-collapse table-fixed min-w-[1400px]'>
                     <thead>
                       <tr className='bg-gray-50/80 text-left sticky top-0 z-10'>
                         <th className='p-3 text-sm font-medium text-gray-500 w-[200px]'>
@@ -2283,7 +2283,7 @@ const MatchesPage = () => {
           disabled={isInitialLoading}
         />
         {activeTab === 'live' || activeTab === 'all-live' ? (
-          <div className='container mx-auto px-4 max-w-[2000px]'>
+          <div className='max-w-[2000px] mx-auto px-4'>
             <SearchBar
               value={searchQuery}
               onChange={setSearchQuery}
@@ -2295,7 +2295,7 @@ const MatchesPage = () => {
             ) : (
               <div className='mt-4 bg-white rounded-lg shadow-sm'>
                 <div className='w-full overflow-x-auto min-w-0'>
-                  <table className='w-full divide-y divide-gray-200 table-fixed min-w-[1200px]'>
+                  <table className='w-full divide-y divide-gray-200 table-fixed min-w-[1400px]'>
                     <thead>
                       <tr className='bg-gray-50 sticky top-0 z-10'>
                         <HeaderCell
