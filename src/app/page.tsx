@@ -2295,7 +2295,7 @@ const MatchesPage = () => {
             ) : (
               <div className='mt-4 bg-white rounded-lg shadow-sm'>
                 <div className='w-full overflow-x-auto min-w-0'>
-                  <table className='w-full divide-y divide-gray-200 table-fixed'>
+                  <table className='w-full divide-y divide-gray-200 table-fixed min-w-[1200px]'>
                     <thead>
                       <tr className='bg-gray-50 sticky top-0 z-10'>
                         <HeaderCell
@@ -2310,23 +2310,23 @@ const MatchesPage = () => {
                           isActive={sortConfigs.some(
                             (c) => c.field === 'playedSeconds'
                           )}
-                          className='w-[200px]'
+                          className='w-[200px] min-w-[200px]'
                         />
                         <HeaderCell
                           title='Score'
                           filterType='none'
                           align='center'
-                          className='w-[100px]'
+                          className='w-[100px] min-w-[100px]'
                         />
                         <HeaderCell
                           title='Tournament'
                           filterType='none'
-                          className='w-[150px]'
+                          className='w-[150px] min-w-[150px]'
                         />
                         <HeaderCell
                           title='Market'
                           filterType='none'
-                          className='w-[150px]'
+                          className='w-[150px] min-w-[150px]'
                         />
                         <HeaderCell
                           title='Profit %'
@@ -2341,7 +2341,7 @@ const MatchesPage = () => {
                           isActive={sortConfigs.some(
                             (c) => c.field === 'profit'
                           )}
-                          className='w-[100px]'
+                          className='w-[100px] min-w-[100px]'
                         />
                         <HeaderCell
                           title='Margin'
@@ -2356,12 +2356,12 @@ const MatchesPage = () => {
                           isActive={sortConfigs.some(
                             (c) => c.field === 'margin'
                           )}
-                          className='w-[100px]'
+                          className='w-[100px] min-w-[100px]'
                         />
                         <HeaderCell
                           title='Outcomes'
                           filterType='none'
-                          className='w-[150px]'
+                          className='w-[150px] min-w-[150px]'
                         />
                         <HeaderCell
                           title='Odds'
@@ -2374,31 +2374,31 @@ const MatchesPage = () => {
                           filterType='odds'
                           align='right'
                           isActive={sortConfigs.some((c) => c.field === 'odds')}
-                          className='w-[100px]'
+                          className='w-[100px] min-w-[100px]'
                         />
                         <HeaderCell
                           title='Stake %'
                           filterType='none'
                           align='right'
-                          className='w-[100px]'
+                          className='w-[100px] min-w-[100px]'
                         />
                         <HeaderCell
                           title='Investment ($)'
                           filterType='none'
                           align='right'
-                          className='w-[120px]'
+                          className='w-[120px] min-w-[120px]'
                         />
                         <HeaderCell
                           title='Favourite'
                           filterType='none'
                           align='center'
-                          className='w-[100px]'
+                          className='w-[100px] min-w-[100px]'
                         />
                         <HeaderCell
                           title='Actions'
                           filterType='none'
                           align='center'
-                          className='w-[100px]'
+                          className='w-[100px] min-w-[100px]'
                         />
                       </tr>
                     </thead>

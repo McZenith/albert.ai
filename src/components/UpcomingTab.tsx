@@ -1211,7 +1211,7 @@ const MatchPredictor = () => {
   }
 
   return (
-    <div className='max-w-full mx-auto p-4 bg-white rounded-lg shadow-sm'>
+    <div className='max-w-[2000px] mx-auto p-4 bg-white rounded-lg shadow-sm'>
       <div className='flex justify-between items-center mb-6'>
         <h1 className='text-xl font-bold text-gray-800'>
           Over 1.5 Goals Predictor Dashboard
@@ -1406,8 +1406,8 @@ const MatchPredictor = () => {
         </div>
       </div>
 
-      <div className='overflow-x-auto'>
-        <table className='w-full bg-white rounded-lg overflow-hidden border border-gray-200'>
+      <div className='overflow-x-auto min-w-0'>
+        <table className='w-full bg-white rounded-lg overflow-hidden border border-gray-200 min-w-[1400px] table-fixed'>
           <thead>
             <tr className='bg-gray-50 border-b border-gray-200'>
               <th className='p-2 text-left whitespace-nowrap'></th>
