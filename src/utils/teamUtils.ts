@@ -12,13 +12,7 @@
 export const normalizeTeamName = (name: string): string => {
     if (!name) return '';
 
-    const specialCases: Record<string, string> = {
-        'fc magdeburg ii': 'magdeburg 2',
-        'magdeburg ii': 'magdeburg 2',
-        // Add more special cases here as needed
-    };
-
-    let normalized = name
+    const normalized = name
         .toLowerCase()
         .trim()
         .replace(/\s+/g, ' ')                    // normalize spaces
@@ -29,8 +23,7 @@ export const normalizeTeamName = (name: string): string => {
         .replace(/\s+/g, ' ')                    // clean up any double spaces
         .trim();
 
-    // Check for special cases
-    return specialCases[normalized] || normalized;
+    return normalized;
 };
 
 /**
