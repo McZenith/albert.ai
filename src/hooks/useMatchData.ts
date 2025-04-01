@@ -42,6 +42,78 @@ interface ClientMatch {
     playedTime: string;
     markets: ClientMarket[];
     lastUpdated: string;
+    matchSituation?: {
+        totalTime: string;
+        dominantTeam: string;
+        matchMomentum: string;
+        home: {
+            totalAttacks: string;
+            totalDangerousAttacks: string;
+            totalSafeAttacks: string;
+            totalAttackCount: string;
+            totalDangerousCount: string;
+            totalSafeCount: string;
+            attackPercentage: string;
+            dangerousAttackPercentage: string;
+            safeAttackPercentage: string;
+        };
+        away: {
+            totalAttacks: string;
+            totalDangerousAttacks: string;
+            totalSafeAttacks: string;
+            totalAttackCount: string;
+            totalDangerousCount: string;
+            totalSafeCount: string;
+            attackPercentage: string;
+            dangerousAttackPercentage: string;
+            safeAttackPercentage: string;
+        };
+    };
+    matchDetails?: {
+        home: {
+            yellowCards: string;
+            redCards: string;
+            freeKicks: string;
+            goalKicks: string;
+            throwIns: string;
+            offsides: string;
+            cornerKicks: string;
+            shotsOnTarget: string;
+            shotsOffTarget: string;
+            saves: string;
+            fouls: string;
+            injuries: string;
+            dangerousAttacks: string;
+            ballSafe: string;
+            totalAttacks: string;
+            goalAttempts: string;
+            ballSafePercentage: string;
+            attackPercentage: string;
+            dangerousAttackPercentage: string;
+        };
+        away: {
+            yellowCards: string;
+            redCards: string;
+            freeKicks: string;
+            goalKicks: string;
+            throwIns: string;
+            offsides: string;
+            cornerKicks: string;
+            shotsOnTarget: string;
+            shotsOffTarget: string;
+            saves: string;
+            fouls: string;
+            injuries: string;
+            dangerousAttacks: string;
+            ballSafe: string;
+            totalAttacks: string;
+            goalAttempts: string;
+            ballSafePercentage: string;
+            attackPercentage: string;
+            dangerousAttackPercentage: string;
+        };
+        types: string[];
+    };
 }
 
 interface TransformedMatch {
@@ -51,6 +123,78 @@ interface TransformedMatch {
     tournamentName: string;
     status: 'FT' | '1H' | '2H' | 'HT' | 'NS';
     playedSeconds: number;
+    matchSituation?: {
+        totalTime: number;
+        dominantTeam: string;
+        matchMomentum: string;
+        home: {
+            totalAttacks: number;
+            totalDangerousAttacks: number;
+            totalSafeAttacks: number;
+            totalAttackCount: number;
+            totalDangerousCount: number;
+            totalSafeCount: number;
+            attackPercentage: number;
+            dangerousAttackPercentage: number;
+            safeAttackPercentage: number;
+        };
+        away: {
+            totalAttacks: number;
+            totalDangerousAttacks: number;
+            totalSafeAttacks: number;
+            totalAttackCount: number;
+            totalDangerousCount: number;
+            totalSafeCount: number;
+            attackPercentage: number;
+            dangerousAttackPercentage: number;
+            safeAttackPercentage: number;
+        };
+    };
+    matchDetails?: {
+        home: {
+            yellowCards: number;
+            redCards: number;
+            freeKicks: number;
+            goalKicks: number;
+            throwIns: number;
+            offsides: number;
+            cornerKicks: number;
+            shotsOnTarget: number;
+            shotsOffTarget: number;
+            saves: number;
+            fouls: number;
+            injuries: number;
+            dangerousAttacks: number;
+            ballSafe: number;
+            totalAttacks: number;
+            goalAttempts: number;
+            ballSafePercentage: number;
+            attackPercentage: number;
+            dangerousAttackPercentage: number;
+        };
+        away: {
+            yellowCards: number;
+            redCards: number;
+            freeKicks: number;
+            goalKicks: number;
+            throwIns: number;
+            offsides: number;
+            cornerKicks: number;
+            shotsOnTarget: number;
+            shotsOffTarget: number;
+            saves: number;
+            fouls: number;
+            injuries: number;
+            dangerousAttacks: number;
+            ballSafe: number;
+            totalAttacks: number;
+            goalAttempts: number;
+            ballSafePercentage: number;
+            attackPercentage: number;
+            dangerousAttackPercentage: number;
+        };
+        types: string[];
+    };
     markets: Array<{
         id: string;
         description: string;
@@ -320,58 +464,216 @@ export const useMatchData = () => {
     }, [isPaused, findPredictionForMatch, isPredictionDataLoaded, predictionData.length]);
 
     // Transform matches to UI format
-    const transformedMatches: TransformedMatch[] = matches.map(match => ({
-        id: match.id,
-        seasonId: match.seasonId,
-        teams: match.teams,
-        tournamentName: match.tournamentName,
-        ...transformMatchStatus(match),
-        markets: match.markets.map(market => ({
-            id: market.id,
-            description: market.description,
-            specifier: market.specifier,
-            favourite: market.favourite,
-            profitPercentage: market.profitPercentage,
-            margin: market.margin,
-            outcomes: market.outcomes.map(outcome => ({
-                id: outcome.id,
-                description: outcome.description,
-                odds: outcome.odds,
-                stakePercentage: outcome.stakePercentage,
-                isChanged: outcome.isChanged
-            }))
-        })),
-        score: match.score,
-        createdAt: match.lastUpdated,
-        matchTime: match.lastUpdated
-    }));
+    const transformedMatches: TransformedMatch[] = matches.map(match => {
+        console.log('Raw match data:', match); // Debug log
 
-    // Transform all live matches to UI format
-    const transformedAllLiveMatches: TransformedMatch[] = allLiveMatches.map(match => ({
-        id: match.id,
-        seasonId: match.seasonId,
-        teams: match.teams,
-        tournamentName: match.tournamentName,
-        ...transformMatchStatus(match),
-        markets: match.markets.map(market => ({
-            id: market.id,
-            description: market.description,
-            specifier: market.specifier,
-            favourite: market.favourite,
-            profitPercentage: market.profitPercentage,
-            margin: market.margin,
-            outcomes: market.outcomes.map(outcome => ({
-                id: outcome.id,
-                description: outcome.description,
-                odds: outcome.odds,
-                stakePercentage: outcome.stakePercentage,
-                isChanged: outcome.isChanged
-            }))
-        })),
-        score: match.score,
-        createdAt: match.lastUpdated,
-        matchTime: match.lastUpdated
-    }));
+        const transformedMatch = {
+            id: match.id,
+            seasonId: match.seasonId,
+            teams: match.teams,
+            tournamentName: match.tournamentName,
+            ...transformMatchStatus(match),
+            matchSituation: match.matchSituation ? {
+                totalTime: Number(match.matchSituation.totalTime) || 0,
+                dominantTeam: match.matchSituation.dominantTeam,
+                matchMomentum: match.matchSituation.matchMomentum,
+                home: {
+                    totalAttacks: Number(match.matchSituation.home.totalAttacks) || 0,
+                    totalDangerousAttacks: Number(match.matchSituation.home.totalDangerousAttacks) || 0,
+                    totalSafeAttacks: Number(match.matchSituation.home.totalSafeAttacks) || 0,
+                    totalAttackCount: Number(match.matchSituation.home.totalAttackCount) || 0,
+                    totalDangerousCount: Number(match.matchSituation.home.totalDangerousCount) || 0,
+                    totalSafeCount: Number(match.matchSituation.home.totalSafeCount) || 0,
+                    attackPercentage: Number(match.matchSituation.home.attackPercentage) || 0,
+                    dangerousAttackPercentage: Number(match.matchSituation.home.dangerousAttackPercentage) || 0,
+                    safeAttackPercentage: Number(match.matchSituation.home.safeAttackPercentage) || 0
+                },
+                away: {
+                    totalAttacks: Number(match.matchSituation.away.totalAttacks) || 0,
+                    totalDangerousAttacks: Number(match.matchSituation.away.totalDangerousAttacks) || 0,
+                    totalSafeAttacks: Number(match.matchSituation.away.totalSafeAttacks) || 0,
+                    totalAttackCount: Number(match.matchSituation.away.totalAttackCount) || 0,
+                    totalDangerousCount: Number(match.matchSituation.away.totalDangerousCount) || 0,
+                    totalSafeCount: Number(match.matchSituation.away.totalSafeCount) || 0,
+                    attackPercentage: Number(match.matchSituation.away.attackPercentage) || 0,
+                    dangerousAttackPercentage: Number(match.matchSituation.away.dangerousAttackPercentage) || 0,
+                    safeAttackPercentage: Number(match.matchSituation.away.safeAttackPercentage) || 0
+                }
+            } : undefined,
+            matchDetails: match.matchDetails ? {
+                home: {
+                    yellowCards: Number(match.matchDetails.home.yellowCards) || 0,
+                    redCards: Number(match.matchDetails.home.redCards) || 0,
+                    freeKicks: Number(match.matchDetails.home.freeKicks) || 0,
+                    goalKicks: Number(match.matchDetails.home.goalKicks) || 0,
+                    throwIns: Number(match.matchDetails.home.throwIns) || 0,
+                    offsides: Number(match.matchDetails.home.offsides) || 0,
+                    cornerKicks: Number(match.matchDetails.home.cornerKicks) || 0,
+                    shotsOnTarget: Number(match.matchDetails.home.shotsOnTarget) || 0,
+                    shotsOffTarget: Number(match.matchDetails.home.shotsOffTarget) || 0,
+                    saves: Number(match.matchDetails.home.saves) || 0,
+                    fouls: Number(match.matchDetails.home.fouls) || 0,
+                    injuries: Number(match.matchDetails.home.injuries) || 0,
+                    dangerousAttacks: Number(match.matchDetails.home.dangerousAttacks) || 0,
+                    ballSafe: Number(match.matchDetails.home.ballSafe) || 0,
+                    totalAttacks: Number(match.matchDetails.home.totalAttacks) || 0,
+                    goalAttempts: Number(match.matchDetails.home.goalAttempts) || 0,
+                    ballSafePercentage: Number(match.matchDetails.home.ballSafePercentage) || 0,
+                    attackPercentage: Number(match.matchDetails.home.attackPercentage) || 0,
+                    dangerousAttackPercentage: Number(match.matchDetails.home.dangerousAttackPercentage) || 0
+                },
+                away: {
+                    yellowCards: Number(match.matchDetails.away.yellowCards) || 0,
+                    redCards: Number(match.matchDetails.away.redCards) || 0,
+                    freeKicks: Number(match.matchDetails.away.freeKicks) || 0,
+                    goalKicks: Number(match.matchDetails.away.goalKicks) || 0,
+                    throwIns: Number(match.matchDetails.away.throwIns) || 0,
+                    offsides: Number(match.matchDetails.away.offsides) || 0,
+                    cornerKicks: Number(match.matchDetails.away.cornerKicks) || 0,
+                    shotsOnTarget: Number(match.matchDetails.away.shotsOnTarget) || 0,
+                    shotsOffTarget: Number(match.matchDetails.away.shotsOffTarget) || 0,
+                    saves: Number(match.matchDetails.away.saves) || 0,
+                    fouls: Number(match.matchDetails.away.fouls) || 0,
+                    injuries: Number(match.matchDetails.away.injuries) || 0,
+                    dangerousAttacks: Number(match.matchDetails.away.dangerousAttacks) || 0,
+                    ballSafe: Number(match.matchDetails.away.ballSafe) || 0,
+                    totalAttacks: Number(match.matchDetails.away.totalAttacks) || 0,
+                    goalAttempts: Number(match.matchDetails.away.goalAttempts) || 0,
+                    ballSafePercentage: Number(match.matchDetails.away.ballSafePercentage) || 0,
+                    attackPercentage: Number(match.matchDetails.away.attackPercentage) || 0,
+                    dangerousAttackPercentage: Number(match.matchDetails.away.dangerousAttackPercentage) || 0
+                },
+                types: match.matchDetails.types
+            } : undefined,
+            markets: match.markets.map(market => ({
+                id: market.id,
+                description: market.description,
+                specifier: market.specifier,
+                favourite: market.favourite,
+                profitPercentage: Number(market.profitPercentage) || 0,
+                margin: Number(market.margin) || 0,
+                outcomes: market.outcomes.map(outcome => ({
+                    id: outcome.id,
+                    description: outcome.description,
+                    odds: Number(outcome.odds) || 0,
+                    stakePercentage: Number(outcome.stakePercentage) || 0,
+                    isChanged: outcome.isChanged
+                }))
+            })),
+            score: match.score,
+            createdAt: match.lastUpdated,
+            matchTime: match.lastUpdated
+        };
+
+        console.log('Transformed match data:', transformedMatch); // Debug log
+        return transformedMatch;
+    });
+
+    // Transform all live matches to UI format with the same careful number handling
+    const transformedAllLiveMatches: TransformedMatch[] = allLiveMatches.map(match => {
+        console.log('Raw all live match data:', match); // Debug log
+
+        const transformedMatch = {
+            id: match.id,
+            seasonId: match.seasonId,
+            teams: match.teams,
+            tournamentName: match.tournamentName,
+            ...transformMatchStatus(match),
+            matchSituation: match.matchSituation ? {
+                totalTime: Number(match.matchSituation.totalTime) || 0,
+                dominantTeam: match.matchSituation.dominantTeam,
+                matchMomentum: match.matchSituation.matchMomentum,
+                home: {
+                    totalAttacks: Number(match.matchSituation.home.totalAttacks) || 0,
+                    totalDangerousAttacks: Number(match.matchSituation.home.totalDangerousAttacks) || 0,
+                    totalSafeAttacks: Number(match.matchSituation.home.totalSafeAttacks) || 0,
+                    totalAttackCount: Number(match.matchSituation.home.totalAttackCount) || 0,
+                    totalDangerousCount: Number(match.matchSituation.home.totalDangerousCount) || 0,
+                    totalSafeCount: Number(match.matchSituation.home.totalSafeCount) || 0,
+                    attackPercentage: Number(match.matchSituation.home.attackPercentage) || 0,
+                    dangerousAttackPercentage: Number(match.matchSituation.home.dangerousAttackPercentage) || 0,
+                    safeAttackPercentage: Number(match.matchSituation.home.safeAttackPercentage) || 0
+                },
+                away: {
+                    totalAttacks: Number(match.matchSituation.away.totalAttacks) || 0,
+                    totalDangerousAttacks: Number(match.matchSituation.away.totalDangerousAttacks) || 0,
+                    totalSafeAttacks: Number(match.matchSituation.away.totalSafeAttacks) || 0,
+                    totalAttackCount: Number(match.matchSituation.away.totalAttackCount) || 0,
+                    totalDangerousCount: Number(match.matchSituation.away.totalDangerousCount) || 0,
+                    totalSafeCount: Number(match.matchSituation.away.totalSafeCount) || 0,
+                    attackPercentage: Number(match.matchSituation.away.attackPercentage) || 0,
+                    dangerousAttackPercentage: Number(match.matchSituation.away.dangerousAttackPercentage) || 0,
+                    safeAttackPercentage: Number(match.matchSituation.away.safeAttackPercentage) || 0
+                }
+            } : undefined,
+            matchDetails: match.matchDetails ? {
+                home: {
+                    yellowCards: Number(match.matchDetails.home.yellowCards) || 0,
+                    redCards: Number(match.matchDetails.home.redCards) || 0,
+                    freeKicks: Number(match.matchDetails.home.freeKicks) || 0,
+                    goalKicks: Number(match.matchDetails.home.goalKicks) || 0,
+                    throwIns: Number(match.matchDetails.home.throwIns) || 0,
+                    offsides: Number(match.matchDetails.home.offsides) || 0,
+                    cornerKicks: Number(match.matchDetails.home.cornerKicks) || 0,
+                    shotsOnTarget: Number(match.matchDetails.home.shotsOnTarget) || 0,
+                    shotsOffTarget: Number(match.matchDetails.home.shotsOffTarget) || 0,
+                    saves: Number(match.matchDetails.home.saves) || 0,
+                    fouls: Number(match.matchDetails.home.fouls) || 0,
+                    injuries: Number(match.matchDetails.home.injuries) || 0,
+                    dangerousAttacks: Number(match.matchDetails.home.dangerousAttacks) || 0,
+                    ballSafe: Number(match.matchDetails.home.ballSafe) || 0,
+                    totalAttacks: Number(match.matchDetails.home.totalAttacks) || 0,
+                    goalAttempts: Number(match.matchDetails.home.goalAttempts) || 0,
+                    ballSafePercentage: Number(match.matchDetails.home.ballSafePercentage) || 0,
+                    attackPercentage: Number(match.matchDetails.home.attackPercentage) || 0,
+                    dangerousAttackPercentage: Number(match.matchDetails.home.dangerousAttackPercentage) || 0
+                },
+                away: {
+                    yellowCards: Number(match.matchDetails.away.yellowCards) || 0,
+                    redCards: Number(match.matchDetails.away.redCards) || 0,
+                    freeKicks: Number(match.matchDetails.away.freeKicks) || 0,
+                    goalKicks: Number(match.matchDetails.away.goalKicks) || 0,
+                    throwIns: Number(match.matchDetails.away.throwIns) || 0,
+                    offsides: Number(match.matchDetails.away.offsides) || 0,
+                    cornerKicks: Number(match.matchDetails.away.cornerKicks) || 0,
+                    shotsOnTarget: Number(match.matchDetails.away.shotsOnTarget) || 0,
+                    shotsOffTarget: Number(match.matchDetails.away.shotsOffTarget) || 0,
+                    saves: Number(match.matchDetails.away.saves) || 0,
+                    fouls: Number(match.matchDetails.away.fouls) || 0,
+                    injuries: Number(match.matchDetails.away.injuries) || 0,
+                    dangerousAttacks: Number(match.matchDetails.away.dangerousAttacks) || 0,
+                    ballSafe: Number(match.matchDetails.away.ballSafe) || 0,
+                    totalAttacks: Number(match.matchDetails.away.totalAttacks) || 0,
+                    goalAttempts: Number(match.matchDetails.away.goalAttempts) || 0,
+                    ballSafePercentage: Number(match.matchDetails.away.ballSafePercentage) || 0,
+                    attackPercentage: Number(match.matchDetails.away.attackPercentage) || 0,
+                    dangerousAttackPercentage: Number(match.matchDetails.away.dangerousAttackPercentage) || 0
+                },
+                types: match.matchDetails.types
+            } : undefined,
+            markets: match.markets.map(market => ({
+                id: market.id,
+                description: market.description,
+                specifier: market.specifier,
+                favourite: market.favourite,
+                profitPercentage: Number(market.profitPercentage) || 0,
+                margin: Number(market.margin) || 0,
+                outcomes: market.outcomes.map(outcome => ({
+                    id: outcome.id,
+                    description: outcome.description,
+                    odds: Number(outcome.odds) || 0,
+                    stakePercentage: Number(outcome.stakePercentage) || 0,
+                    isChanged: outcome.isChanged
+                }))
+            })),
+            score: match.score,
+            createdAt: match.lastUpdated,
+            matchTime: match.lastUpdated
+        };
+
+        console.log('Transformed all live match data:', transformedMatch); // Debug log
+        return transformedMatch;
+    });
 
     const togglePause = () => setIsPaused(prev => !prev);
 

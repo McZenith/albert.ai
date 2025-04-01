@@ -1410,12 +1410,12 @@ const MatchPredictor = () => {
         <table className='w-full bg-white rounded-lg overflow-hidden border border-gray-200'>
           <thead>
             <tr className='bg-gray-50 border-b border-gray-200'>
-              <th className='p-3 text-left whitespace-nowrap'></th>
-              <th className='p-3 text-left whitespace-nowrap text-sm font-medium text-gray-500 min-w-[200px]'>
+              <th className='p-2 text-left whitespace-nowrap'></th>
+              <th className='p-2 text-left whitespace-nowrap text-sm font-medium text-gray-500 min-w-[180px]'>
                 Match
               </th>
               <th
-                className='p-3 text-center whitespace-nowrap cursor-pointer hover:bg-gray-100 text-sm font-medium text-gray-500 min-w-[80px]'
+                className='p-2 text-center whitespace-nowrap cursor-pointer hover:bg-gray-100 text-sm font-medium text-gray-500 min-w-[70px]'
                 onClick={() => handleSort('matchTime')}
               >
                 Date
@@ -1426,7 +1426,7 @@ const MatchPredictor = () => {
                 )}
               </th>
               <th
-                className='p-3 text-center whitespace-nowrap cursor-pointer hover:bg-gray-100 text-sm font-medium text-gray-500 min-w-[80px]'
+                className='p-2 text-center whitespace-nowrap cursor-pointer hover:bg-gray-100 text-sm font-medium text-gray-500 min-w-[70px]'
                 onClick={() => handleSort('homeAvg')}
               >
                 Home Avg
@@ -1437,7 +1437,7 @@ const MatchPredictor = () => {
                 )}
               </th>
               <th
-                className='p-3 text-center whitespace-nowrap cursor-pointer hover:bg-gray-100 text-sm font-medium text-gray-500 min-w-[80px]'
+                className='p-2 text-center whitespace-nowrap cursor-pointer hover:bg-gray-100 text-sm font-medium text-gray-500 min-w-[70px]'
                 onClick={() => handleSort('awayAvg')}
               >
                 Away Avg
@@ -1448,7 +1448,7 @@ const MatchPredictor = () => {
                 )}
               </th>
               <th
-                className='p-3 text-center whitespace-nowrap cursor-pointer hover:bg-gray-100 text-sm font-medium text-gray-500 min-w-[70px]'
+                className='p-2 text-center whitespace-nowrap cursor-pointer hover:bg-gray-100 text-sm font-medium text-gray-500 min-w-[60px]'
                 onClick={() => handleSort('positionGap')}
               >
                 Pos Gap
@@ -1458,11 +1458,11 @@ const MatchPredictor = () => {
                   </span>
                 )}
               </th>
-              <th className='p-3 text-center whitespace-nowrap cursor-pointer hover:bg-gray-100 text-sm font-medium text-gray-500 min-w-[80px]'>
+              <th className='p-2 text-center whitespace-nowrap cursor-pointer hover:bg-gray-100 text-sm font-medium text-gray-500 min-w-[70px]'>
                 H/A Pos
               </th>
               <th
-                className='p-3 text-center whitespace-nowrap cursor-pointer hover:bg-gray-100 text-sm font-medium text-gray-500 min-w-[80px]'
+                className='p-2 text-center whitespace-nowrap cursor-pointer hover:bg-gray-100 text-sm font-medium text-gray-500 min-w-[70px]'
                 onClick={() => handleSort('homeAwayForm')}
               >
                 H/A Form
@@ -1473,7 +1473,7 @@ const MatchPredictor = () => {
                 )}
               </th>
               <th
-                className='p-3 text-center whitespace-nowrap cursor-pointer hover:bg-gray-100 text-sm font-medium text-gray-500 min-w-[100px]'
+                className='p-2 text-center whitespace-nowrap cursor-pointer hover:bg-gray-100 text-sm font-medium text-gray-500 min-w-[80px]'
                 onClick={() => handleSort('formPoints')}
               >
                 Form Pts %
@@ -1484,7 +1484,7 @@ const MatchPredictor = () => {
                 )}
               </th>
               <th
-                className='p-3 text-center whitespace-nowrap cursor-pointer hover:bg-gray-100 text-sm font-medium text-gray-500 min-w-[80px]'
+                className='p-2 text-center whitespace-nowrap cursor-pointer hover:bg-gray-100 text-sm font-medium text-gray-500 min-w-[60px]'
                 onClick={() => handleSort('form')}
               >
                 Form
@@ -1495,7 +1495,7 @@ const MatchPredictor = () => {
                 )}
               </th>
               <th
-                className='p-3 text-center whitespace-nowrap cursor-pointer hover:bg-gray-100 text-sm font-medium text-gray-500 min-w-[80px]'
+                className='p-2 text-center whitespace-nowrap cursor-pointer hover:bg-gray-100 text-sm font-medium text-gray-500 min-w-[60px]'
                 onClick={() => handleSort('h2h')}
               >
                 H2H
@@ -1506,7 +1506,7 @@ const MatchPredictor = () => {
                 )}
               </th>
               <th
-                className='p-3 text-center whitespace-nowrap cursor-pointer hover:bg-gray-100 text-sm font-medium text-gray-500 min-w-[80px]'
+                className='p-2 text-center whitespace-nowrap cursor-pointer hover:bg-gray-100 text-sm font-medium text-gray-500 min-w-[60px]'
                 onClick={() => handleSort('expectedGoals')}
               >
                 xGoals
@@ -1517,7 +1517,7 @@ const MatchPredictor = () => {
                 )}
               </th>
               <th
-                className='p-3 text-center whitespace-nowrap cursor-pointer hover:bg-gray-100 text-sm font-medium text-gray-500 min-w-[100px]'
+                className='p-2 text-center whitespace-nowrap cursor-pointer hover:bg-gray-100 text-sm font-medium text-gray-500 min-w-[70px]'
                 onClick={() => handleSort('odds.over15Goals')}
               >
                 Over 1.5
@@ -1528,7 +1528,7 @@ const MatchPredictor = () => {
                 )}
               </th>
               <th
-                className='p-3 text-center whitespace-nowrap cursor-pointer hover:bg-gray-100 text-sm font-medium text-gray-500 min-w-[110px]'
+                className='p-2 text-center whitespace-nowrap cursor-pointer hover:bg-gray-100 text-sm font-medium text-gray-500 min-w-[80px]'
                 onClick={() => handleSort('defensiveStrength')}
               >
                 Def Rating
@@ -1538,11 +1538,11 @@ const MatchPredictor = () => {
                   </span>
                 )}
               </th>
-              <th className='p-3 text-center whitespace-nowrap text-sm font-medium text-gray-500 min-w-[150px]'>
+              <th className='p-2 text-center whitespace-nowrap text-sm font-medium text-gray-500 min-w-[120px]'>
                 Favorite
               </th>
               <th
-                className='p-3 text-center whitespace-nowrap cursor-pointer hover:bg-gray-100 text-sm font-medium text-gray-500 min-w-[100px]'
+                className='p-2 text-center whitespace-nowrap cursor-pointer hover:bg-gray-100 text-sm font-medium text-gray-500 min-w-[80px]'
                 onClick={() => handleSort('confidenceScore')}
               >
                 Confidence
@@ -1553,7 +1553,7 @@ const MatchPredictor = () => {
                 )}
               </th>
               <th
-                className='p-3 text-center whitespace-nowrap cursor-pointer hover:bg-gray-100 text-sm font-medium text-gray-500 min-w-[80px]'
+                className='p-2 text-center whitespace-nowrap cursor-pointer hover:bg-gray-100 text-sm font-medium text-gray-500 min-w-[70px]'
                 onClick={() => handleSort('bttsRate')}
               >
                 BTTS %
@@ -1589,7 +1589,7 @@ const MatchPredictor = () => {
                       )
                     }
                   >
-                    <td className='p-3'>
+                    <td className='p-2'>
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -1608,13 +1608,13 @@ const MatchPredictor = () => {
                         )}
                       </button>
                     </td>
-                    <td className='p-3'>
+                    <td className='p-2'>
                       <div className='flex flex-col'>
                         <div className='flex items-center'>
-                          <span className='text-xl mr-2'>
+                          <span className='text-lg mr-2'>
                             {renderTeamLogo(match.homeTeam.logo)}
                           </span>
-                          <span className='font-medium text-gray-800'>
+                          <span className='font-medium text-gray-800 text-sm'>
                             {match.homeTeam.name}
                           </span>
                           <span className='text-xs text-gray-500 ml-2'>
@@ -1622,10 +1622,10 @@ const MatchPredictor = () => {
                           </span>
                         </div>
                         <div className='flex items-center mt-1'>
-                          <span className='text-xl mr-2'>
+                          <span className='text-lg mr-2'>
                             {renderTeamLogo(match.awayTeam.logo)}
                           </span>
-                          <span className='font-medium text-gray-800'>
+                          <span className='font-medium text-gray-800 text-sm'>
                             {match.awayTeam.name}
                           </span>
                           <span className='text-xs text-gray-500 ml-2'>
@@ -1634,17 +1634,17 @@ const MatchPredictor = () => {
                         </div>
                       </div>
                     </td>
-                    <td className='p-3 text-center whitespace-nowrap'>
-                      <div className='text-gray-800'>
+                    <td className='p-2 text-center whitespace-nowrap'>
+                      <div className='text-gray-800 text-sm'>
                         {formatMatchDate(match.date, match.time)}
                       </div>
                     </td>
-                    <td className='p-3 text-center'>
+                    <td className='p-2 text-center'>
                       <div
-                        className={`px-2 py-1 rounded-lg ${getMetricColor(
+                        className={`px-2 py-1 rounded-lg text-sm ${getMetricColor(
                           (match.homeTeam.avgHomeGoals ?? 0) > 0
                             ? match.homeTeam.avgHomeGoals ?? 0
-                            : (match.expectedGoals ?? 0) / 2, // Distribute expected goals between home/away
+                            : (match.expectedGoals ?? 0) / 2,
                           { high: 1.8, medium: 1.3 }
                         )}`}
                       >
@@ -1655,12 +1655,12 @@ const MatchPredictor = () => {
                         )}
                       </div>
                     </td>
-                    <td className='p-3 text-center'>
+                    <td className='p-2 text-center'>
                       <div
-                        className={`px-2 py-1 rounded-lg ${getMetricColor(
+                        className={`px-2 py-1 rounded-lg text-sm ${getMetricColor(
                           (match.awayTeam.avgAwayGoals ?? 0) > 0
                             ? match.awayTeam.avgAwayGoals ?? 0
-                            : (match.expectedGoals ?? 0) / 2, // Distribute expected goals between home/away
+                            : (match.expectedGoals ?? 0) / 2,
                           { high: 1.4, medium: 1.0 }
                         )}`}
                       >
@@ -1671,9 +1671,9 @@ const MatchPredictor = () => {
                         )}
                       </div>
                     </td>
-                    <td className='p-3 text-center'>
+                    <td className='p-2 text-center'>
                       <div
-                        className={`px-2 py-1 rounded-lg ${getMetricColor(
+                        className={`px-2 py-1 rounded-lg text-sm ${getMetricColor(
                           match.positionGap,
                           { high: 10, medium: 5 }
                         )}`}
@@ -1681,8 +1681,8 @@ const MatchPredictor = () => {
                         {match.positionGap}
                       </div>
                     </td>
-                    <td className='p-3 text-center'>
-                      <div className='flex items-center justify-center gap-1 text-sm'>
+                    <td className='p-2 text-center'>
+                      <div className='flex items-center justify-center gap-1 text-xs'>
                         <span className='px-2 py-1 rounded-lg bg-blue-50 text-blue-800'>
                           {match.homeTeam.position}
                         </span>
@@ -1692,7 +1692,7 @@ const MatchPredictor = () => {
                         </span>
                       </div>
                     </td>
-                    <td className='p-3 text-center'>
+                    <td className='p-2 text-center'>
                       <div className='flex flex-col gap-1'>
                         <div
                           className={`px-2 py-1 rounded-lg bg-blue-50 text-blue-800 text-xs`}
@@ -1706,8 +1706,8 @@ const MatchPredictor = () => {
                         </div>
                       </div>
                     </td>
-                    <td className='p-3 text-center'>
-                      <div className='flex items-center justify-center gap-1 text-sm'>
+                    <td className='p-2 text-center'>
+                      <div className='flex items-center justify-center gap-1 text-xs'>
                         <span
                           className={`px-2 py-1 rounded-lg ${
                             calculateFormPoints(match.homeTeam.form) >= 60
@@ -1733,9 +1733,9 @@ const MatchPredictor = () => {
                         </span>
                       </div>
                     </td>
-                    <td className='p-3 text-center'>
+                    <td className='p-2 text-center'>
                       <div
-                        className={`px-2 py-1 rounded-lg ${getFormColor(
+                        className={`px-2 py-1 rounded-lg text-sm ${getFormColor(
                           match.favorite === 'home'
                             ? match.homeTeam.form
                             : match.favorite === 'away'
@@ -1750,10 +1750,10 @@ const MatchPredictor = () => {
                           : '-'}
                       </div>
                     </td>
-                    <td className='p-3 text-center'>
+                    <td className='p-2 text-center'>
                       {match.headToHead.matches > 0 ? (
                         <div
-                          className={`px-2 py-1 rounded-lg ${getMetricColor(
+                          className={`px-2 py-1 rounded-lg text-sm ${getMetricColor(
                             match.headToHead.wins / match.headToHead.matches,
                             { high: 0.7, medium: 0.4 }
                           )}`}
@@ -1762,14 +1762,14 @@ const MatchPredictor = () => {
                           {match.headToHead.losses}
                         </div>
                       ) : (
-                        <div className='px-2 py-1 rounded-lg bg-gray-100 text-gray-600'>
+                        <div className='px-2 py-1 rounded-lg bg-gray-100 text-gray-600 text-sm'>
                           N/A
                         </div>
                       )}
                     </td>
-                    <td className='p-3 text-center'>
+                    <td className='p-2 text-center'>
                       <div
-                        className={`px-2 py-1 rounded-lg ${getMetricColor(
+                        className={`px-2 py-1 rounded-lg text-sm ${getMetricColor(
                           match.expectedGoals,
                           { high: 2.2, medium: 1.5 }
                         )}`}
@@ -1777,10 +1777,10 @@ const MatchPredictor = () => {
                         {Math.round(match.expectedGoals)}
                       </div>
                     </td>
-                    <td className='p-3 text-center'>
+                    <td className='p-2 text-center'>
                       {match.odds ? (
                         <div
-                          className={`px-2 py-1 rounded-lg ${
+                          className={`px-2 py-1 rounded-lg text-sm ${
                             match.odds.over15Goals < 1.8
                               ? 'bg-green-100 text-green-800'
                               : match.odds.over15Goals < 2.2
@@ -1791,14 +1791,14 @@ const MatchPredictor = () => {
                           {Math.round(match.odds.over15Goals)}
                         </div>
                       ) : (
-                        <div className='px-2 py-1 rounded-lg bg-gray-100 text-gray-600'>
+                        <div className='px-2 py-1 rounded-lg bg-gray-100 text-gray-600 text-sm'>
                           N/A
                         </div>
                       )}
                     </td>
-                    <td className='p-3 text-center'>
+                    <td className='p-2 text-center'>
                       <div
-                        className={`px-2 py-1 rounded-lg ${getMetricColor(
+                        className={`px-2 py-1 rounded-lg text-sm ${getMetricColor(
                           1 / match.defensiveStrength,
                           { high: 1.2, medium: 1.0 }
                         )}`}
@@ -1806,12 +1806,12 @@ const MatchPredictor = () => {
                         {Math.round(1 / match.defensiveStrength)}
                       </div>
                     </td>
-                    <td className='p-3 text-center'>
+                    <td className='p-2 text-center'>
                       {match.favorite ? (
                         <div
-                          className={`px-3 py-1 rounded-lg inline-flex items-center ${selectedFavoriteColor}`}
+                          className={`px-2 py-1 rounded-lg inline-flex items-center text-sm ${selectedFavoriteColor}`}
                         >
-                          <span className='text-2xl mr-3'>
+                          <span className='text-xl mr-2'>
                             {renderTeamLogo(
                               match.favorite === 'home'
                                 ? match.homeTeam.logo
@@ -1819,36 +1819,36 @@ const MatchPredictor = () => {
                               'lg'
                             )}
                           </span>
-                          <span className='truncate max-w-[100px]'>
+                          <span className='truncate max-w-[80px]'>
                             {match.favorite === 'home'
                               ? match.homeTeam.name
                               : match.awayTeam.name}
                           </span>
                         </div>
                       ) : (
-                        <div className='px-3 py-1 rounded-lg bg-gray-100 text-gray-600 border border-gray-200'>
+                        <div className='px-2 py-1 rounded-lg bg-gray-100 text-gray-600 border border-gray-200 text-sm'>
                           None
                         </div>
                       )}
                     </td>
-                    <td className='p-3 text-center'>
+                    <td className='p-2 text-center'>
                       <div
-                        className={`px-2 py-1 rounded-lg flex items-center justify-between ${getMetricColor(
+                        className={`px-2 py-1 rounded-lg flex items-center justify-between text-sm ${getMetricColor(
                           match.confidenceScore,
                           { high: 80, medium: 60 }
                         )}`}
                       >
                         <span>{match.confidenceScore}%</span>
                         {expandedMatch === match.id ? (
-                          <ChevronUp size={16} className='ml-1' />
+                          <ChevronUp size={14} className='ml-1' />
                         ) : (
-                          <ChevronDown size={16} className='ml-1' />
+                          <ChevronDown size={14} className='ml-1' />
                         )}
                       </div>
                     </td>
-                    <td className='p-3 text-center'>
+                    <td className='p-2 text-center'>
                       <div
-                        className={`px-2 py-1 rounded-lg ${getMetricColor(
+                        className={`px-2 py-1 rounded-lg text-sm ${getMetricColor(
                           match.favorite === 'home'
                             ? match.homeTeam.bttsRate || 0
                             : match.favorite === 'away'
@@ -2066,6 +2066,228 @@ const MatchPredictor = () => {
                                   )}
                                 </div>
                               )}
+                            </div>
+                          </div>
+
+                          {/* Team Statistics Section */}
+                          <div className='mt-6 pt-4 border-t border-gray-100'>
+                            <h3 className='font-semibold text-gray-700 mb-4'>
+                              Team Statistics
+                            </h3>
+                            <div className='grid grid-cols-1 lg:grid-cols-2 gap-4'>
+                              {/* Clean Sheets & Scoring Stats */}
+                              <div className='bg-gray-50 rounded-lg border border-gray-100 p-3'>
+                                <h4 className='text-sm font-medium text-gray-700 mb-3'>
+                                  Clean Sheets & Scoring
+                                </h4>
+                                <div className='grid grid-cols-2 gap-3'>
+                                  <div className='space-y-2'>
+                                    <h5 className='text-xs font-medium text-blue-600 mb-2'>
+                                      Home Team
+                                    </h5>
+                                    <div className='space-y-1.5'>
+                                      <div className='flex justify-between items-center'>
+                                        <span className='text-gray-600 text-xs'>
+                                          Total Clean Sheets:
+                                        </span>
+                                        <span className='font-medium text-gray-900 text-xs'>
+                                          {match.homeTeam.cleanSheets || '0'}
+                                        </span>
+                                      </div>
+                                      <div className='flex justify-between items-center'>
+                                        <span className='text-gray-600 text-xs'>
+                                          Home Clean Sheets:
+                                        </span>
+                                        <span className='font-medium text-gray-900 text-xs'>
+                                          {match.homeTeam.homeCleanSheets ||
+                                            '0'}
+                                        </span>
+                                      </div>
+                                      <div className='flex justify-between items-center'>
+                                        <span className='text-gray-600 text-xs'>
+                                          Scoring First Win %:
+                                        </span>
+                                        <span className='font-medium text-gray-900 text-xs'>
+                                          {(
+                                            match.homeTeam
+                                              .scoringFirstWinRate || 0
+                                          ).toFixed(1)}
+                                          %
+                                        </span>
+                                      </div>
+                                      <div className='flex justify-between items-center'>
+                                        <span className='text-gray-600 text-xs'>
+                                          Conceding First Win %:
+                                        </span>
+                                        <span className='font-medium text-gray-900 text-xs'>
+                                          {(
+                                            match.homeTeam
+                                              .concedingFirstWinRate || 0
+                                          ).toFixed(1)}
+                                          %
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div className='space-y-2'>
+                                    <h5 className='text-xs font-medium text-purple-600 mb-2'>
+                                      Away Team
+                                    </h5>
+                                    <div className='space-y-1.5'>
+                                      <div className='flex justify-between items-center'>
+                                        <span className='text-gray-600 text-xs'>
+                                          Total Clean Sheets:
+                                        </span>
+                                        <span className='font-medium text-gray-900 text-xs'>
+                                          {match.awayTeam.cleanSheets || '0'}
+                                        </span>
+                                      </div>
+                                      <div className='flex justify-between items-center'>
+                                        <span className='text-gray-600 text-xs'>
+                                          Away Clean Sheets:
+                                        </span>
+                                        <span className='font-medium text-gray-900 text-xs'>
+                                          {match.awayTeam.awayCleanSheets ||
+                                            '0'}
+                                        </span>
+                                      </div>
+                                      <div className='flex justify-between items-center'>
+                                        <span className='text-gray-600 text-xs'>
+                                          Scoring First Win %:
+                                        </span>
+                                        <span className='font-medium text-gray-900 text-xs'>
+                                          {(
+                                            match.awayTeam
+                                              .scoringFirstWinRate || 0
+                                          ).toFixed(1)}
+                                          %
+                                        </span>
+                                      </div>
+                                      <div className='flex justify-between items-center'>
+                                        <span className='text-gray-600 text-xs'>
+                                          Conceding First Win %:
+                                        </span>
+                                        <span className='font-medium text-gray-900 text-xs'>
+                                          {(
+                                            match.awayTeam
+                                              .concedingFirstWinRate || 0
+                                          ).toFixed(1)}
+                                          %
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Match Pattern Stats */}
+                              <div className='bg-gray-50 rounded-lg border border-gray-100 p-3'>
+                                <h4 className='text-sm font-medium text-gray-700 mb-3'>
+                                  Match Patterns
+                                </h4>
+                                <div className='grid grid-cols-2 gap-3'>
+                                  <div className='space-y-2'>
+                                    <h5 className='text-xs font-medium text-blue-600 mb-2'>
+                                      Home Team
+                                    </h5>
+                                    <div className='space-y-1.5'>
+                                      <div className='flex justify-between items-center'>
+                                        <span className='text-gray-600 text-xs'>
+                                          Avg Corners:
+                                        </span>
+                                        <span className='font-medium text-gray-900 text-xs'>
+                                          {(
+                                            match.homeTeam.avgCorners || 0
+                                          ).toFixed(1)}
+                                        </span>
+                                      </div>
+                                      <div className='flex justify-between items-center'>
+                                        <span className='text-gray-600 text-xs'>
+                                          BTTS Rate:
+                                        </span>
+                                        <span className='font-medium text-gray-900 text-xs'>
+                                          {(
+                                            match.homeTeam.bttsRate || 0
+                                          ).toFixed(1)}
+                                          %
+                                        </span>
+                                      </div>
+                                      <div className='flex justify-between items-center'>
+                                        <span className='text-gray-600 text-xs'>
+                                          Home BTTS Rate:
+                                        </span>
+                                        <span className='font-medium text-gray-900 text-xs'>
+                                          {(
+                                            match.homeTeam.homeBttsRate || 0
+                                          ).toFixed(1)}
+                                          %
+                                        </span>
+                                      </div>
+                                      <div className='flex justify-between items-center'>
+                                        <span className='text-gray-600 text-xs'>
+                                          Late Goal Rate:
+                                        </span>
+                                        <span className='font-medium text-gray-900 text-xs'>
+                                          {(
+                                            match.homeTeam.lateGoalRate || 0
+                                          ).toFixed(1)}
+                                          %
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div className='space-y-2'>
+                                    <h5 className='text-xs font-medium text-purple-600 mb-2'>
+                                      Away Team
+                                    </h5>
+                                    <div className='space-y-1.5'>
+                                      <div className='flex justify-between items-center'>
+                                        <span className='text-gray-600 text-xs'>
+                                          Avg Corners:
+                                        </span>
+                                        <span className='font-medium text-gray-900 text-xs'>
+                                          {(
+                                            match.awayTeam.avgCorners || 0
+                                          ).toFixed(1)}
+                                        </span>
+                                      </div>
+                                      <div className='flex justify-between items-center'>
+                                        <span className='text-gray-600 text-xs'>
+                                          BTTS Rate:
+                                        </span>
+                                        <span className='font-medium text-gray-900 text-xs'>
+                                          {(
+                                            match.awayTeam.bttsRate || 0
+                                          ).toFixed(1)}
+                                          %
+                                        </span>
+                                      </div>
+                                      <div className='flex justify-between items-center'>
+                                        <span className='text-gray-600 text-xs'>
+                                          Away BTTS Rate:
+                                        </span>
+                                        <span className='font-medium text-gray-900 text-xs'>
+                                          {(
+                                            match.awayTeam.awayBttsRate || 0
+                                          ).toFixed(1)}
+                                          %
+                                        </span>
+                                      </div>
+                                      <div className='flex justify-between items-center'>
+                                        <span className='text-gray-600 text-xs'>
+                                          Late Goal Rate:
+                                        </span>
+                                        <span className='font-medium text-gray-900 text-xs'>
+                                          {(
+                                            match.awayTeam.lateGoalRate || 0
+                                          ).toFixed(1)}
+                                          %
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
                             </div>
                           </div>
                         </div>
