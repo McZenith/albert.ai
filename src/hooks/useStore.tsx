@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { normalizeTeamName, getTeamNameSimilarity } from '@/utils/teamUtils';
+import { UpcomingMatch } from '@/types/match';
 
 interface CartItem {
   matchId: string;
@@ -21,47 +22,6 @@ interface CartItem {
   };
   addedAt: string;
 }
-
-export type UpcomingMatch = {
-  id: string | number;
-  date: string;
-  time: string;
-  venue: string;
-  homeTeam: {
-    id: string;
-    name: string;
-    position: number;
-    form: string;
-    homeForm?: string;
-    avgHomeGoals?: number;
-    cleanSheets?: number;
-  };
-  awayTeam: {
-    id: string;
-    name: string;
-    position: number;
-    form: string;
-    awayForm?: string;
-    avgAwayGoals?: number;
-    cleanSheets?: number;
-  };
-  positionGap: number;
-  expectedGoals: number;
-  averageGoals?: number;
-  defensiveStrength?: number;
-  favorite: string | null;
-  confidenceScore: number;
-  leaguePosition?: number;
-  reasonsForPrediction?: string[];
-  headToHead?: {
-    matches: number;
-    wins: number;
-    draws: number;
-    losses: number;
-    goalsScored: number;
-    goalsConceded: number;
-  };
-};
 
 interface CartStore {
   items: CartItem[];

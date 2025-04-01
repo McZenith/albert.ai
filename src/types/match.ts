@@ -216,4 +216,45 @@ export interface TransformedMatch {
     score: string;
     createdAt: string;
     matchTime: string;
+}
+
+export interface UpcomingMatch {
+    id: string | number;
+    date: string;
+    time: string;
+    venue: string;
+    homeTeam: {
+        id: string;
+        name: string;
+        position: number;
+        form: string;
+        homeForm?: string;
+        avgHomeGoals?: number;
+        cleanSheets?: number;
+    };
+    awayTeam: {
+        id: string;
+        name: string;
+        position: number;
+        form: string;
+        awayForm?: string;
+        avgAwayGoals?: number;
+        cleanSheets?: number;
+    };
+    positionGap: number;
+    expectedGoals: number;
+    averageGoals?: number;
+    defensiveStrength?: number;
+    favorite: string | null;
+    confidenceScore: number;
+    leaguePosition?: number;
+    reasonsForPrediction?: string[];
+    headToHead?: {
+        matches: number;
+        wins: number;
+        draws: number;
+        losses: number;
+        goalsScored: number;
+        goalsConceded: number;
+    };
 } 
