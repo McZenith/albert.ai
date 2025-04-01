@@ -547,7 +547,7 @@ const MarketRow = ({
   removeItem: (matchId: string, marketId: string) => void;
   disabled?: boolean;
 }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [expandedKey, setExpandedKey] = useState<string | null>(null);
   const isInCart = cartItems.some(
     (item) => item.matchId === match.id && item.marketId === market.id
   );
@@ -650,12 +650,14 @@ const MarketRow = ({
   ]);
 
   const hasPrediction = Boolean(predictionMatch);
+  const uniqueKey = `${match.id}-${market.id}`;
+  const isExpanded = expandedKey === uniqueKey;
 
   const handleRowClick = (e: React.MouseEvent<HTMLTableRowElement>) => {
     if (hasPrediction) {
       e.preventDefault();
       e.stopPropagation();
-      setIsExpanded((prev) => !prev);
+      setExpandedKey(isExpanded ? null : uniqueKey);
     }
   };
 
