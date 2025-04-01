@@ -1865,9 +1865,9 @@ const MatchesPage = () => {
     // Initialize activeTab from localStorage if available
     if (typeof window !== 'undefined') {
       const savedTab = localStorage.getItem('activeTab');
-      return savedTab || 'live';
+      return savedTab || 'all-live';
     }
-    return 'live';
+    return 'all-live';
   });
   const [copiedText, setCopiedText] = useState<string>('');
   const [showCartItems, setShowCartItems] = useState<boolean>(false);
@@ -1932,130 +1932,10 @@ const MatchesPage = () => {
     isPredictionDataLoaded,
   } = useCartStore();
 
-  // Update the useEffect to add retry logic for prediction data loading
+  // Update isInitialLoading based on allLiveMatches
   useEffect(() => {
-    // Track retry attempts
-    let retryCount = 0;
-    const maxRetries = 3;
-
-    const loadWithRetry = async () => {
-      // Only load prediction data if it hasn't been loaded already
-      if (!isPredictionDataLoaded) {
-        console.log(
-          `Attempting to load prediction data (attempt ${retryCount + 1}/${
-            maxRetries + 1
-          })`
-        );
-
-        await loadPredictionData();
-
-        // Check if the load was successful
-        const { isPredictionDataLoaded, predictionData } =
-          useCartStore.getState();
-
-        if (!isPredictionDataLoaded && retryCount < maxRetries) {
-          // If not successful and we have retries left, try again after a delay
-          retryCount++;
-          console.log(
-            `Prediction data load unsuccessful, retrying in 2 seconds... (${retryCount}/${maxRetries})`
-          );
-          setTimeout(loadWithRetry, 2000);
-        } else if (isPredictionDataLoaded) {
-          console.log(
-            `Prediction data successfully loaded with ${predictionData.length} matches`
-          );
-        } else {
-          console.warn(
-            'Failed to load prediction data after all retry attempts'
-          );
-        }
-      } else {
-        console.log('Prediction data already loaded, skipping initial load');
-      }
-    };
-
-    loadWithRetry();
-  }, [loadPredictionData, isPredictionDataLoaded]);
-
-  // Handle initial loading state
-  useEffect(() => {
-    if (isConnected && isInitialLoading && liveMatches.length !== 0) {
-      setIsInitialLoading(false);
-    }
-  }, [isConnected, isInitialLoading, liveMatches.length]);
-
-  // Show feedback about prediction data loading
-  useEffect(() => {
-    if (predictionData.length > 0) {
-      console.log(
-        `Prediction data loaded: ${predictionData.length} matches available for cross-reference`
-      );
-    }
-  }, [predictionData.length]);
-
-  // Restore the timer effect for copiedText
-  useEffect(() => {
-    // Reset the timer whenever new text comes in
-    if (copiedText) {
-      const timer = setTimeout(() => {
-        setCopiedText('');
-      }, 3000);
-
-      // Cleanup timer on unmount or when copyText changes
-      return () => clearTimeout(timer);
-    }
-  }, [copiedText]);
-
-  const handleSort = (field: string): void => {
-    setSortConfigs((current) => {
-      const existingIndex = current.findIndex(
-        (config) => config.field === field
-      );
-
-      const asc: SortDirection = 'asc';
-      const desc: SortDirection = 'desc';
-
-      if (existingIndex === -1) {
-        // Add new sort
-        const newConfigs = [...current, { field, direction: asc }];
-        localStorage.setItem('sortConfigs', JSON.stringify(newConfigs));
-        return newConfigs;
-      } else {
-        // Toggle direction or remove if it was desc
-        const newConfigs = [...current];
-        if (newConfigs[existingIndex].direction === 'asc') {
-          newConfigs[existingIndex].direction = desc;
-        } else {
-          newConfigs.splice(existingIndex, 1);
-        }
-        localStorage.setItem('sortConfigs', JSON.stringify(newConfigs));
-        return newConfigs;
-      }
-    });
-  };
-
-  const handleFilter = (field: string, value: string): void => {
-    setFilters((current) => {
-      const newFilters = {
-        ...current,
-        [field]: value,
-      };
-      localStorage.setItem('liveFilters', JSON.stringify(newFilters));
-      return newFilters;
-    });
-  };
-
-  // Helper function to get sort value for status
-  const getStatusSortValue = (status: string): number => {
-    const statusOrder = {
-      NS: 0, // Not Started
-      '1H': 1, // First Half
-      HT: 2, // Half Time
-      '2H': 3, // Second Half
-      FT: 4, // Full Time
-    } as const;
-    return statusOrder[status as keyof typeof statusOrder] || 0;
-  };
+    setIsInitialLoading(allLiveMatches.length === 0 && isConnected);
+  }, [allLiveMatches, isConnected]);
 
   const getSortedAndFilteredMatches = (matches: Match[]): Match[] => {
     const filtered = matches.filter((match) => {
@@ -2193,6 +2073,131 @@ const MatchesPage = () => {
   const filteredMatches = getSortedAndFilteredMatches(
     activeTab === 'live' ? liveMatches : allLiveMatches
   );
+
+  // Update the useEffect to add retry logic for prediction data loading
+  useEffect(() => {
+    // Track retry attempts
+    let retryCount = 0;
+    const maxRetries = 3;
+
+    const loadWithRetry = async () => {
+      // Only load prediction data if it hasn't been loaded already
+      if (!isPredictionDataLoaded) {
+        console.log(
+          `Attempting to load prediction data (attempt ${retryCount + 1}/${
+            maxRetries + 1
+          })`
+        );
+
+        await loadPredictionData();
+
+        // Check if the load was successful
+        const { isPredictionDataLoaded, predictionData } =
+          useCartStore.getState();
+
+        if (!isPredictionDataLoaded && retryCount < maxRetries) {
+          // If not successful and we have retries left, try again after a delay
+          retryCount++;
+          console.log(
+            `Prediction data load unsuccessful, retrying in 2 seconds... (${retryCount}/${maxRetries})`
+          );
+          setTimeout(loadWithRetry, 2000);
+        } else if (isPredictionDataLoaded) {
+          console.log(
+            `Prediction data successfully loaded with ${predictionData.length} matches`
+          );
+        } else {
+          console.warn(
+            'Failed to load prediction data after all retry attempts'
+          );
+        }
+      } else {
+        console.log('Prediction data already loaded, skipping initial load');
+      }
+    };
+
+    loadWithRetry();
+  }, [loadPredictionData, isPredictionDataLoaded]);
+
+  // Handle initial loading state
+  useEffect(() => {
+    if (isConnected && isInitialLoading && liveMatches.length !== 0) {
+      setIsInitialLoading(false);
+    }
+  }, [isConnected, isInitialLoading, liveMatches.length]);
+
+  // Show feedback about prediction data loading
+  useEffect(() => {
+    if (predictionData.length > 0) {
+      console.log(
+        `Prediction data loaded: ${predictionData.length} matches available for cross-reference`
+      );
+    }
+  }, [predictionData.length]);
+
+  // Restore the timer effect for copiedText
+  useEffect(() => {
+    // Reset the timer whenever new text comes in
+    if (copiedText) {
+      const timer = setTimeout(() => {
+        setCopiedText('');
+      }, 3000);
+
+      // Cleanup timer on unmount or when copyText changes
+      return () => clearTimeout(timer);
+    }
+  }, [copiedText]);
+
+  const handleSort = (field: string): void => {
+    setSortConfigs((current) => {
+      const existingIndex = current.findIndex(
+        (config) => config.field === field
+      );
+
+      const asc: SortDirection = 'asc';
+      const desc: SortDirection = 'desc';
+
+      if (existingIndex === -1) {
+        // Add new sort
+        const newConfigs = [...current, { field, direction: asc }];
+        localStorage.setItem('sortConfigs', JSON.stringify(newConfigs));
+        return newConfigs;
+      } else {
+        // Toggle direction or remove if it was desc
+        const newConfigs = [...current];
+        if (newConfigs[existingIndex].direction === 'asc') {
+          newConfigs[existingIndex].direction = desc;
+        } else {
+          newConfigs.splice(existingIndex, 1);
+        }
+        localStorage.setItem('sortConfigs', JSON.stringify(newConfigs));
+        return newConfigs;
+      }
+    });
+  };
+
+  const handleFilter = (field: string, value: string): void => {
+    setFilters((current) => {
+      const newFilters = {
+        ...current,
+        [field]: value,
+      };
+      localStorage.setItem('liveFilters', JSON.stringify(newFilters));
+      return newFilters;
+    });
+  };
+
+  // Helper function to get sort value for status
+  const getStatusSortValue = (status: string): number => {
+    const statusOrder = {
+      NS: 0, // Not Started
+      '1H': 1, // First Half
+      HT: 2, // Half Time
+      '2H': 3, // Second Half
+      FT: 4, // Full Time
+    } as const;
+    return statusOrder[status as keyof typeof statusOrder] || 0;
+  };
 
   // Add debug logging
   useEffect(() => {
