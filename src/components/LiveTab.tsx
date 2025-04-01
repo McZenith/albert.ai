@@ -1,3 +1,6 @@
+import React from 'react';
+import { Check, Plus, ChevronUp, ChevronDown } from 'lucide-react';
+
 <div className='overflow-x-auto'>
   <table className='w-full bg-white rounded-lg overflow-hidden border border-gray-200'>
     <thead>
