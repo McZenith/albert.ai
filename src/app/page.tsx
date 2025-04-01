@@ -860,7 +860,7 @@ const MarketRow = ({
       {isExpanded && hasPrediction && predictionMatch && (
         <tr className='bg-blue-50/50'>
           <td colSpan={12} className='p-4'>
-            <div className='border border-blue-100 rounded-lg bg-white p-4 shadow-sm w-full max-w-full overflow-x-auto min-w-0'>
+            <div className='border border-blue-100 rounded-lg bg-white p-4 shadow-sm'>
               {/* Complete match row from Upcoming tab */}
               <div className='mb-6 pb-4 border-b border-gray-100'>
                 <div className='w-full overflow-x-auto min-w-0'>
@@ -870,7 +870,7 @@ const MarketRow = ({
                         <th className='p-3 text-sm font-medium text-gray-500 w-[200px]'>
                           Teams
                         </th>
-                        <th className='p-3 text-sm font-medium text-gray-500 text-center w-[120px]'>
+                        <th className='p-3 text-sm font-medium text-gray-500 text-center w-[100px]'>
                           Date
                         </th>
                         <th className='p-3 text-sm font-medium text-gray-500 text-center w-[100px]'>
@@ -914,7 +914,7 @@ const MarketRow = ({
                     <tbody>
                       <tr className='border-b border-gray-100 hover:bg-gray-50/50 transition-colors duration-150'>
                         {/* Teams Column */}
-                        <td className='p-3'>
+                        <td className='p-3 w-[200px]'>
                           <div className='flex flex-col'>
                             <div className='flex items-center'>
                               <span className='text-xl mr-2'>🏆</span>
@@ -938,14 +938,14 @@ const MarketRow = ({
                         </td>
 
                         {/* Date Column */}
-                        <td className='p-3 text-center whitespace-nowrap'>
+                        <td className='p-3 text-center whitespace-nowrap w-[100px]'>
                           <div className='text-gray-800 font-medium'>
                             {predictionMatch.date} {predictionMatch.time}
                           </div>
                         </td>
 
                         {/* Home Avg Column */}
-                        <td className='p-3 text-center'>
+                        <td className='p-3 text-center w-[100px]'>
                           <div className='px-3 py-1.5 rounded-lg bg-blue-50 text-blue-800 font-medium'>
                             {Math.round(
                               (predictionMatch.homeTeam.avgHomeGoals ?? 0) > 0
@@ -956,7 +956,7 @@ const MarketRow = ({
                         </td>
 
                         {/* Away Avg Column */}
-                        <td className='p-3 text-center'>
+                        <td className='p-3 text-center w-[100px]'>
                           <div className='px-3 py-1.5 rounded-lg bg-purple-50 text-purple-800 font-medium'>
                             {Math.round(
                               (predictionMatch.awayTeam.avgAwayGoals ?? 0) > 0
@@ -967,7 +967,7 @@ const MarketRow = ({
                         </td>
 
                         {/* Position Gap Column */}
-                        <td className='p-3 text-center'>
+                        <td className='p-3 text-center w-[100px]'>
                           <div
                             className={`px-3 py-1.5 rounded-lg font-medium ${
                               predictionMatch.positionGap >= 10
@@ -982,7 +982,7 @@ const MarketRow = ({
                         </td>
 
                         {/* Position Column */}
-                        <td className='p-3 text-center'>
+                        <td className='p-3 text-center w-[120px]'>
                           <div className='flex items-center justify-center gap-2 text-sm'>
                             <span className='px-3 py-1.5 rounded-lg bg-blue-50 text-blue-800 font-medium'>
                               {predictionMatch.homeTeam.position || '-'}
@@ -995,7 +995,7 @@ const MarketRow = ({
                         </td>
 
                         {/* Home/Away Form Column */}
-                        <td className='p-3 text-center'>
+                        <td className='p-3 text-center w-[120px]'>
                           <div className='flex flex-col gap-2'>
                             <div className='px-3 py-1.5 rounded-lg bg-blue-50 text-blue-800 text-sm font-medium'>
                               H:{' '}
@@ -1013,7 +1013,7 @@ const MarketRow = ({
                         </td>
 
                         {/* Form Points Column */}
-                        <td className='p-3 text-center'>
+                        <td className='p-3 text-center w-[100px]'>
                           <div className='flex flex-col gap-1'>
                             <span className='px-2 py-1 rounded-lg text-xs font-medium bg-blue-50 text-blue-800'>
                               {calculateFormPoints(
@@ -1031,7 +1031,7 @@ const MarketRow = ({
                         </td>
 
                         {/* Favorite Form Column */}
-                        <td className='p-3 text-center'>
+                        <td className='p-3 text-center w-[100px]'>
                           <div
                             className={`px-2 py-1 rounded-lg font-medium ${
                               predictionMatch.favorite === 'home'
@@ -1050,24 +1050,18 @@ const MarketRow = ({
                         </td>
 
                         {/* H2H Column */}
-                        <td className='p-3 text-center'>
-                          {predictionMatch.headToHead &&
-                          predictionMatch.headToHead.matches > 0 ? (
+                        <td className='p-3 text-center w-[100px]'>
+                          {predictionMatch.headToHead && predictionMatch.headToHead.matches > 0 ? (
                             <div
                               className={`px-3 py-1.5 rounded-lg font-medium ${
-                                predictionMatch.headToHead.wins /
-                                  predictionMatch.headToHead.matches >
-                                0.7
+                                predictionMatch.headToHead.wins / predictionMatch.headToHead.matches > 0.7
                                   ? 'bg-green-50 text-green-800'
-                                  : predictionMatch.headToHead.wins /
-                                      predictionMatch.headToHead.matches >
-                                    0.4
+                                  : predictionMatch.headToHead.wins / predictionMatch.headToHead.matches > 0.4
                                   ? 'bg-yellow-50 text-yellow-800'
                                   : 'bg-red-50 text-red-800'
                               }`}
                             >
-                              {predictionMatch.headToHead.wins}-
-                              {predictionMatch.headToHead.draws}-
+                              {predictionMatch.headToHead.wins}-{predictionMatch.headToHead.draws}-
                               {predictionMatch.headToHead.losses}
                             </div>
                           ) : (
@@ -1078,7 +1072,7 @@ const MarketRow = ({
                         </td>
 
                         {/* Expected Goals Column */}
-                        <td className='p-3 text-center'>
+                        <td className='p-3 text-center w-[100px]'>
                           <div
                             className={`px-3 py-1.5 rounded-lg font-medium ${
                               predictionMatch.expectedGoals >= 2.2
@@ -1093,26 +1087,22 @@ const MarketRow = ({
                         </td>
 
                         {/* Defensive Strength Column */}
-                        <td className='p-3 text-center'>
+                        <td className='p-3 text-center w-[100px]'>
                           <div
                             className={`px-3 py-1.5 rounded-lg font-medium ${
-                              1 / (predictionMatch.defensiveStrength || 1) >=
-                              1.2
+                              1 / (predictionMatch.defensiveStrength || 1) >= 1.2
                                 ? 'bg-green-50 text-green-800'
-                                : 1 /
-                                    (predictionMatch.defensiveStrength || 1) >=
-                                  1.0
+                                : 1 / (predictionMatch.defensiveStrength || 1) >= 1.0
                                 ? 'bg-yellow-50 text-yellow-800'
                                 : 'bg-gray-50 text-gray-800'
                             }`}
                           >
-                            {predictionMatch.defensiveStrength?.toFixed(2) ||
-                              '-'}
+                            {predictionMatch.defensiveStrength?.toFixed(2) || '-'}
                           </div>
                         </td>
 
                         {/* Favorite Column */}
-                        <td className='p-3 text-center'>
+                        <td className='p-3 text-center w-[150px]'>
                           {predictionMatch.favorite ? (
                             <div
                               className={`px-2 py-1 rounded-lg inline-flex items-center justify-center text-xs font-medium ${
@@ -1136,7 +1126,7 @@ const MarketRow = ({
                         </td>
 
                         {/* Confidence Column */}
-                        <td className='p-3 text-center'>
+                        <td className='p-3 text-center w-[100px]'>
                           <div
                             className={`px-2 py-1 rounded-lg text-xs font-medium ${
                               predictionMatch.confidenceScore >= 80
