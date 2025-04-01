@@ -1407,7 +1407,7 @@ const MatchPredictor = () => {
       </div>
 
       <div className='overflow-x-auto min-w-0'>
-        <table className='w-full bg-white rounded-lg overflow-hidden border border-gray-200 min-w-[1400px] table-fixed'>
+        <table className='w-full bg-white rounded-lg overflow-hidden border border-gray-200 min-w-[1500px] table-fixed'>
           <thead>
             <tr className='bg-gray-50 border-b border-gray-200'>
               <th className='p-2 text-left whitespace-nowrap w-[50px]'></th>
@@ -1415,7 +1415,7 @@ const MatchPredictor = () => {
                 Match
               </th>
               <th
-                className='p-2 text-center whitespace-nowrap cursor-pointer hover:bg-gray-100 text-sm font-medium text-gray-500 w-[70px]'
+                className='p-2 text-center whitespace-nowrap cursor-pointer hover:bg-gray-100 text-sm font-medium text-gray-500 w-[100px]'
                 onClick={() => handleSort('matchTime')}
               >
                 Date
@@ -1426,7 +1426,7 @@ const MatchPredictor = () => {
                 )}
               </th>
               <th
-                className='p-2 text-center whitespace-nowrap cursor-pointer hover:bg-gray-100 text-sm font-medium text-gray-500 w-[70px]'
+                className='p-2 text-center whitespace-nowrap cursor-pointer hover:bg-gray-100 text-sm font-medium text-gray-500 w-[100px]'
                 onClick={() => handleSort('homeAvg')}
               >
                 Home Avg
@@ -1630,12 +1630,12 @@ const MatchPredictor = () => {
                         </div>
                       </div>
                     </td>
-                    <td className='p-2 text-center w-[70px]'>
+                    <td className='p-2 text-center w-[100px]'>
                       <div className='text-gray-800 font-medium whitespace-nowrap'>
                         {match.date} {match.time}
                       </div>
                     </td>
-                    <td className='p-2 text-center w-[70px]'>
+                    <td className='p-2 text-center w-[100px]'>
                       <div
                         className={`px-2 py-1 rounded-lg text-sm ${getMetricColor(
                           (match.homeTeam.avgHomeGoals ?? 0) > 0
@@ -1691,10 +1691,16 @@ const MatchPredictor = () => {
                     <td className='p-2 text-center w-[70px]'>
                       <div className='flex flex-col gap-2'>
                         <div className='px-2 py-1 rounded-lg bg-blue-50 text-blue-800 text-sm font-medium'>
-                          H: {match.homeTeam.homeForm || match.homeTeam.form || '-'}
+                          H:{' '}
+                          {match.homeTeam.homeForm ||
+                            match.homeTeam.form ||
+                            '-'}
                         </div>
                         <div className='px-2 py-1 rounded-lg bg-purple-50 text-purple-800 text-sm font-medium'>
-                          A: {match.awayTeam.awayForm || match.awayTeam.form || '-'}
+                          A:{' '}
+                          {match.awayTeam.awayForm ||
+                            match.awayTeam.form ||
+                            '-'}
                         </div>
                       </div>
                     </td>
