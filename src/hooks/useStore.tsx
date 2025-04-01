@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { normalizeTeamName, getTeamNameSimilarity } from '@/utils/teamUtils';
 
 interface CartItem {
   matchId: string;
@@ -189,90 +190,46 @@ export const useCartStore = create<CartStore>((set, get) => ({
   ) => {
     const { predictionData } = get();
 
-    const cleanTeamName = (name: string): string => {
-      return name
-        .toLowerCase()
-        .replace(/[^a-z0-9]/g, '')
-        .trim();
-    };
+    if (!predictionData?.length) return null;
 
-    if (matchId) {
-      const matchById = predictionData.find(
-        (prediction) => prediction.id?.toString() === matchId
-      );
-      if (matchById) return matchById;
+    // Strategy 1: Direct normalized match
+    let prediction = predictionData.find((p) => {
+      const homeMatch =
+        normalizeTeamName(p.homeTeam.name) === normalizeTeamName(homeTeam);
+      const awayMatch =
+        normalizeTeamName(p.awayTeam.name) === normalizeTeamName(awayTeam);
+      return homeMatch && awayMatch;
+    });
+    if (prediction) return prediction;
+
+    // Strategy 2: Reversed team order
+    prediction = predictionData.find((p) => {
+      const homeMatch =
+        normalizeTeamName(p.homeTeam.name) === normalizeTeamName(awayTeam);
+      const awayMatch =
+        normalizeTeamName(p.awayTeam.name) === normalizeTeamName(homeTeam);
+      return homeMatch && awayMatch;
+    });
+    if (prediction) return prediction;
+
+    // Strategy 3: Find best match using similarity score
+    const matches = predictionData.map((p) => ({
+      prediction: p,
+      similarity:
+        Math.min(
+          getTeamNameSimilarity(p.homeTeam.name, homeTeam) +
+            getTeamNameSimilarity(p.awayTeam.name, awayTeam),
+          getTeamNameSimilarity(p.homeTeam.name, awayTeam) +
+            getTeamNameSimilarity(p.awayTeam.name, homeTeam)
+        ) / 2,
+    }));
+
+    // Sort by similarity and get the best match if it's above threshold
+    const bestMatch = matches.sort((a, b) => b.similarity - a.similarity)[0];
+    if (bestMatch && bestMatch.similarity > 0.8) {
+      return bestMatch.prediction;
     }
 
-    const searchParams = {
-      homeTeam: cleanTeamName(homeTeam),
-      awayTeam: cleanTeamName(awayTeam),
-    };
-
-    // Try exact match
-    const exactMatch = predictionData.find((prediction) => {
-      const predictionParams = {
-        homeTeam: cleanTeamName(prediction.homeTeam?.name || ''),
-        awayTeam: cleanTeamName(prediction.awayTeam?.name || ''),
-      };
-
-      return (
-        (predictionParams.homeTeam === searchParams.homeTeam &&
-          predictionParams.awayTeam === searchParams.awayTeam) ||
-        (predictionParams.homeTeam === searchParams.awayTeam &&
-          predictionParams.awayTeam === searchParams.homeTeam)
-      );
-    });
-
-    if (exactMatch) return exactMatch;
-
-    // Try partial match
-    const partialMatch = predictionData.find((prediction) => {
-      const predictionParams = {
-        homeTeam: cleanTeamName(prediction.homeTeam?.name || ''),
-        awayTeam: cleanTeamName(prediction.awayTeam?.name || ''),
-      };
-
-      const homeTeamMatch =
-        predictionParams.homeTeam.includes(searchParams.homeTeam) ||
-        searchParams.homeTeam.includes(predictionParams.homeTeam);
-      const awayTeamMatch =
-        predictionParams.awayTeam.includes(searchParams.awayTeam) ||
-        searchParams.awayTeam.includes(predictionParams.awayTeam);
-
-      const homeTeamMatchReversed =
-        predictionParams.homeTeam.includes(searchParams.awayTeam) ||
-        searchParams.awayTeam.includes(predictionParams.homeTeam);
-      const awayTeamMatchReversed =
-        predictionParams.awayTeam.includes(searchParams.homeTeam) ||
-        searchParams.homeTeam.includes(predictionParams.awayTeam);
-
-      return (
-        (homeTeamMatch && awayTeamMatch) ||
-        (homeTeamMatchReversed && awayTeamMatchReversed)
-      );
-    });
-
-    if (partialMatch) return partialMatch;
-
-    // Try fuzzy match
-    const fuzzyMatch = predictionData.find((prediction) => {
-      const predictionParams = {
-        homeTeam: cleanTeamName(prediction.homeTeam?.name || ''),
-        awayTeam: cleanTeamName(prediction.awayTeam?.name || ''),
-      };
-
-      const homeTeamSimilarity = Math.max(
-        predictionParams.homeTeam.length / searchParams.homeTeam.length,
-        searchParams.homeTeam.length / predictionParams.homeTeam.length
-      );
-      const awayTeamSimilarity = Math.max(
-        predictionParams.awayTeam.length / searchParams.awayTeam.length,
-        searchParams.awayTeam.length / predictionParams.awayTeam.length
-      );
-
-      return homeTeamSimilarity > 0.8 && awayTeamSimilarity > 0.8;
-    });
-
-    return fuzzyMatch || null;
+    return null;
   },
 }));

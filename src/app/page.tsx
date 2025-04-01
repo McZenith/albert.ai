@@ -561,95 +561,37 @@ const MarketRow = ({
   );
 
   const [predictionMatch, setPredictionMatch] = useState<any>(null);
+  const [hasPrediction, setHasPrediction] = useState(false);
+
+  // Reset expanded state when match changes
+  useEffect(() => {
+    setIsExpanded(false);
+    return () => {
+      setIsExpanded(false);
+    };
+  }, [match.id]);
 
   useEffect(() => {
-    if (isPredictionDataLoaded && predictionData.length > 0) {
-      const timeoutId = setTimeout(() => {
-        console.log(`\n=== Checking Prediction for Market Row ===`);
-        console.log(
-          `Match: ${match.teams.home.name} vs ${match.teams.away.name}`
-        );
-        console.log(`Match ID: ${match.id}`);
-        console.log(
-          `Total prediction data available: ${predictionData.length}`
-        );
-
-        let foundMatch = findPredictionForMatch(
-          match.teams.home.name,
-          match.teams.away.name,
-          match.id
-        );
-
-        if (!foundMatch) {
-          console.log(
-            'Initial match not found, trying with trimmed team names...'
-          );
-          const trimmedHomeTeam = match.teams.home.name.trim();
-          const trimmedAwayTeam = match.teams.away.name.trim();
-
-          if (
-            trimmedHomeTeam !== match.teams.home.name ||
-            trimmedAwayTeam !== match.teams.away.name
-          ) {
-            console.log(
-              'Team names had whitespace, trying trimmed versions...'
-            );
-            foundMatch = findPredictionForMatch(
-              trimmedHomeTeam,
-              trimmedAwayTeam,
-              match.id
-            );
-          }
-        }
-
-        if (!foundMatch) {
-          console.log(
-            'Still no match found, trying with reversed team order...'
-          );
-          foundMatch = findPredictionForMatch(
-            match.teams.away.name,
-            match.teams.home.name,
-            match.id
-          );
-        }
-
-        if (foundMatch) {
-          console.log('✅ Found prediction match');
-          console.log(
-            'Prediction details:',
-            JSON.stringify(foundMatch, null, 2)
-          );
-        } else {
-          console.log('❌ No prediction match found after all attempts');
-          console.log(
-            'Available prediction data:',
-            JSON.stringify(
-              predictionData.map((m) => ({
-                id: m.id,
-                homeTeam: m.homeTeam?.name,
-                awayTeam: m.awayTeam?.name,
-              })),
-              null,
-              2
-            )
-          );
-        }
-
-        setPredictionMatch(foundMatch);
-      }, 100);
-
-      return () => clearTimeout(timeoutId);
+    if (!isPredictionDataLoaded || !predictionData.length) {
+      setPredictionMatch(null);
+      setHasPrediction(false);
+      return;
     }
+
+    const foundMatch = findPredictionForMatch(
+      match.teams.home.name,
+      match.teams.away.name
+    );
+
+    setPredictionMatch(foundMatch);
+    setHasPrediction(Boolean(foundMatch));
   }, [
     match.teams.home.name,
     match.teams.away.name,
-    match.id,
     findPredictionForMatch,
-    predictionData.length,
+    predictionData,
     isPredictionDataLoaded,
   ]);
-
-  const hasPrediction = Boolean(predictionMatch);
 
   const handleRowClick = (e: React.MouseEvent<HTMLTableRowElement>) => {
     if (hasPrediction) {
@@ -1051,17 +993,23 @@ const MarketRow = ({
 
                         {/* H2H Column */}
                         <td className='p-3 text-center w-[100px]'>
-                          {predictionMatch.headToHead && predictionMatch.headToHead.matches > 0 ? (
+                          {predictionMatch.headToHead &&
+                          predictionMatch.headToHead.matches > 0 ? (
                             <div
                               className={`px-3 py-1.5 rounded-lg font-medium ${
-                                predictionMatch.headToHead.wins / predictionMatch.headToHead.matches > 0.7
+                                predictionMatch.headToHead.wins /
+                                  predictionMatch.headToHead.matches >
+                                0.7
                                   ? 'bg-green-50 text-green-800'
-                                  : predictionMatch.headToHead.wins / predictionMatch.headToHead.matches > 0.4
+                                  : predictionMatch.headToHead.wins /
+                                      predictionMatch.headToHead.matches >
+                                    0.4
                                   ? 'bg-yellow-50 text-yellow-800'
                                   : 'bg-red-50 text-red-800'
                               }`}
                             >
-                              {predictionMatch.headToHead.wins}-{predictionMatch.headToHead.draws}-
+                              {predictionMatch.headToHead.wins}-
+                              {predictionMatch.headToHead.draws}-
                               {predictionMatch.headToHead.losses}
                             </div>
                           ) : (
@@ -1090,14 +1038,18 @@ const MarketRow = ({
                         <td className='p-3 text-center w-[100px]'>
                           <div
                             className={`px-3 py-1.5 rounded-lg font-medium ${
-                              1 / (predictionMatch.defensiveStrength || 1) >= 1.2
+                              1 / (predictionMatch.defensiveStrength || 1) >=
+                              1.2
                                 ? 'bg-green-50 text-green-800'
-                                : 1 / (predictionMatch.defensiveStrength || 1) >= 1.0
+                                : 1 /
+                                    (predictionMatch.defensiveStrength || 1) >=
+                                  1.0
                                 ? 'bg-yellow-50 text-yellow-800'
                                 : 'bg-gray-50 text-gray-800'
                             }`}
                           >
-                            {predictionMatch.defensiveStrength?.toFixed(2) || '-'}
+                            {predictionMatch.defensiveStrength?.toFixed(2) ||
+                              '-'}
                           </div>
                         </td>
 
@@ -1929,11 +1881,19 @@ const MatchesPage = () => {
 
   const getSortedAndFilteredMatches = (matches: Match[]): Match[] => {
     const filtered = matches.filter((match) => {
-      // Apply text search
-      const searchLower = searchQuery.toLowerCase();
+      // Split search query into home and away team parts
+      const searchLower = searchQuery.toLowerCase().trim();
+      const [homeSearch, awaySearch] = searchLower
+        .split(' vs ')
+        .map((s) => s.trim());
+
+      // Apply text search - match home team with home search and away team with away search
       const matchesSearch =
-        match.teams.home.name.toLowerCase().includes(searchLower) ||
-        match.teams.away.name.toLowerCase().includes(searchLower);
+        searchLower === '' ||
+        ((homeSearch === '' ||
+          match.teams.home.name.toLowerCase().trim() === homeSearch) &&
+          (awaySearch === '' ||
+            match.teams.away.name.toLowerCase().trim() === awaySearch));
 
       // Apply filters
       const matchesStatus = !filters.status || match.status === filters.status;
