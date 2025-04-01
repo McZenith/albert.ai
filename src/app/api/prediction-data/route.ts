@@ -55,7 +55,7 @@ const fetchAllPages = async (apiUrl: string, requestLimit = 20): Promise<Match[]
   let allMatches: Match[] = [];
   let page = 1;
   let hasMoreData = true;
-  const pageSize = 200; // Maximum page size to minimize number of requests
+  const pageSize = 50; // Maximum page size to minimize number of requests
 
   while (hasMoreData && page <= requestLimit) {
     try {
