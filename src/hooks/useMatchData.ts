@@ -118,6 +118,79 @@ interface ClientMatch {
     };
 }
 
+// Helper function to clean team names
+const enhancedCleanTeamName = (name: string): string => {
+    if (!name) return '';
+    const cleanedName = name.replace(/^\d+\s+/, '').trim();
+    if (!cleanedName || /^\d+$/.test(cleanedName)) {
+        return 'Team ' + name.trim();
+    }
+    return cleanedName;
+};
+
+// Helper function to normalize time formats
+const normalizeTimeFormat = (timeStr: string): string => {
+    if (!timeStr) return '';
+    if (/^\d{1,2}:\d{2}$/.test(timeStr)) {
+        const [hours, minutes] = timeStr.split(':');
+        return `${hours.padStart(2, '0')}:${minutes}`;
+    }
+    const amPmMatch = timeStr.match(/^(\d{1,2}):(\d{2})\s*(am|pm)$/i);
+    if (amPmMatch) {
+        const [, hours, minutes, ampm] = amPmMatch;
+        let hourNum = parseInt(hours);
+        if (ampm.toLowerCase() === 'pm' && hourNum < 12) {
+            hourNum += 12;
+        } else if (ampm.toLowerCase() === 'am' && hourNum === 12) {
+            hourNum = 0;
+        }
+        return `${hourNum.toString().padStart(2, '0')}:${minutes}`;
+    }
+    return timeStr;
+};
+
+// Helper function to safely convert to number
+const safeNumber = (value: unknown): number => {
+    const num = Number(value);
+    return !isNaN(num) ? num : 0;
+};
+
+// Process match data
+const processMatchData = (match: any) => {
+    const normalizedTime = normalizeTimeFormat(match.time);
+
+    const homeTeamData = {
+        ...match.homeTeam,
+        name: enhancedCleanTeamName(match.homeTeam.name),
+        avgHomeGoals: safeNumber(match.homeTeam.homeAverageGoalsScored) ||
+            safeNumber(match.homeTeam.averageGoalsScored) ||
+            safeNumber(match.homeTeam.avgHomeGoals),
+        avgAwayGoals: safeNumber(match.homeTeam.awayAverageGoalsScored) ||
+            safeNumber(match.homeTeam.averageGoalsScored) ||
+            safeNumber(match.homeTeam.avgAwayGoals),
+        avgTotalGoals: safeNumber(match.homeTeam.avgTotalGoals),
+    };
+
+    const awayTeamData = {
+        ...match.awayTeam,
+        name: enhancedCleanTeamName(match.awayTeam.name),
+        avgHomeGoals: safeNumber(match.awayTeam.homeAverageGoalsScored) ||
+            safeNumber(match.awayTeam.averageGoalsScored) ||
+            safeNumber(match.awayTeam.avgHomeGoals),
+        avgAwayGoals: safeNumber(match.awayTeam.awayAverageGoalsScored) ||
+            safeNumber(match.awayTeam.averageGoalsScored) ||
+            safeNumber(match.awayTeam.avgAwayGoals),
+        avgTotalGoals: safeNumber(match.awayTeam.avgTotalGoals),
+    };
+
+    return {
+        ...match,
+        time: normalizedTime,
+        homeTeam: homeTeamData,
+        awayTeam: awayTeamData,
+    };
+};
+
 export const useMatchData = () => {
     const [matches, setMatches] = useState<TransformedMatch[]>([]);
     const [allLiveMatches, setAllLiveMatches] = useState<TransformedMatch[]>([]);
@@ -129,8 +202,9 @@ export const useMatchData = () => {
     const [allMatchesChecked, setAllMatchesChecked] = useState(false);
     const lastPredictionDataLengthRef = useRef<number>(0);
 
-    // Get findPredictionForMatch function from the store
-    // const findPredictionForMatchStore = useCartStore((state) => state.findPredictionForMatch);
+    // Get store actions
+    const setPredictionData = useCartStore((state) => state.setPredictionData);
+    const setIsPredictionDataLoaded = useCartStore((state) => state.setIsPredictionDataLoaded);
     const isPredictionDataLoaded = useCartStore((state) => state.isPredictionDataLoaded);
     const predictionData = useCartStore((state) => state.predictionData);
 
@@ -188,6 +262,16 @@ export const useMatchData = () => {
                 connection.onreconnected(() => {
                     console.log('Reconnected successfully');
                     setIsConnected(true);
+                });
+
+                // Handle prediction data
+                connection.on('ReceivePredictionData', (data: any) => {
+                    console.log('Received prediction data:', data);
+                    if (data?.data?.upcomingMatches) {
+                        const processedMatches = data.data.upcomingMatches.map(processMatchData);
+                        setPredictionData(processedMatches);
+                        setIsPredictionDataLoaded(true);
+                    }
                 });
 
                 // Handle arbitrage matches
@@ -297,7 +381,7 @@ export const useMatchData = () => {
                 connectionRef.current.stop();
             }
         };
-    }, [isPaused, isPredictionDataLoaded, predictionData.length, predictionData]);
+    }, [isPaused, setPredictionData, setIsPredictionDataLoaded]);
 
     const togglePause = () => setIsPaused(prev => !prev);
 

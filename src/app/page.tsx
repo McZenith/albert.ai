@@ -1863,15 +1863,18 @@ const MatchesPage = () => {
 
   const {
     items: cartItems,
+    upcomingMatches,
+    predictionData,
+    isPredictionDataLoaded,
     addItem,
     removeItem,
     clearCart,
-    upcomingMatches,
+    addUpcomingMatch,
+    removeUpcomingMatch,
     clearUpcomingMatches,
+    isUpcomingMatchInCart,
     getUpcomingMatchesCount,
-    loadPredictionData,
-    predictionData,
-    isPredictionDataLoaded,
+    findPredictionForMatch,
   } = useCartStore();
 
   // Update isInitialLoading based on allLiveMatches
@@ -2023,51 +2026,6 @@ const MatchesPage = () => {
   const filteredMatches = getSortedAndFilteredMatches(
     activeTab === 'live' ? liveMatches : allLiveMatches
   );
-
-  // Update the useEffect to add retry logic for prediction data loading
-  useEffect(() => {
-    // Track retry attempts
-    let retryCount = 0;
-    const maxRetries = 3;
-
-    const loadWithRetry = async () => {
-      // Only load prediction data if it hasn't been loaded already
-      if (!isPredictionDataLoaded) {
-        console.log(
-          `Attempting to load prediction data (attempt ${retryCount + 1}/${
-            maxRetries + 1
-          })`
-        );
-
-        await loadPredictionData();
-
-        // Check if the load was successful
-        const { isPredictionDataLoaded, predictionData } =
-          useCartStore.getState();
-
-        if (!isPredictionDataLoaded && retryCount < maxRetries) {
-          // If not successful and we have retries left, try again after a delay
-          retryCount++;
-          console.log(
-            `Prediction data load unsuccessful, retrying in 2 seconds... (${retryCount}/${maxRetries})`
-          );
-          setTimeout(loadWithRetry, 2000);
-        } else if (isPredictionDataLoaded) {
-          console.log(
-            `Prediction data successfully loaded with ${predictionData.length} matches`
-          );
-        } else {
-          console.warn(
-            'Failed to load prediction data after all retry attempts'
-          );
-        }
-      } else {
-        console.log('Prediction data already loaded, skipping initial load');
-      }
-    };
-
-    loadWithRetry();
-  }, [loadPredictionData, isPredictionDataLoaded]);
 
   // Handle initial loading state
   useEffect(() => {

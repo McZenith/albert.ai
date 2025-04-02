@@ -13,7 +13,7 @@ import { useCartStore } from '@/hooks/useStore';
 interface Team {
   name: string;
   position: number;
-  logo: string;
+  logo?: string;
   avgHomeGoals?: number;
   avgAwayGoals?: number;
   avgTotalGoals: number;
@@ -81,16 +81,27 @@ interface Odds {
 }
 
 interface CornerStats {
-  homeAvg: number;
-  awayAvg: number;
-  totalAvg: number;
+  home: {
+    average: number;
+    total: number;
+  };
+  away: {
+    average: number;
+    total: number;
+  };
 }
 
 interface ScoringPatterns {
-  homeFirstGoalRate: number;
-  awayFirstGoalRate: number;
-  homeLateGoalRate: number;
-  awayLateGoalRate: number;
+  home: {
+    firstGoalRate: number;
+    lateGoalRate: number;
+    bttsRate: number;
+  };
+  away: {
+    firstGoalRate: number;
+    lateGoalRate: number;
+    bttsRate: number;
+  };
 }
 
 interface Match {
@@ -107,9 +118,9 @@ interface Match {
   expectedGoals: number;
   defensiveStrength: number;
   headToHead: HeadToHead;
-  odds?: Odds;
-  cornerStats?: CornerStats;
-  scoringPatterns?: ScoringPatterns;
+  odds: Odds;
+  cornerStats: CornerStats;
+  scoringPatterns: ScoringPatterns;
   reasonsForPrediction: string[];
 }
 
@@ -152,23 +163,44 @@ interface ApiResponse {
   };
 }
 
-// New interface for the response structure with nested data
-interface ApiResponseWrapper {
-  data?: ApiResponse;
-  cache?: {
-    isCached: boolean;
-    lastUpdated: string;
-    cacheAge: number;
-    nextRefresh: string;
-    error?: string;
-  };
+interface PredictionData {
+  id: string | number;
+  homeTeam: Team;
+  awayTeam: Team;
+  date: string;
+  time: string;
+  venue: string;
+  positionGap: number;
+  favorite: 'home' | 'away' | null;
+  confidenceScore: number;
+  averageGoals: number;
+  expectedGoals: number;
+  defensiveStrength: number;
+  headToHead: HeadToHead;
+  odds: Odds;
+  cornerStats: CornerStats;
+  scoringPatterns: ScoringPatterns;
+  reasonsForPrediction: string[];
 }
 
 // Helper function to render team logo
 const renderTeamLogo = (
-  logo: string | number,
+  logo: string | number | undefined,
   size: 'sm' | 'md' | 'lg' = 'md'
 ) => {
+  // If the logo is undefined, use a generic icon
+  if (!logo) {
+    return (
+      <span
+        className={
+          size === 'lg' ? 'text-4xl' : size === 'md' ? 'text-xl' : 'text-base'
+        }
+      >
+        🏆
+      </span>
+    );
+  }
+
   // If the logo is a short string (likely an emoji)
   if (typeof logo === 'string' && logo.length < 5) {
     return (
@@ -194,21 +226,16 @@ const renderTeamLogo = (
   );
 };
 
-// Let's enhance cleanTeamName to handle more formats and be more robust
-const enhancedCleanTeamName = (name: string): string => {
-  // More thorough cleaning to remove IDs and clean up names
-  if (!name) return '';
+// Helper function to get color for first goal rate
+const getFirstGoalRateColor = (rate: number): string => {
+  if (rate >= 60) return 'text-green-600';
+  if (rate >= 40) return 'text-yellow-600';
+  return 'text-red-600';
+};
 
-  // Remove numeric IDs at beginning followed by space
-  // Also handle cases where the entire name might be a numeric ID
-  const cleanedName = name.replace(/^\d+\s+/, '').trim();
-
-  // If all that's left is empty or just numbers, return something meaningful
-  if (!cleanedName || /^\d+$/.test(cleanedName)) {
-    return 'Team ' + name.trim(); // Return "Team" followed by the original ID
-  }
-
-  return cleanedName;
+// Helper function to get text for first goal rate
+const getFirstGoalRateText = (rate: number): string => {
+  return `${rate.toFixed(1)}%`;
 };
 
 // Client-only wrapper for Loader2 to ensure hydration consistency
@@ -238,38 +265,8 @@ const ClientOnlyLoader = () => {
   );
 };
 
-// Helper function to normalize time formats 
-const normalizeTimeFormat = (timeStr: string): string => {
-  if (!timeStr) return '';
-
-  // Already in 24-hour format (HH:MM)
-  if (/^\d{1,2}:\d{2}$/.test(timeStr)) {
-    // Make sure hours are 2 digits
-    const [hours, minutes] = timeStr.split(':');
-    return `${hours.padStart(2, '0')}:${minutes}`;
-  }
-
-  // Handle "XX:XX AM/PM" format
-  const amPmMatch = timeStr.match(/^(\d{1,2}):(\d{2})\s*(am|pm)$/i);
-  if (amPmMatch) {
-    const [, hours, minutes, ampm] = amPmMatch;
-    let hourNum = parseInt(hours);
-
-    // Convert to 24-hour format
-    if (ampm.toLowerCase() === 'pm' && hourNum < 12) {
-      hourNum += 12;
-    } else if (ampm.toLowerCase() === 'am' && hourNum === 12) {
-      hourNum = 0;
-    }
-
-    return `${hourNum.toString().padStart(2, '0')}:${minutes}`;
-  }
-
-  return timeStr;
-};
-
 const MatchPredictor = () => {
-  // Remove localStorage access from initial state
+  // Remove unused state variables
   const [expandedMatch, setExpandedMatch] = useState<string | number | null>(
     null
   );
@@ -283,123 +280,20 @@ const MatchPredictor = () => {
     showOnlyUpcoming: false,
   });
   const [showScrollTop, setShowScrollTop] = useState<boolean>(false);
-
-  // Add new states for the modal
   const [showAnalyticsModal, setShowAnalyticsModal] = useState<boolean>(false);
   const [analyticsData, setAnalyticsData] = useState<{
     [key: string]: { total: number; hourData: { [hour: string]: number } };
   }>({});
-  // Add state to track whether to show only cart items
   const [showOnlyCart, setShowOnlyCart] = useState<boolean>(false);
-
-  // New effect to load stored values after component mounts (client-side only)
-  useEffect(() => {
-    // Load saved values from localStorage after mount
-    try {
-      // For expandedMatch
-      const savedExpandedMatch = localStorage.getItem('expandedMatch');
-      if (savedExpandedMatch) {
-        if (!isNaN(Number(savedExpandedMatch))) {
-          setExpandedMatch(Number(savedExpandedMatch));
-        } else {
-          setExpandedMatch(savedExpandedMatch);
-        }
-      }
-
-      // For sortField
-      const savedSortField = localStorage.getItem('upcomingSortField');
-      if (savedSortField) {
-        setSortField(savedSortField);
-      }
-
-      // For sortDirection
-      const savedSortDirection = localStorage.getItem(
-        'upcomingSortDirection'
-      ) as 'asc' | 'desc';
-      if (
-        savedSortDirection &&
-        (savedSortDirection === 'asc' || savedSortDirection === 'desc')
-      ) {
-        setSortDirection(savedSortDirection);
-      }
-
-      // For filters
-      const savedFilters = localStorage.getItem('upcomingFilters');
-      if (savedFilters) {
-        try {
-          setFilters(JSON.parse(savedFilters) as Filters);
-        } catch (e) {
-          console.error('Failed to parse saved filters', e);
-        }
-      }
-
-      // For showOnlyCart
-      const savedShowOnlyCart = localStorage.getItem('showOnlyCart');
-      if (savedShowOnlyCart) {
-        setShowOnlyCart(savedShowOnlyCart === 'true');
-      }
-    } catch (error) {
-      // Silently handle any localStorage errors
-      console.error('Error accessing localStorage:', error);
-    }
-  }, []); // Empty dependency array means this runs once after mount
-
-  // Save expandedMatch to localStorage whenever it changes
-  useEffect(() => {
-    try {
-      if (expandedMatch !== null) {
-        localStorage.setItem('expandedMatch', String(expandedMatch));
-      } else {
-        localStorage.removeItem('expandedMatch');
-      }
-    } catch (error) {
-      console.error('Error saving expandedMatch to localStorage:', error);
-    }
-  }, [expandedMatch]);
-
-  // Save sort field to localStorage
-  useEffect(() => {
-    try {
-      localStorage.setItem('upcomingSortField', sortField);
-    } catch (error) {
-      console.error('Error saving sortField to localStorage:', error);
-    }
-  }, [sortField]);
-
-  // Save sort direction to localStorage
-  useEffect(() => {
-    try {
-      localStorage.setItem('upcomingSortDirection', sortDirection);
-    } catch (error) {
-      console.error('Error saving sortDirection to localStorage:', error);
-    }
-  }, [sortDirection]);
-
-  // Save filters to localStorage
-  useEffect(() => {
-    try {
-      localStorage.setItem('upcomingFilters', JSON.stringify(filters));
-    } catch (error) {
-      console.error('Error saving filters to localStorage:', error);
-    }
-  }, [filters]);
-
-  // Save showOnlyCart to localStorage
-  useEffect(() => {
-    try {
-      localStorage.setItem('showOnlyCart', String(showOnlyCart));
-    } catch (error) {
-      console.error('Error saving showOnlyCart to localStorage:', error);
-    }
-  }, [showOnlyCart]);
-
-  // New states for API data
   const [upcomingMatches, setUpcomingMatches] = useState<Match[]>([]);
   const [metadata, setMetadata] = useState<ApiResponse['metadata'] | null>(
     null
   );
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
+  const [isPredictionDataLoading, setIsPredictionDataLoading] =
+    useState<boolean>(true);
+  const [predictionDataError, setPredictionDataError] = useState<string | null>(
+    null
+  );
 
   // Get cart functions from the global store
   const {
@@ -407,95 +301,182 @@ const MatchPredictor = () => {
     removeUpcomingMatch,
     isUpcomingMatchInCart,
     clearUpcomingMatches,
+    predictionData,
+    isPredictionDataLoaded,
   } = useCartStore();
 
-  // Fetch data from API
+  // Update state when prediction data changes
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
+    if (isPredictionDataLoaded && predictionData) {
+      // Transform UpcomingMatch data into Match type
+      const transformedMatches: Match[] = (
+        predictionData as unknown as PredictionData[]
+      ).map((upcomingMatch) => ({
+        id: upcomingMatch.id,
+        homeTeam: {
+          ...upcomingMatch.homeTeam,
+          logo: '🏆', // Add default logo
+          avgHomeGoals: upcomingMatch.homeTeam.avgHomeGoals || 0,
+          avgAwayGoals: upcomingMatch.homeTeam.avgAwayGoals || 0,
+          avgTotalGoals: upcomingMatch.homeTeam.avgTotalGoals || 0,
+          homeMatchesOver15: 0,
+          awayMatchesOver15: 0,
+          totalHomeMatches: 0,
+          totalAwayMatches: 0,
+          form: upcomingMatch.homeTeam.form,
+          homeForm: upcomingMatch.homeTeam.homeForm,
+          cleanSheets: upcomingMatch.homeTeam.cleanSheets || 0,
+          homeCleanSheets: 0,
+          awayCleanSheets: 0,
+          scoringFirstWinRate: 0,
+          concedingFirstWinRate: 0,
+          firstHalfGoalsPercent: 0,
+          secondHalfGoalsPercent: 0,
+          avgCorners: 0,
+          bttsRate: upcomingMatch.homeTeam.bttsRate || 0,
+          homeBttsRate: upcomingMatch.homeTeam.homeBttsRate || 0,
+          awayBttsRate: upcomingMatch.homeTeam.awayBttsRate || 0,
+          lateGoalRate: upcomingMatch.homeTeam.lateGoalRate || 0,
+          homeAverageGoalsScored:
+            upcomingMatch.homeTeam.homeAverageGoalsScored || 0,
+          awayAverageGoalsScored:
+            upcomingMatch.homeTeam.awayAverageGoalsScored || 0,
+          averageGoalsScored: upcomingMatch.homeTeam.averageGoalsScored || 0,
+          homeAverageGoalsConceded:
+            upcomingMatch.homeTeam.homeAverageGoalsConceded || 0,
+          awayAverageGoalsConceded:
+            upcomingMatch.homeTeam.awayAverageGoalsConceded || 0,
+          averageGoalsConceded:
+            upcomingMatch.homeTeam.averageGoalsConceded || 0,
+          goalDistribution: upcomingMatch.homeTeam.goalDistribution || {
+            '0-15': 0,
+            '16-30': 0,
+            '31-45': 0,
+            '46-60': 0,
+            '61-75': 0,
+            '76-90': 0,
+          },
+          againstTopTeamsPoints:
+            upcomingMatch.homeTeam.againstTopTeamsPoints || 0,
+          againstMidTeamsPoints:
+            upcomingMatch.homeTeam.againstMidTeamsPoints || 0,
+          againstBottomTeamsPoints:
+            upcomingMatch.homeTeam.againstBottomTeamsPoints || 0,
+        },
+        awayTeam: {
+          ...upcomingMatch.awayTeam,
+          logo: '🏆', // Add default logo
+          avgHomeGoals: upcomingMatch.awayTeam.avgHomeGoals || 0,
+          avgAwayGoals: upcomingMatch.awayTeam.avgAwayGoals || 0,
+          avgTotalGoals: upcomingMatch.awayTeam.avgTotalGoals || 0,
+          homeMatchesOver15: 0,
+          awayMatchesOver15: 0,
+          totalHomeMatches: 0,
+          totalAwayMatches: 0,
+          form: upcomingMatch.awayTeam.form,
+          awayForm: upcomingMatch.awayTeam.awayForm,
+          cleanSheets: upcomingMatch.awayTeam.cleanSheets || 0,
+          homeCleanSheets: 0,
+          awayCleanSheets: 0,
+          scoringFirstWinRate: 0,
+          concedingFirstWinRate: 0,
+          firstHalfGoalsPercent: 0,
+          secondHalfGoalsPercent: 0,
+          avgCorners: 0,
+          bttsRate: upcomingMatch.awayTeam.bttsRate || 0,
+          homeBttsRate: upcomingMatch.awayTeam.homeBttsRate || 0,
+          awayBttsRate: upcomingMatch.awayTeam.awayBttsRate || 0,
+          lateGoalRate: upcomingMatch.awayTeam.lateGoalRate || 0,
+          homeAverageGoalsScored:
+            upcomingMatch.awayTeam.homeAverageGoalsScored || 0,
+          awayAverageGoalsScored:
+            upcomingMatch.awayTeam.awayAverageGoalsScored || 0,
+          averageGoalsScored: upcomingMatch.awayTeam.averageGoalsScored || 0,
+          homeAverageGoalsConceded:
+            upcomingMatch.awayTeam.homeAverageGoalsConceded || 0,
+          awayAverageGoalsConceded:
+            upcomingMatch.awayTeam.awayAverageGoalsConceded || 0,
+          averageGoalsConceded:
+            upcomingMatch.awayTeam.averageGoalsConceded || 0,
+          goalDistribution: upcomingMatch.awayTeam.goalDistribution || {
+            '0-15': 0,
+            '16-30': 0,
+            '31-45': 0,
+            '46-60': 0,
+            '61-75': 0,
+            '76-90': 0,
+          },
+          againstTopTeamsPoints:
+            upcomingMatch.awayTeam.againstTopTeamsPoints || 0,
+          againstMidTeamsPoints:
+            upcomingMatch.awayTeam.againstMidTeamsPoints || 0,
+          againstBottomTeamsPoints:
+            upcomingMatch.awayTeam.againstBottomTeamsPoints || 0,
+        },
+        date: upcomingMatch.date,
+        time: upcomingMatch.time,
+        venue: upcomingMatch.venue,
+        positionGap: upcomingMatch.positionGap,
+        favorite: upcomingMatch.favorite as 'home' | 'away' | null,
+        confidenceScore: upcomingMatch.confidenceScore,
+        averageGoals: upcomingMatch.averageGoals || 0,
+        expectedGoals: upcomingMatch.expectedGoals,
+        defensiveStrength: upcomingMatch.defensiveStrength || 0,
+        headToHead: upcomingMatch.headToHead || {
+          matches: 0,
+          wins: 0,
+          draws: 0,
+          losses: 0,
+          goalsScored: 0,
+          goalsConceded: 0,
+          recentMatches: [],
+        },
+        odds: {
+          homeWin: upcomingMatch.odds?.homeWin || 0,
+          draw: upcomingMatch.odds?.draw || 0,
+          awayWin: upcomingMatch.odds?.awayWin || 0,
+          over15Goals: upcomingMatch.odds?.over15Goals || 0,
+          under15Goals: upcomingMatch.odds?.under15Goals || 0,
+          over25Goals: upcomingMatch.odds?.over25Goals || 0,
+          under25Goals: upcomingMatch.odds?.under25Goals || 0,
+          bttsYes: upcomingMatch.odds?.bttsYes || 0,
+          bttsNo: upcomingMatch.odds?.bttsNo || 0,
+        },
+        cornerStats: upcomingMatch.cornerStats || {
+          home: {
+            average: 0,
+            total: 0,
+          },
+          away: {
+            average: 0,
+            total: 0,
+          },
+        },
+        scoringPatterns: upcomingMatch.scoringPatterns || {
+          home: {
+            firstGoalRate: 0,
+            lateGoalRate: 0,
+            bttsRate: 0,
+          },
+          away: {
+            firstGoalRate: 0,
+            lateGoalRate: 0,
+            bttsRate: 0,
+          },
+        },
+        reasonsForPrediction: upcomingMatch.reasonsForPrediction || [],
+      }));
 
-        const response = await fetch('/api/prediction-data');
-
-        if (!response.ok) {
-          throw new Error(`Failed to fetch data: ${response.status}`);
-        }
-
-        const responseJson = (await response.json()) as ApiResponseWrapper;
-
-        // Handle both the new and old response structure
-        const data = responseJson.data || (responseJson as ApiResponse);
-
-        // Clean team names in the data before setting state
-        const cleanedMatches = data.upcomingMatches.map((match) => {
-          // Helper function to safely convert to number
-          const safeNumber = (value: unknown) => {
-            const num = Number(value);
-            return !isNaN(num) ? num : 0;
-          };
-
-          // Normalize the time format to make date parsing more consistent
-          const normalizedTime = normalizeTimeFormat(match.time);
-
-          // Use alternative goal statistic fields if available
-          const homeTeamData = {
-            ...match.homeTeam,
-            name: enhancedCleanTeamName(match.homeTeam.name),
-            // Prioritize homeAverageGoalsScored over avgHomeGoals when available
-            avgHomeGoals:
-              safeNumber(match.homeTeam.homeAverageGoalsScored) ||
-              safeNumber(match.homeTeam.averageGoalsScored) ||
-              safeNumber(match.homeTeam.avgHomeGoals),
-            // Prioritize homeAverageGoalsConceded for away goals when available
-            avgAwayGoals:
-              safeNumber(match.homeTeam.awayAverageGoalsScored) ||
-              safeNumber(match.homeTeam.averageGoalsScored) ||
-              safeNumber(match.homeTeam.avgAwayGoals),
-            avgTotalGoals: safeNumber(match.homeTeam.avgTotalGoals),
-          };
-
-          const awayTeamData = {
-            ...match.awayTeam,
-            name: enhancedCleanTeamName(match.awayTeam.name),
-            // Prioritize awayAverageGoalsScored over avgHomeGoals when available
-            avgHomeGoals:
-              safeNumber(match.awayTeam.homeAverageGoalsScored) ||
-              safeNumber(match.awayTeam.averageGoalsScored) ||
-              safeNumber(match.awayTeam.avgHomeGoals),
-            // Prioritize awayAverageGoalsConceded for away goals when available
-            avgAwayGoals:
-              safeNumber(match.awayTeam.awayAverageGoalsScored) ||
-              safeNumber(match.awayTeam.averageGoalsScored) ||
-              safeNumber(match.awayTeam.avgAwayGoals),
-            avgTotalGoals: safeNumber(match.awayTeam.avgTotalGoals),
-          };
-
-          return {
-            ...match,
-            time: normalizedTime, // Use normalized time
-            homeTeam: homeTeamData,
-            awayTeam: awayTeamData,
-          };
-        });
-
-        setUpcomingMatches(cleanedMatches);
-        setMetadata(data.metadata);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Unknown error occurred');
-        console.error('Error fetching prediction data:', err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchData();
-
-    // Refresh data every 3 hours
-    const refreshInterval = setInterval(fetchData, 3 * 60 * 60 * 1000);
-
-    return () => clearInterval(refreshInterval);
-  }, []);
+      setUpcomingMatches(transformedMatches);
+      setMetadata({
+        total: transformedMatches.length,
+        date: new Date().toISOString().split('T')[0],
+        leagueData: {}, // You can populate this with actual league data if needed
+      });
+      setIsPredictionDataLoading(false);
+      setPredictionDataError(null);
+    }
+  }, [predictionData, isPredictionDataLoaded]);
 
   // Fix the toggleMatchInCart function
   const toggleMatchInCart = (id: string | number, index: number): void => {
@@ -511,12 +492,12 @@ const MatchPredictor = () => {
       `Toggling match in cart: ${matchToAdd.homeTeam.name} vs ${matchToAdd.awayTeam.name} (ID: ${uniqueId})`
     );
 
-    if (isUpcomingMatchInCart(uniqueId)) {
+    if (isUpcomingMatchInCart(String(uniqueId))) {
       // Remove from cart if already there
       console.log(
         `Removing match from cart: ${matchToAdd.homeTeam.name} vs ${matchToAdd.awayTeam.name}`
       );
-      removeUpcomingMatch(uniqueId);
+      removeUpcomingMatch(String(uniqueId));
     } else {
       // Add to cart if not there, ensure it has a unique ID
       console.log(
@@ -553,7 +534,7 @@ const MatchPredictor = () => {
 
   const checkMatchInCart = (id: string | number, index: number): boolean => {
     const uniqueId = id === 0 ? `match-${index}` : id;
-    const isInCart = isUpcomingMatchInCart(uniqueId);
+    const isInCart = isUpcomingMatchInCart(String(uniqueId));
 
     // Add logging when matches are checked only during filtering, not during rendering
     if (uniqueId === id) {
@@ -728,7 +709,7 @@ const MatchPredictor = () => {
 
       filteredMatches = filteredMatches.filter((match, index) => {
         const uniqueId = match.id === 0 ? `match-${index}` : match.id;
-        const isInCart = isUpcomingMatchInCart(uniqueId);
+        const isInCart = isUpcomingMatchInCart(String(uniqueId));
 
         if (isInCart) {
           console.log(
@@ -914,7 +895,7 @@ const MatchPredictor = () => {
     visibleMatches.forEach((match, index) => {
       // Only add matches that are not already in the cart
       const uniqueId = match.id === 0 ? `match-${index}` : match.id;
-      if (!isUpcomingMatchInCart(uniqueId)) {
+      if (!isUpcomingMatchInCart(String(uniqueId))) {
         // Create new team objects with required id properties
         const homeTeamWithId = {
           ...match.homeTeam,
@@ -1169,7 +1150,7 @@ const MatchPredictor = () => {
     setShowAnalyticsModal(true);
   };
 
-  if (isLoading) {
+  if (isPredictionDataLoading) {
     return (
       <div className='max-w-full mx-auto p-4 bg-white rounded-lg shadow-sm'>
         <div className='flex flex-col items-center justify-center p-12 h-64'>
@@ -1179,12 +1160,12 @@ const MatchPredictor = () => {
     );
   }
 
-  if (error) {
+  if (predictionDataError) {
     return (
       <div className='max-w-full mx-auto p-4 bg-white rounded-lg shadow-sm'>
         <div className='bg-red-50 border border-red-200 text-red-700 p-6 rounded-lg'>
           <h3 className='text-lg font-medium mb-2'>Error Loading Data</h3>
-          <p className='mb-4'>{error}</p>
+          <p className='mb-4'>{predictionDataError}</p>
           <button
             className='bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700'
             onClick={() => window.location.reload()}
@@ -1415,7 +1396,7 @@ const MatchPredictor = () => {
                 Match
               </th>
               <th
-                className='p-2 text-center whitespace-nowrap cursor-pointer hover:bg-gray-100 text-sm font-medium text-gray-500 w-[100px]'
+                className='p-2 text-center whitespace-nowrap cursor-pointer hover:bg-gray-100 text-sm font-medium text-gray-500 w-[120px]'
                 onClick={() => handleSort('matchTime')}
               >
                 Date
@@ -1630,41 +1611,29 @@ const MatchPredictor = () => {
                         </div>
                       </div>
                     </td>
-                    <td className='p-2 text-center w-[100px]'>
-                      <div className='text-gray-800 font-medium whitespace-nowrap'>
-                        {match.date} {match.time}
+                    <td className='p-2 text-center w-[120px]'>
+                      <div className='text-gray-800 font-medium whitespace-nowrap text-sm'>
+                        {formatMatchDate(match.date, match.time)}
                       </div>
                     </td>
                     <td className='p-2 text-center w-[100px]'>
                       <div
                         className={`px-1.5 py-0.5 rounded text-sm inline-block ${getMetricColor(
-                          (match.homeTeam.avgHomeGoals ?? 0) > 0
-                            ? match.homeTeam.avgHomeGoals ?? 0
-                            : (match.expectedGoals ?? 0) / 2,
+                          match.homeTeam.homeAverageGoalsScored || 0,
                           { high: 1.8, medium: 1.3 }
                         )}`}
                       >
-                        {Math.round(
-                          (match.homeTeam.avgHomeGoals ?? 0) > 0
-                            ? match.homeTeam.avgHomeGoals ?? 0
-                            : (match.expectedGoals ?? 0) / 2
-                        )}
+                        {Math.round(match.homeTeam.homeAverageGoalsScored || 0)}
                       </div>
                     </td>
                     <td className='p-2 text-center w-[70px]'>
                       <div
                         className={`px-2 py-1 rounded-lg text-sm ${getMetricColor(
-                          (match.awayTeam.avgAwayGoals ?? 0) > 0
-                            ? match.awayTeam.avgAwayGoals ?? 0
-                            : (match.expectedGoals ?? 0) / 2,
+                          match.awayTeam.awayAverageGoalsScored || 0,
                           { high: 1.4, medium: 1.0 }
                         )}`}
                       >
-                        {Math.round(
-                          (match.awayTeam.avgAwayGoals ?? 0) > 0
-                            ? match.awayTeam.avgAwayGoals ?? 0
-                            : (match.expectedGoals ?? 0) / 2
-                        )}
+                        {Math.round(match.awayTeam.awayAverageGoalsScored || 0)}
                       </div>
                     </td>
                     <td className='p-2 text-center w-[60px]'>
@@ -2165,12 +2134,30 @@ const MatchPredictor = () => {
                                     <div className='space-y-1.5'>
                                       <div className='flex justify-between items-center'>
                                         <span className='text-gray-600 text-xs'>
-                                          Avg Corners:
+                                          First Goal Rate:
+                                        </span>
+                                        <div
+                                          className={`text-lg ${getFirstGoalRateColor(
+                                            match.scoringPatterns?.home
+                                              ?.firstGoalRate || 0
+                                          )}`}
+                                        >
+                                          {getFirstGoalRateText(
+                                            match.scoringPatterns?.home
+                                              ?.firstGoalRate || 0
+                                          )}
+                                        </div>
+                                      </div>
+                                      <div className='flex justify-between items-center'>
+                                        <span className='text-gray-600 text-xs'>
+                                          Late Goal Rate:
                                         </span>
                                         <span className='font-medium text-gray-900 text-xs'>
                                           {(
-                                            match.homeTeam.avgCorners || 0
+                                            match.scoringPatterns?.home
+                                              ?.lateGoalRate ?? 0
                                           ).toFixed(1)}
+                                          %
                                         </span>
                                       </div>
                                       <div className='flex justify-between items-center'>
@@ -2179,7 +2166,8 @@ const MatchPredictor = () => {
                                         </span>
                                         <span className='font-medium text-gray-900 text-xs'>
                                           {(
-                                            match.homeTeam.bttsRate || 0
+                                            match.scoringPatterns?.home
+                                              ?.bttsRate ?? 0
                                           ).toFixed(1)}
                                           %
                                         </span>
@@ -2195,17 +2183,6 @@ const MatchPredictor = () => {
                                           %
                                         </span>
                                       </div>
-                                      <div className='flex justify-between items-center'>
-                                        <span className='text-gray-600 text-xs'>
-                                          Late Goal Rate:
-                                        </span>
-                                        <span className='font-medium text-gray-900 text-xs'>
-                                          {(
-                                            match.homeTeam.lateGoalRate || 0
-                                          ).toFixed(1)}
-                                          %
-                                        </span>
-                                      </div>
                                     </div>
                                   </div>
                                   <div className='space-y-2'>
@@ -2215,12 +2192,26 @@ const MatchPredictor = () => {
                                     <div className='space-y-1.5'>
                                       <div className='flex justify-between items-center'>
                                         <span className='text-gray-600 text-xs'>
-                                          Avg Corners:
+                                          First Goal Rate:
                                         </span>
                                         <span className='font-medium text-gray-900 text-xs'>
                                           {(
-                                            match.awayTeam.avgCorners || 0
+                                            match.scoringPatterns?.away
+                                              ?.firstGoalRate || 0
                                           ).toFixed(1)}
+                                          %
+                                        </span>
+                                      </div>
+                                      <div className='flex justify-between items-center'>
+                                        <span className='text-gray-600 text-xs'>
+                                          Late Goal Rate:
+                                        </span>
+                                        <span className='font-medium text-gray-900 text-xs'>
+                                          {(
+                                            match.scoringPatterns?.away
+                                              ?.lateGoalRate ?? 0
+                                          ).toFixed(1)}
+                                          %
                                         </span>
                                       </div>
                                       <div className='flex justify-between items-center'>
@@ -2229,7 +2220,8 @@ const MatchPredictor = () => {
                                         </span>
                                         <span className='font-medium text-gray-900 text-xs'>
                                           {(
-                                            match.awayTeam.bttsRate || 0
+                                            match.scoringPatterns?.away
+                                              ?.bttsRate ?? 0
                                           ).toFixed(1)}
                                           %
                                         </span>
@@ -2241,17 +2233,6 @@ const MatchPredictor = () => {
                                         <span className='font-medium text-gray-900 text-xs'>
                                           {(
                                             match.awayTeam.awayBttsRate || 0
-                                          ).toFixed(1)}
-                                          %
-                                        </span>
-                                      </div>
-                                      <div className='flex justify-between items-center'>
-                                        <span className='text-gray-600 text-xs'>
-                                          Late Goal Rate:
-                                        </span>
-                                        <span className='font-medium text-gray-900 text-xs'>
-                                          {(
-                                            match.awayTeam.lateGoalRate || 0
                                           ).toFixed(1)}
                                           %
                                         </span>

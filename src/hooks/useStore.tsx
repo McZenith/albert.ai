@@ -30,18 +30,17 @@ interface CartStore {
   clearCart: () => void;
   upcomingMatches: UpcomingMatch[];
   addUpcomingMatch: (match: UpcomingMatch) => void;
-  removeUpcomingMatch: (matchId: string | number) => void;
+  removeUpcomingMatch: (matchId: string) => void;
   clearUpcomingMatches: () => void;
-  isUpcomingMatchInCart: (matchId: string | number) => boolean;
+  isUpcomingMatchInCart: (matchId: string) => boolean;
   getUpcomingMatchesCount: () => number;
   predictionData: UpcomingMatch[];
-  isPredictionDataLoading: boolean;
   isPredictionDataLoaded: boolean;
-  predictionDataError: Error | null;
-  loadPredictionData: () => Promise<void>;
+  setPredictionData: (data: UpcomingMatch[]) => void;
+  setIsPredictionDataLoaded: (loaded: boolean) => void;
   findPredictionForMatch: (
-    homeTeam: string,
-    awayTeam: string
+    homeTeamName: string,
+    awayTeamName: string
   ) => UpcomingMatch | null;
 }
 
@@ -49,63 +48,11 @@ export const useCartStore = create<CartStore>((set, get) => ({
   items: [],
   upcomingMatches: [],
   predictionData: [],
-  isPredictionDataLoading: false,
   isPredictionDataLoaded: false,
-  predictionDataError: null,
 
-  loadPredictionData: async () => {
-    if (get().isPredictionDataLoaded && get().predictionData.length > 0) {
-      return;
-    }
-
-    set({ isPredictionDataLoading: true });
-    try {
-      const response = await fetch('/api/prediction-data');
-      if (!response.ok) {
-        throw new Error(`API request failed with status ${response.status}`);
-      }
-      const data = await response.json();
-
-      const upcomingMatches =
-        data?.data?.upcomingMatches || data?.upcomingMatches || [];
-
-      if (upcomingMatches.length === 0) {
-        set({
-          predictionData: [],
-          isPredictionDataLoaded: false,
-          isPredictionDataLoading: false,
-        });
-        return;
-      }
-
-      const firstMatch = upcomingMatches[0];
-      const hasRequiredFields =
-        firstMatch?.homeTeam?.name &&
-        firstMatch?.awayTeam?.name &&
-        firstMatch?.id;
-
-      if (!hasRequiredFields) {
-        set({
-          predictionData: [],
-          isPredictionDataLoaded: false,
-          isPredictionDataLoading: false,
-        });
-        return;
-      }
-
-      set({
-        predictionData: upcomingMatches,
-        isPredictionDataLoaded: true,
-        isPredictionDataLoading: false,
-      });
-    } catch (error) {
-      set({
-        predictionDataError: error as Error,
-        isPredictionDataLoading: false,
-        isPredictionDataLoaded: false,
-      });
-    }
-  },
+  setPredictionData: (data) => set({ predictionData: data }),
+  setIsPredictionDataLoaded: (loaded) =>
+    set({ isPredictionDataLoaded: loaded }),
 
   addItem: (item) =>
     set((state) => ({
@@ -142,7 +89,7 @@ export const useCartStore = create<CartStore>((set, get) => ({
     return get().upcomingMatches.some((match) => match.id === matchId);
   },
 
-  findPredictionForMatch: (homeTeam: string, awayTeam: string) => {
+  findPredictionForMatch: (homeTeamName: string, awayTeamName: string) => {
     const { predictionData } = get();
 
     if (!predictionData?.length) return null;
@@ -150,9 +97,9 @@ export const useCartStore = create<CartStore>((set, get) => ({
     // Strategy 1: Direct normalized match
     let prediction = predictionData.find((p) => {
       const homeMatch =
-        normalizeTeamName(p.homeTeam.name) === normalizeTeamName(homeTeam);
+        normalizeTeamName(p.homeTeam.name) === normalizeTeamName(homeTeamName);
       const awayMatch =
-        normalizeTeamName(p.awayTeam.name) === normalizeTeamName(awayTeam);
+        normalizeTeamName(p.awayTeam.name) === normalizeTeamName(awayTeamName);
       return homeMatch && awayMatch;
     });
     if (prediction) return prediction;
@@ -160,9 +107,9 @@ export const useCartStore = create<CartStore>((set, get) => ({
     // Strategy 2: Reversed team order
     prediction = predictionData.find((p) => {
       const homeMatch =
-        normalizeTeamName(p.homeTeam.name) === normalizeTeamName(awayTeam);
+        normalizeTeamName(p.homeTeam.name) === normalizeTeamName(awayTeamName);
       const awayMatch =
-        normalizeTeamName(p.awayTeam.name) === normalizeTeamName(homeTeam);
+        normalizeTeamName(p.awayTeam.name) === normalizeTeamName(homeTeamName);
       return homeMatch && awayMatch;
     });
     if (prediction) return prediction;
@@ -172,10 +119,10 @@ export const useCartStore = create<CartStore>((set, get) => ({
       prediction: p,
       similarity:
         Math.min(
-          getTeamNameSimilarity(p.homeTeam.name, homeTeam) +
-            getTeamNameSimilarity(p.awayTeam.name, awayTeam),
-          getTeamNameSimilarity(p.homeTeam.name, awayTeam) +
-            getTeamNameSimilarity(p.awayTeam.name, homeTeam)
+          getTeamNameSimilarity(p.homeTeam.name, homeTeamName) +
+            getTeamNameSimilarity(p.awayTeam.name, awayTeamName),
+          getTeamNameSimilarity(p.homeTeam.name, awayTeamName) +
+            getTeamNameSimilarity(p.awayTeam.name, homeTeamName)
         ) / 2,
     }));
 

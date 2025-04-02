@@ -231,6 +231,29 @@ export interface UpcomingMatch {
         homeForm?: string;
         avgHomeGoals?: number;
         cleanSheets?: number;
+        homeAverageGoalsScored?: number;
+        averageGoalsScored?: number;
+        awayAverageGoalsScored?: number;
+        avgAwayGoals?: number;
+        avgTotalGoals?: number;
+        bttsRate?: number;
+        homeBttsRate?: number;
+        awayBttsRate?: number;
+        lateGoalRate?: number;
+        homeAverageGoalsConceded?: number;
+        awayAverageGoalsConceded?: number;
+        averageGoalsConceded?: number;
+        goalDistribution?: {
+            '0-15': number;
+            '16-30': number;
+            '31-45': number;
+            '46-60': number;
+            '61-75': number;
+            '76-90': number;
+        };
+        againstTopTeamsPoints?: number;
+        againstMidTeamsPoints?: number;
+        againstBottomTeamsPoints?: number;
     };
     awayTeam: {
         id: string;
@@ -240,6 +263,29 @@ export interface UpcomingMatch {
         awayForm?: string;
         avgAwayGoals?: number;
         cleanSheets?: number;
+        homeAverageGoalsScored?: number;
+        averageGoalsScored?: number;
+        awayAverageGoalsScored?: number;
+        avgHomeGoals?: number;
+        avgTotalGoals?: number;
+        bttsRate?: number;
+        homeBttsRate?: number;
+        awayBttsRate?: number;
+        lateGoalRate?: number;
+        homeAverageGoalsConceded?: number;
+        awayAverageGoalsConceded?: number;
+        averageGoalsConceded?: number;
+        goalDistribution?: {
+            '0-15': number;
+            '16-30': number;
+            '31-45': number;
+            '46-60': number;
+            '61-75': number;
+            '76-90': number;
+        };
+        againstTopTeamsPoints?: number;
+        againstMidTeamsPoints?: number;
+        againstBottomTeamsPoints?: number;
     };
     positionGap: number;
     expectedGoals: number;
@@ -257,4 +303,239 @@ export interface UpcomingMatch {
         goalsScored: number;
         goalsConceded: number;
     };
+    odds?: {
+        homeWin: number;
+        draw: number;
+        awayWin: number;
+        over15Goals: number;
+        under15Goals: number;
+    };
+    cornerStats?: {
+        home: {
+            average: number;
+            total: number;
+        };
+        away: {
+            average: number;
+            total: number;
+        };
+    };
+    scoringPatterns?: {
+        home: {
+            firstGoalRate: number;
+            lateGoalRate: number;
+            bttsRate: number;
+        };
+        away: {
+            firstGoalRate: number;
+            lateGoalRate: number;
+            bttsRate: number;
+        };
+    };
+}
+
+export interface Team {
+    id: string;
+    name: string;
+    position: number;
+    form: string;
+    homeForm?: string;
+    awayForm?: string;
+    avgHomeGoals?: number;
+    avgAwayGoals?: number;
+    avgTotalGoals?: number;
+    cleanSheets?: number;
+    homeCleanSheets?: number;
+    awayCleanSheets?: number;
+    homeAverageGoalsScored?: number;
+    awayAverageGoalsScored?: number;
+    averageGoalsScored?: number;
+    homeAverageGoalsConceded?: number;
+    awayAverageGoalsConceded?: number;
+    averageGoalsConceded?: number;
+    scoringFirstWinRate?: number;
+    concedingFirstWinRate?: number;
+    firstHalfGoalsPercent?: number;
+    secondHalfGoalsPercent?: number;
+    avgCorners?: number;
+    bttsRate?: number;
+    homeBttsRate?: number;
+    awayBttsRate?: number;
+    lateGoalRate?: number;
+    goalDistribution?: {
+        '0-15': number;
+        '16-30': number;
+        '31-45': number;
+        '46-60': number;
+        '61-75': number;
+        '76-90': number;
+    };
+    againstTopTeamsPoints?: number;
+    againstMidTeamsPoints?: number;
+    againstBottomTeamsPoints?: number;
+    logo?: string;
+    over05: number;
+    over15: number;
+    over25: number;
+    over35: number;
+    over45: number;
+    cleanSheetRate?: number;
+    cornerStats?: {
+        avgCorners: number;
+        avgCornersFor: number;
+        avgCornersAgainst: number;
+    };
+    scoringStats?: {
+        avgGoalsScored: number;
+        avgGoalsConceded: number;
+        avgTotalGoals: number;
+    };
+    patterns?: {
+        btts: number;
+        over15: number;
+        over25: number;
+        over35: number;
+    };
+}
+
+export interface Match {
+    id: string | number;
+    homeTeam: {
+        id: string;
+        name: string;
+        position: number;
+        logo: string;
+        avgHomeGoals?: number;
+        avgAwayGoals?: number;
+        avgTotalGoals: number;
+        homeMatchesOver15?: number;
+        awayMatchesOver15?: number;
+        totalHomeMatches?: number;
+        totalAwayMatches?: number;
+        form: string;
+        homeForm?: string;
+        awayForm?: string;
+        cleanSheets?: number;
+        homeCleanSheets?: number;
+        awayCleanSheets?: number;
+        scoringFirstWinRate?: number;
+        concedingFirstWinRate?: number;
+        firstHalfGoalsPercent?: number;
+        secondHalfGoalsPercent?: number;
+        avgCorners?: number;
+        bttsRate?: number;
+        homeBttsRate?: number;
+        awayBttsRate?: number;
+        lateGoalRate?: number;
+        homeAverageGoalsScored?: number;
+        awayAverageGoalsScored?: number;
+        averageGoalsScored?: number;
+        homeAverageGoalsConceded?: number;
+        awayAverageGoalsConceded?: number;
+        averageGoalsConceded?: number;
+        goalDistribution?: {
+            '0-15': number;
+            '16-30': number;
+            '31-45': number;
+            '46-60': number;
+            '61-75': number;
+            '76-90': number;
+        };
+        againstTopTeamsPoints?: number;
+        againstMidTeamsPoints?: number;
+        againstBottomTeamsPoints?: number;
+    };
+    awayTeam: {
+        id: string;
+        name: string;
+        position: number;
+        logo: string;
+        avgHomeGoals?: number;
+        avgAwayGoals?: number;
+        avgTotalGoals: number;
+        homeMatchesOver15?: number;
+        awayMatchesOver15?: number;
+        totalHomeMatches?: number;
+        totalAwayMatches?: number;
+        form: string;
+        homeForm?: string;
+        awayForm?: string;
+        cleanSheets?: number;
+        homeCleanSheets?: number;
+        awayCleanSheets?: number;
+        scoringFirstWinRate?: number;
+        concedingFirstWinRate?: number;
+        firstHalfGoalsPercent?: number;
+        secondHalfGoalsPercent?: number;
+        avgCorners?: number;
+        bttsRate?: number;
+        homeBttsRate?: number;
+        awayBttsRate?: number;
+        lateGoalRate?: number;
+        homeAverageGoalsScored?: number;
+        awayAverageGoalsScored?: number;
+        averageGoalsScored?: number;
+        homeAverageGoalsConceded?: number;
+        awayAverageGoalsConceded?: number;
+        averageGoalsConceded?: number;
+        goalDistribution?: {
+            '0-15': number;
+            '16-30': number;
+            '31-45': number;
+            '46-60': number;
+            '61-75': number;
+            '76-90': number;
+        };
+        againstTopTeamsPoints?: number;
+        againstMidTeamsPoints?: number;
+        againstBottomTeamsPoints?: number;
+    };
+    date: string;
+    time: string;
+    venue: string;
+    positionGap: number;
+    favorite: 'home' | 'away' | null;
+    confidenceScore: number;
+    averageGoals: number;
+    expectedGoals: number;
+    defensiveStrength: number;
+    headToHead: {
+        matches: number;
+        wins: number;
+        draws: number;
+        losses: number;
+        goalsScored: number;
+        goalsConceded: number;
+        recentMatches: any[];
+    };
+    odds: {
+        homeWin: number;
+        draw: number;
+        awayWin: number;
+        over15Goals: number;
+        under15Goals: number;
+    };
+    cornerStats: {
+        home: {
+            average: number;
+            total: number;
+        };
+        away: {
+            average: number;
+            total: number;
+        };
+    };
+    scoringPatterns: {
+        home: {
+            firstGoalRate: number;
+            lateGoalRate: number;
+            bttsRate: number;
+        };
+        away: {
+            firstGoalRate: number;
+            lateGoalRate: number;
+            bttsRate: number;
+        };
+    };
+    reasonsForPrediction: string[];
 } 
