@@ -319,14 +319,7 @@ const MatchPredictor = () => {
   );
 
   // Get cart functions from the global store
-  const {
-    addUpcomingMatch,
-    removeUpcomingMatch,
-    isUpcomingMatchInCart,
-    clearUpcomingMatches,
-    predictionData,
-    isPredictionDataLoaded,
-  } = useCartStore();
+  const { predictionData, isPredictionDataLoaded } = useCartStore();
 
   // Update state when prediction data changes
   useEffect(() => {
@@ -493,71 +486,21 @@ const MatchPredictor = () => {
   }, [predictionData, isPredictionDataLoaded]);
 
   // Fix the toggleMatchInCart function
-  const toggleMatchInCart = (id: string | number, index: number): void => {
-    const matchToAdd = upcomingMatches.find((m) => m.id === id);
-    if (!matchToAdd) {
-      console.error(`Could not find match with ID ${id} at index ${index}`);
-      return;
-    }
+  const toggleMatchInCart = (id: string | number): void => {
+    const newSelectedMatches = [...upcomingMatches];
+    const matchIndex = newSelectedMatches.findIndex((match) => match.id === id);
 
-    // Generate a unique ID if the match ID is 0
-    const uniqueId = id === 0 ? `match-${index}` : id;
-    console.log(
-      `Toggling match in cart: ${matchToAdd.homeTeam.name} vs ${matchToAdd.awayTeam.name} (ID: ${uniqueId})`
-    );
-
-    if (isUpcomingMatchInCart(String(uniqueId))) {
-      // Remove from cart if already there
-      console.log(
-        `Removing match from cart: ${matchToAdd.homeTeam.name} vs ${matchToAdd.awayTeam.name}`
-      );
-      removeUpcomingMatch(String(uniqueId));
+    if (matchIndex === -1) {
+      newSelectedMatches.push(upcomingMatches[matchIndex]);
     } else {
-      // Add to cart if not there, ensure it has a unique ID
-      console.log(
-        `Adding match to cart: ${matchToAdd.homeTeam.name} vs ${matchToAdd.awayTeam.name}`
-      );
-
-      // Create new team objects with required id properties
-      const homeTeamWithId = {
-        ...matchToAdd.homeTeam,
-        id: String(matchToAdd.homeTeam.name.replace(/\s+/g, '_').toLowerCase()),
-      };
-
-      const awayTeamWithId = {
-        ...matchToAdd.awayTeam,
-        id: String(matchToAdd.awayTeam.name.replace(/\s+/g, '_').toLowerCase()),
-      };
-
-      // Add to cart with proper structure
-      addUpcomingMatch({
-        ...matchToAdd,
-        id: String(uniqueId),
-        homeTeam: homeTeamWithId,
-        awayTeam: awayTeamWithId,
-      });
+      newSelectedMatches.splice(matchIndex, 1);
     }
 
-    // Log the current cart state after the change
-    console.log(
-      `Cart now contains ${
-        useCartStore.getState().upcomingMatches.length
-      } matches`
-    );
+    setUpcomingMatches(newSelectedMatches);
   };
 
-  const checkMatchInCart = (id: string | number, index: number): boolean => {
-    const uniqueId = id === 0 ? `match-${index}` : id;
-    const isInCart = isUpcomingMatchInCart(String(uniqueId));
-
-    // Add logging when matches are checked only during filtering, not during rendering
-    if (uniqueId === id) {
-      console.log(
-        `Checking if match with ID ${uniqueId} is in cart: ${isInCart}`
-      );
-    }
-
-    return isInCart;
+  const checkMatchInCart = (id: string | number): boolean => {
+    return upcomingMatches.some((match) => match.id === id);
   };
 
   const getMetricColor = (
@@ -680,200 +623,50 @@ const MatchPredictor = () => {
 
   // Filter function for matches
   const filterMatches = (matches: Match[]): Match[] => {
-    console.log(`Starting filtering with ${matches.length} total matches`);
+    let filteredMatches = [...matches];
 
-    // Apply all basic filters first (confidence, favorite, position gap, expected goals)
-    let filteredMatches = matches.filter((match) => {
-      // Filter by confidence score
-      if (match.confidenceScore < filters.minConfidence) {
-        return false;
-      }
+    // Apply basic filters
+    filteredMatches = filteredMatches.filter((match) => {
+      const meetsConfidence = match.confidenceScore >= filters.minConfidence;
+      const meetsPositionGap = match.positionGap >= filters.positionGap;
+      const meetsExpectedGoals =
+        match.expectedGoals >= filters.minExpectedGoals;
+      const meetsFavorite =
+        filters.favorite === 'all' || match.favorite === filters.favorite;
 
-      // Filter by favorite
-      if (filters.favorite !== 'all' && match.favorite !== filters.favorite) {
-        return false;
-      }
-
-      // Filter by position gap
-      if (match.positionGap < filters.positionGap) {
-        return false;
-      }
-
-      // Filter by expected goals
-      if (match.expectedGoals < filters.minExpectedGoals) {
-        return false;
-      }
-
-      return true;
+      return (
+        meetsConfidence &&
+        meetsPositionGap &&
+        meetsExpectedGoals &&
+        meetsFavorite
+      );
     });
 
-    console.log(`After basic filters: ${filteredMatches.length} matches`);
+    // Apply time window filter
+    filteredMatches = applyTimeWindowFilter(filteredMatches);
 
-    // Next apply the time window filter if enabled
-    if (filters.showOnlyUpcoming) {
-      const windowFiltered = applyTimeWindowFilter(filteredMatches);
-      filteredMatches = windowFiltered;
-      console.log(`After time filter: ${filteredMatches.length} matches`);
-    }
-
-    // Finally, apply cart filter if enabled (after all other filters)
+    // Apply cart filter if enabled
     if (showOnlyCart) {
-      console.log(`Applying cart filter to ${filteredMatches.length} matches`);
-      const beforeCartCount = filteredMatches.length;
-
-      filteredMatches = filteredMatches.filter((match, index) => {
-        const uniqueId = match.id === 0 ? `match-${index}` : match.id;
-        const isInCart = isUpcomingMatchInCart(String(uniqueId));
-
-        if (isInCart) {
-          console.log(
-            `Match in cart: ${match.homeTeam.name} vs ${match.awayTeam.name} (ID: ${uniqueId})`
-          );
-        }
-
-        return isInCart;
-      });
-
-      console.log(
-        `After cart filter: ${filteredMatches.length}/${beforeCartCount} matches remain`
+      filteredMatches = filteredMatches.filter((match) =>
+        checkMatchInCart(match.id)
       );
     }
 
     return filteredMatches;
   };
 
-  // Helper function to apply time window filtering with adaptive window sizes
   const applyTimeWindowFilter = (matches: Match[]): Match[] => {
-    // Try 24 hour window first
-    const matchesIn24Hours = filterByTimeWindow(matches, 24);
-    console.log(`Matches in 24h window: ${matchesIn24Hours.length}`);
-
-    // If we have a reasonable number of matches in the 24 hour window, return those
-    if (matchesIn24Hours.length >= 5) {
-      return matchesIn24Hours;
-    }
-
-    // If we have very few matches, try a 72 hour window
-    const matchesIn72Hours = filterByTimeWindow(matches, 72);
-    console.log(`Matches in 72h window: ${matchesIn72Hours.length}`);
-
-    // If we have a reasonable number of matches in the 72 hour window, return those
-    if (matchesIn72Hours.length >= 5) {
-      return matchesIn72Hours;
-    }
-
-    // As a last resort, try a 7 day window
-    const matchesIn7Days = filterByTimeWindow(matches, 24 * 7);
-    console.log(`Matches in 7 day window: ${matchesIn7Days.length}`);
-    return matchesIn7Days;
+    return filterByTimeWindow(matches, 24);
   };
 
-  // Apply time filter - checks if match time is within the specified window
   const filterByTimeWindow = (matches: Match[], windowHours: number) => {
-    // Create the time window boundaries once to avoid recalculating
     const now = new Date();
-    const currentHour = new Date(now);
-    currentHour.setMinutes(0, 0, 0);
-    const laterTime = new Date(
-      currentHour.getTime() + windowHours * 60 * 60 * 1000
-    );
+    const endTime = new Date(now.getTime() + windowHours * 60 * 60 * 1000);
 
-    const filtered = matches.filter((match) => {
-      try {
-        // Skip if missing date
-        if (!match.date) {
-          return false;
-        }
-
-        // If the date is from 2025, correct it to the current year for filtering purposes
-        let dateToUse = match.date;
-        if (match.date.startsWith('2025-')) {
-          const [, month, day] = match.date.split('-');
-          const currentYear = new Date().getFullYear();
-          dateToUse = `${currentYear}-${month}-${day}`;
-        }
-
-        // Try to create a valid date object
-        let matchDateTime;
-
-        // Normalize the time if needed
-        const timeToUse = match.time || '12:00';
-
-        // Try parsing with standard ISO format
-        try {
-          // Make sure we have seconds
-          const timeWithSeconds =
-            timeToUse.includes(':') && timeToUse.split(':').length === 2
-              ? `${timeToUse}:00`
-              : timeToUse;
-
-          matchDateTime = new Date(`${dateToUse}T${timeWithSeconds}`);
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        } catch (_) {
-          // Fallback to manual parsing
-        }
-
-        // If that fails, parse manually
-        if (!matchDateTime || isNaN(matchDateTime.getTime())) {
-          try {
-            const [year, month, day] = dateToUse.split('-').map(Number);
-            let hours = 12,
-              minutes = 0;
-
-            if (timeToUse) {
-              // Parse time - handle different formats
-              if (timeToUse.includes(':')) {
-                const timeParts = timeToUse.split(':');
-                hours = parseInt(timeParts[0]);
-                if (timeParts.length > 1) {
-                  minutes = parseInt(timeParts[1]);
-                }
-
-                // Check for AM/PM
-                if (timeToUse.toLowerCase().includes('pm') && hours < 12) {
-                  hours += 12;
-                } else if (
-                  timeToUse.toLowerCase().includes('am') &&
-                  hours === 12
-                ) {
-                  hours = 0;
-                }
-              }
-            }
-
-            // JavaScript months are 0-indexed
-            matchDateTime = new Date(year, month - 1, day, hours, minutes);
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-          } catch (_) {
-            // If all else fails, use noon on the match date
-            matchDateTime = new Date(`${dateToUse}T12:00:00`);
-          }
-        }
-
-        // Check if the date is valid
-        if (!matchDateTime || isNaN(matchDateTime.getTime())) {
-          console.error('Invalid date/time format:', match.date, match.time);
-          return false;
-        }
-
-        // Check if match time is in the desired range
-        if (matchDateTime < currentHour || matchDateTime > laterTime) {
-          return false;
-        }
-
-        return true;
-      } catch (error) {
-        console.error(
-          'Error parsing match date/time:',
-          error,
-          match.date,
-          match.time
-        );
-        return false;
-      }
+    return matches.filter((match) => {
+      const matchDateTime = new Date(`${match.date}T${match.time}`);
+      return matchDateTime >= now && matchDateTime <= endTime;
     });
-
-    return filtered;
   };
 
   // Handle sorting
@@ -901,48 +694,18 @@ const MatchPredictor = () => {
 
   // Add a function to select all visible matches
   const selectAllVisibleMatches = () => {
-    console.log('Selecting all visible matches');
-    const visibleMatches = filterMatches(sortMatches(upcomingMatches));
-    console.log(`Found ${visibleMatches.length} visible matches to select`);
-
-    let addedCount = 0;
-    visibleMatches.forEach((match, index) => {
-      // Only add matches that are not already in the cart
-      const uniqueId = match.id === 0 ? `match-${index}` : match.id;
-      if (!isUpcomingMatchInCart(String(uniqueId))) {
-        // Create new team objects with required id properties
-        const homeTeamWithId = {
-          ...match.homeTeam,
-          id: String(match.homeTeam.name.replace(/\s+/g, '_').toLowerCase()),
-        };
-
-        const awayTeamWithId = {
-          ...match.awayTeam,
-          id: String(match.awayTeam.name.replace(/\s+/g, '_').toLowerCase()),
-        };
-
-        // Add to cart with proper structure
-        addUpcomingMatch({
-          ...match,
-          id: String(uniqueId),
-          homeTeam: homeTeamWithId,
-          awayTeam: awayTeamWithId,
-        });
-
-        addedCount++;
-      }
+    const visibleMatches = upcomingMatches.filter((match) => {
+      const matchDateTime = new Date(`${match.date}T${match.time}`);
+      const now = new Date();
+      return matchDateTime >= now;
     });
 
-    console.log(
-      `Added ${addedCount} new matches to cart. Total cart size: ${
-        useCartStore.getState().upcomingMatches.length
-      }`
-    );
+    setUpcomingMatches(visibleMatches);
   };
 
   // Add a function to clear all selected matches
   const clearAllSelectedMatches = () => {
-    clearUpcomingMatches();
+    setUpcomingMatches([]);
   };
 
   // Update the reset filters function to include the new filter
@@ -969,61 +732,14 @@ const MatchPredictor = () => {
   // Add a function to toggle showing only cart items
   const toggleCartFilter = () => {
     const newValue = !showOnlyCart;
-    console.log(`Toggling cart filter from ${showOnlyCart} to ${newValue}`);
-    console.log(
-      `Current cart size: ${
-        useCartStore.getState().upcomingMatches.length
-      } matches`
-    );
-
-    // Log some cart items for debugging
-    if (useCartStore.getState().upcomingMatches.length > 0) {
-      console.log('Sample cart items:');
-      useCartStore
-        .getState()
-        .upcomingMatches.slice(0, 3)
-        .forEach((match) => {
-          console.log(
-            `- ${match.homeTeam.name} vs ${match.awayTeam.name} (ID: ${match.id})`
-          );
-        });
-    }
-
     setShowOnlyCart(newValue);
   };
 
   // Update tooltip to reflect adaptive time window
   const getTimeRangeTooltip = () => {
     const now = new Date();
-    const currentHour = new Date(now);
-    currentHour.setMinutes(0, 0, 0);
-    const twentyFourHoursLater = new Date(
-      currentHour.getTime() + 24 * 60 * 60 * 1000
-    );
-
-    // Format the times in 12-hour format
-    const startTime = currentHour.toLocaleTimeString([], {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-    const endTime = twentyFourHoursLater.toLocaleTimeString([], {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-    const startDate = currentHour.toLocaleDateString([], {
-      month: 'short',
-      day: 'numeric',
-    });
-    const endDate = twentyFourHoursLater.toLocaleDateString([], {
-      month: 'short',
-      day: 'numeric',
-    });
-
-    if (startDate === endDate) {
-      return `Prioritizes matches from ${startTime} today to ${endTime} tomorrow. Will show matches up to 7 days ahead if few matches are available in the next 24 hours.`;
-    } else {
-      return `Prioritizes matches from ${startTime} (${startDate}) to ${endTime} (${endDate}). Will show matches up to 7 days ahead if few matches are available in the next 24 hours.`;
-    }
+    const endTime = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    return `Showing matches from ${now.toLocaleString()} to ${endTime.toLocaleString()}`;
   };
 
   // Add scroll to top effect
@@ -1225,7 +941,7 @@ const MatchPredictor = () => {
             <span className='text-gray-500 mr-2'>Selected:</span>
             <span className='text-gray-800'>
               {
-                upcomingMatches.filter((match) => checkMatchInCart(match.id, 0))
+                upcomingMatches.filter((match) => checkMatchInCart(match.id))
                   .length
               }
             </span>
@@ -1588,15 +1304,15 @@ const MatchPredictor = () => {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          toggleMatchInCart(match.id, index);
+                          toggleMatchInCart(match.id);
                         }}
                         className={`w-6 h-6 rounded-full border ${
-                          checkMatchInCart(match.id, index)
+                          checkMatchInCart(match.id)
                             ? 'bg-green-100 border-green-300 text-green-600'
                             : 'bg-gray-100 border-gray-300 text-gray-600'
                         } flex items-center justify-center hover:bg-opacity-80 transition-colors duration-200`}
                       >
-                        {checkMatchInCart(match.id, index) ? (
+                        {checkMatchInCart(match.id) ? (
                           <Check size={14} />
                         ) : (
                           <Plus size={14} />

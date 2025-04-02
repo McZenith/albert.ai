@@ -373,18 +373,15 @@ export const useMatchData = () => {
                     .build();
 
                 connection.onreconnecting(() => {
-                    console.log('Attempting to reconnect...');
                     setIsConnected(false);
                 });
 
                 connection.onreconnected(() => {
-                    console.log('Reconnected successfully');
                     setIsConnected(true);
                 });
 
                 // Handle prediction data
                 connection.on('ReceivePredictionData', (data: PredictionDataResponse) => {
-                    console.log('Received prediction data:', data);
                     if (data?.data?.upcomingMatches) {
                         const processedMatches = data.data.upcomingMatches.map(processMatchData);
                         setPredictionData(processedMatches);
@@ -395,22 +392,9 @@ export const useMatchData = () => {
                 // Handle arbitrage matches
                 connection.on('ReceiveArbitrageLiveMatches', (data: ClientMatch[]) => {
                     if (!isPaused && isMounted) {
-                        console.log('Received arbitrage matches:', data);
                         const transformedMatches = data.map(match => {
                             const existingMatch = latestMatchesRef.current.get(match.id);
                             const transformedMatch = transformMatch(match);
-
-                            // Log the transformation for debugging
-                            console.log('Original match:', {
-                                id: match.id,
-                                matchSituation: match.matchSituation,
-                                matchDetails: match.matchDetails
-                            });
-                            console.log('Transformed match:', {
-                                id: transformedMatch.id,
-                                matchSituation: transformedMatch.matchSituation,
-                                matchDetails: transformedMatch.matchDetails
-                            });
 
                             if (existingMatch) {
                                 transformedMatch.markets = transformedMatch.markets.map((market, marketIndex) => ({
@@ -434,22 +418,9 @@ export const useMatchData = () => {
                 // Handle all live matches
                 connection.on('ReceiveAllLiveMatches', (data: ClientMatch[]) => {
                     if (!isPaused && isMounted) {
-                        console.log('Received all live matches:', data);
                         const transformedMatches = data.map(match => {
                             const existingMatch = latestAllMatchesRef.current.get(match.id);
                             const transformedMatch = transformMatch(match);
-
-                            // Log the transformation for debugging
-                            console.log('Original match:', {
-                                id: match.id,
-                                matchSituation: match.matchSituation,
-                                matchDetails: match.matchDetails
-                            });
-                            console.log('Transformed match:', {
-                                id: transformedMatch.id,
-                                matchSituation: transformedMatch.matchSituation,
-                                matchDetails: transformedMatch.matchDetails
-                            });
 
                             if (existingMatch) {
                                 transformedMatch.markets = transformedMatch.markets.map((market, marketIndex) => ({

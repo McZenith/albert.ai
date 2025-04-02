@@ -1097,11 +1097,14 @@ const MarketRow = ({
                       <div className='flex items-center gap-2'>
                         <span className='text-sm font-medium text-amber-600'>
                           {match.matchSituation?.home.totalDangerousCount || 0}{' '}
-                          dng
+                          dng (
+                          {match.matchSituation?.home.totalDangerousAttacks ||
+                            0}{' '}
+                          total)
                         </span>
                         <span className='text-sm font-medium text-blue-600'>
-                          {match.matchSituation?.home.totalAttackCount || 0}{' '}
-                          total
+                          {match.matchSituation?.home.totalAttackCount || 0} cur
+                          ({match.matchSituation?.home.totalAttacks || 0} total)
                         </span>
                       </div>
                     </div>
@@ -1110,11 +1113,14 @@ const MarketRow = ({
                       <div className='flex items-center gap-2'>
                         <span className='text-sm font-medium text-amber-600'>
                           {match.matchSituation?.away.totalDangerousCount || 0}{' '}
-                          dng
+                          dng (
+                          {match.matchSituation?.away.totalDangerousAttacks ||
+                            0}{' '}
+                          total)
                         </span>
                         <span className='text-sm font-medium text-blue-600'>
-                          {match.matchSituation?.away.totalAttackCount || 0}{' '}
-                          total
+                          {match.matchSituation?.away.totalAttackCount || 0} cur
+                          ({match.matchSituation?.away.totalAttacks || 0} total)
                         </span>
                       </div>
                     </div>
@@ -1122,10 +1128,14 @@ const MarketRow = ({
                       <span className='text-xs text-gray-500'>Safe:</span>
                       <div className='flex items-center gap-2'>
                         <span className='text-sm font-medium text-blue-600'>
-                          {match.matchSituation?.home.totalSafeCount || 0}H
+                          {match.matchSituation?.home.totalSafeCount || 0}H (
+                          {match.matchSituation?.home.totalSafeAttacks || 0}{' '}
+                          total)
                         </span>
                         <span className='text-sm font-medium text-purple-600'>
-                          {match.matchSituation?.away.totalSafeCount || 0}A
+                          {match.matchSituation?.away.totalSafeCount || 0}A (
+                          {match.matchSituation?.away.totalSafeAttacks || 0}{' '}
+                          total)
                         </span>
                       </div>
                     </div>
@@ -1702,7 +1712,6 @@ const MatchesPage = () => {
 
   // Restore the timer effect for copiedText
   useEffect(() => {
-    // Reset the timer whenever new text comes in
     if (copiedText) {
       const timer = setTimeout(() => {
         setCopiedText('');
@@ -1764,22 +1773,19 @@ const MatchesPage = () => {
     return statusOrder[status as keyof typeof statusOrder] || 0;
   };
 
-  // Add debug logging
+  // Remove debug logging
   useEffect(() => {
-    console.log('Active Tab:', activeTab);
-    console.log('Live Matches:', liveMatches.length);
-    console.log('All Live Matches:', allLiveMatches.length);
-    console.log('Filtered Matches:', filteredMatches.length);
-    console.log('Is Connected:', isConnected);
-    console.log('Is Paused:', isPaused);
-  }, [
-    activeTab,
-    liveMatches,
-    allLiveMatches,
-    filteredMatches,
-    isConnected,
-    isPaused,
-  ]);
+    if (isPredictionDataLoaded && predictionData.length > 0) {
+      const timeoutId = setTimeout(() => {
+        // Only log essential information
+        if (predictionData.length > 0) {
+          // Remove this console.log as well
+        }
+      }, 500);
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [isPredictionDataLoaded, predictionData.length]);
 
   // Function to clear all carts
   const clearAllCarts = (): void => {
@@ -1811,22 +1817,6 @@ const MatchesPage = () => {
       )
       .catch((err) => console.error('Failed to copy:', err));
   };
-
-  // Update the useEffect to remove unnecessary logging
-  useEffect(() => {
-    if (isPredictionDataLoaded && predictionData.length > 0) {
-      const timeoutId = setTimeout(() => {
-        // Only log essential information
-        if (predictionData.length > 0) {
-          console.log(
-            `Prediction data loaded: ${predictionData.length} matches`
-          );
-        }
-      }, 500);
-
-      return () => clearTimeout(timeoutId);
-    }
-  }, [isPredictionDataLoaded, predictionData.length]);
 
   return (
     <div className='min-h-screen bg-gray-50'>
