@@ -909,28 +909,31 @@ const MarketRow = ({
                   predictionMatch.headToHead.matches > 0 ? (
                     <div className='space-y-1 text-xs'>
                       <div className='flex justify-between'>
-                        <span className='text-gray-500'>Record:</span>
+                        <span className='text-blue-600'>Home:</span>
                         <span className='font-medium'>
-                          {predictionMatch.headToHead.wins}W{' '}
-                          {predictionMatch.headToHead.draws}D{' '}
-                          {predictionMatch.headToHead.losses}L
+                          {predictionMatch.headToHead.wins}W
                         </span>
                       </div>
                       <div className='flex justify-between'>
-                        <span className='text-gray-500'>Goals:</span>
+                        <span className='text-purple-600'>Away:</span>
                         <span className='font-medium'>
-                          {predictionMatch.headToHead.goalsScored}-
-                          {predictionMatch.headToHead.goalsConceded}
+                          {predictionMatch.headToHead.losses}W
                         </span>
                       </div>
                       <div className='flex justify-between'>
-                        <span className='text-gray-500'>Matches:</span>
+                        <span className='text-gray-500'>Draw:</span>
                         <span className='font-medium'>
-                          {predictionMatch.headToHead.matches}
+                          {predictionMatch.headToHead.draws}
+                        </span>
+                      </div>
+                      <div className='flex justify-between border-t border-gray-200 pt-1 mt-1'>
+                        <span className='text-gray-500'>Total:</span>
+                        <span className='font-medium'>
+                          {predictionMatch.headToHead.matches} matches
                         </span>
                       </div>
                       {predictionMatch.headToHead.recentMatches && (
-                        <div className='flex gap-1 mt-1'>
+                        <div className='flex gap-1 mt-1 border-t border-gray-200 pt-1'>
                           {predictionMatch.headToHead.recentMatches
                             .slice(0, 5)
                             .map((match: any, idx: number) => (
