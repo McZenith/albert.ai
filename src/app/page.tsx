@@ -1204,6 +1204,60 @@ const MarketRow = ({
                 </div>
               </div>
 
+              {/* Goals Stats */}
+              <div className='bg-gray-50 rounded-lg p-3'>
+                <h4 className='text-xs font-medium text-gray-500 mb-2'>
+                  GOALS STATS
+                </h4>
+                <div className='space-y-2'>
+                  <div className='flex justify-between items-center'>
+                    <span className='text-xs text-blue-600'>HOME</span>
+                    <div>
+                      <span className='text-sm font-medium'>
+                        {predictionMatch?.homeTeam?.averageGoalsScored?.toFixed(
+                          1
+                        ) || '-'}
+                      </span>
+                      <span className='text-xs text-gray-500 ml-1'>
+                        Scored/Game
+                      </span>
+                    </div>
+                  </div>
+                  <div className='flex justify-between items-center'>
+                    <span className='text-xs text-purple-600'>AWAY</span>
+                    <div>
+                      <span className='text-sm font-medium'>
+                        {predictionMatch?.awayTeam?.averageGoalsScored?.toFixed(
+                          1
+                        ) || '-'}
+                      </span>
+                      <span className='text-xs text-gray-500 ml-1'>
+                        Scored/Game
+                      </span>
+                    </div>
+                  </div>
+                  <div className='flex justify-between items-center border-t border-gray-200 pt-2'>
+                    <span className='text-xs text-gray-500'>
+                      Expected Goals
+                    </span>
+                    <div>
+                      <span
+                        className={`text-sm font-bold ${
+                          predictionMatch?.expectedGoals >= 2.2
+                            ? 'text-green-600'
+                            : predictionMatch?.expectedGoals >= 1.5
+                            ? 'text-yellow-600'
+                            : 'text-red-600'
+                        }`}
+                      >
+                        {predictionMatch?.expectedGoals?.toFixed(1) || '-'}
+                      </span>
+                      <span className='text-xs text-gray-500 ml-1'>xG</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* Prediction Reasons */}
               <div className='bg-gray-50 rounded-lg p-2 mt-2'>
                 <h4 className='text-xs font-medium text-gray-500 mb-1'>
