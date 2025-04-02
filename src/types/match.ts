@@ -104,7 +104,7 @@ export interface ClientMatchDetails {
         attackPercentage: string;
         dangerousAttackPercentage: string;
     };
-    types: string[];
+    types: Record<string, string>;
 }
 
 export interface RecentMatch {
@@ -259,7 +259,7 @@ export interface TransformedMatchDetails {
         attackPercentage: number;
         dangerousAttackPercentage: number;
     };
-    types: string[];
+    types: Record<string, string>;
 }
 
 export interface UpcomingMatch {
@@ -529,4 +529,46 @@ export interface Team {
     };
 }
 
-export type Match = UpcomingMatch | ClientMatch; 
+export interface MatchDetails {
+    home: {
+        yellowCards: number;
+        redCards: number;
+        freeKicks: number;
+        goalKicks: number;
+        throwIns: number;
+        offsides: number;
+        cornerKicks: number;
+        shotsOnTarget: number;
+        shotsOffTarget: number;
+        saves: number;
+        goalAttempts: number;
+        totalAttacks: number;
+        dangerousAttacks: number;
+        ballSafe: number;
+        attackPercentage: number;
+        ballSafePercentage: number;
+        dangerousAttackPercentage: number;
+    };
+    away: {
+        yellowCards: number;
+        redCards: number;
+        freeKicks: number;
+        goalKicks: number;
+        throwIns: number;
+        offsides: number;
+        cornerKicks: number;
+        shotsOnTarget: number;
+        shotsOffTarget: number;
+        saves: number;
+        goalAttempts: number;
+        totalAttacks: number;
+        dangerousAttacks: number;
+        ballSafe: number;
+        attackPercentage: number;
+        ballSafePercentage: number;
+        dangerousAttackPercentage: number;
+    };
+    types: Record<string, string>;
+}
+
+export type Match = UpcomingMatch | ClientMatch | TransformedMatch; 

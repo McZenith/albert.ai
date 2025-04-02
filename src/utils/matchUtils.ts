@@ -41,12 +41,24 @@ export const transformMatchStatus = (match: ClientMatch): { status: 'FT' | '1H' 
 
 // Transform match situation data
 export const transformMatchSituation = (matchSituation: ClientMatch['matchSituation']) => {
-    if (!matchSituation) return undefined;
+    if (!matchSituation) {
+        console.log('No match situation data to transform');
+        return undefined;
+    }
 
-    return {
-        totalTime: Number(matchSituation.totalTime) || 0,
+    // Log incoming data
+    console.log('Transforming match situation:', {
+        totalTime: matchSituation.totalTime,
         dominantTeam: matchSituation.dominantTeam,
         matchMomentum: matchSituation.matchMomentum,
+        home: matchSituation.home,
+        away: matchSituation.away
+    });
+
+    const transformed = {
+        totalTime: Number(matchSituation.totalTime) || 0,
+        dominantTeam: matchSituation.dominantTeam || '',
+        matchMomentum: matchSituation.matchMomentum || '',
         home: {
             totalAttacks: Number(matchSituation.home.totalAttacks) || 0,
             totalDangerousAttacks: Number(matchSituation.home.totalDangerousAttacks) || 0,
@@ -70,13 +82,28 @@ export const transformMatchSituation = (matchSituation: ClientMatch['matchSituat
             safeAttackPercentage: Number(matchSituation.away.safeAttackPercentage) || 0
         }
     };
+
+    // Log transformed data
+    console.log('Transformed match situation:', transformed);
+
+    return transformed;
 };
 
 // Transform match details data
 export const transformMatchDetails = (matchDetails: ClientMatch['matchDetails']) => {
-    if (!matchDetails) return undefined;
+    if (!matchDetails) {
+        console.log('No match details data to transform');
+        return undefined;
+    }
 
-    return {
+    // Log incoming data
+    console.log('Transforming match details:', {
+        home: matchDetails.home,
+        away: matchDetails.away,
+        types: matchDetails.types
+    });
+
+    const transformed = {
         home: {
             yellowCards: Number(matchDetails.home.yellowCards) || 0,
             redCards: Number(matchDetails.home.redCards) || 0,
@@ -121,6 +148,11 @@ export const transformMatchDetails = (matchDetails: ClientMatch['matchDetails'])
         },
         types: matchDetails.types
     };
+
+    // Log transformed data
+    console.log('Transformed match details:', transformed);
+
+    return transformed;
 };
 
 // Transform markets data
@@ -144,22 +176,40 @@ export const transformMarkets = (markets: ClientMatch['markets']) => {
 
 // Transform a single match
 export const transformMatch = (match: ClientMatch): TransformedMatch => {
-    const { status, playedSeconds } = transformMatchStatus(match);
+    // Log incoming match data
+    console.log('Transforming match:', {
+        id: match.id,
+        matchSituation: match.matchSituation,
+        matchDetails: match.matchDetails
+    });
 
-    return {
+    const { status, playedSeconds } = transformMatchStatus(match);
+    const transformedMatchSituation = transformMatchSituation(match.matchSituation);
+    const transformedMatchDetails = transformMatchDetails(match.matchDetails);
+
+    const transformed = {
         id: match.id,
         seasonId: match.seasonId,
         teams: match.teams,
         tournamentName: match.tournamentName,
         status,
         playedSeconds,
-        matchSituation: transformMatchSituation(match.matchSituation),
-        matchDetails: transformMatchDetails(match.matchDetails),
+        matchSituation: transformedMatchSituation,
+        matchDetails: transformedMatchDetails,
         markets: transformMarkets(match.markets),
         score: match.score,
         createdAt: match.lastUpdated,
         matchTime: match.lastUpdated
     };
+
+    // Log final transformed match
+    console.log('Transformed match result:', {
+        id: transformed.id,
+        matchSituation: transformed.matchSituation,
+        matchDetails: transformed.matchDetails
+    });
+
+    return transformed;
 };
 
 // Helper function to normalize team names for comparison

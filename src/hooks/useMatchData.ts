@@ -277,7 +277,7 @@ export const useMatchData = () => {
 
         const startConnection = async () => {
             try {
-                const connection = new HubConnectionBuilder() 
+                const connection = new HubConnectionBuilder()
                     .withUrl('https://fredapi-5da7cd50ded2.herokuapp.com/livematchhub')
                     .withAutomaticReconnect([0, 2000, 5000, 10000, 20000])
                     .build();
@@ -305,44 +305,24 @@ export const useMatchData = () => {
                 // Handle arbitrage matches
                 connection.on('ReceiveArbitrageLiveMatches', (data: ClientMatch[]) => {
                     if (!isPaused && isMounted) {
-                        const newMatchesMap = new Map(data.map(match => [match.id, transformMatch(match)]));
+                        console.log('Received arbitrage matches:', data);
+                        const transformedMatches = data.map(match => {
+                            const existingMatch = latestMatchesRef.current.get(match.id);
+                            const transformedMatch = transformMatch(match);
 
-                        // Check for any new matches that weren't in our previous state
-                        if (isPredictionDataLoaded && predictionData.length > 0) {
-                            const checkNewMatchesForPredictions = () => {
-                                data.forEach(match => {
-                                    const matchId = match.id;
-                                    const isNewMatch = !latestMatchesRef.current.has(matchId);
-
-                                    if (isNewMatch) {
-                                        console.log(`New match detected: ${match.teams.home.name} vs ${match.teams.away.name} (ID: ${matchId})`);
-
-                                        const prediction = findPredictionForMatch(
-                                            match.teams.home.name,
-                                            match.teams.away.name,
-                                            matchId,
-                                            predictionData
-                                        );
-
-                                        if (prediction) {
-                                            console.log(`✅ Found prediction for new match: ${match.teams.home.name} vs ${match.teams.away.name}`);
-                                        } else {
-                                            console.log(`❌ No prediction found for new match: ${match.teams.home.name} vs ${match.teams.away.name}`);
-                                            setAllMatchesChecked(false);
-                                        }
-                                    }
-                                });
-                            };
-
-                            setTimeout(checkNewMatchesForPredictions, 10);
-                        }
-
-                        const updatedMatches = data.map(newMatch => {
-                            const existingMatch = latestMatchesRef.current.get(newMatch.id);
-                            const transformedMatch = transformMatch(newMatch);
+                            // Log the transformation for debugging
+                            console.log('Original match:', {
+                                id: match.id,
+                                matchSituation: match.matchSituation,
+                                matchDetails: match.matchDetails
+                            });
+                            console.log('Transformed match:', {
+                                id: transformedMatch.id,
+                                matchSituation: transformedMatch.matchSituation,
+                                matchDetails: transformedMatch.matchDetails
+                            });
 
                             if (existingMatch) {
-                                // Preserve the isChanged state for outcomes
                                 transformedMatch.markets = transformedMatch.markets.map((market, marketIndex) => ({
                                     ...market,
                                     outcomes: market.outcomes.map((outcome, outcomeIndex) => ({
@@ -355,22 +335,33 @@ export const useMatchData = () => {
                             return transformedMatch;
                         });
 
-                        latestMatchesRef.current = newMatchesMap;
-                        setMatches(updatedMatches);
+                        // Update refs and state
+                        latestMatchesRef.current = new Map(transformedMatches.map(match => [match.id, match]));
+                        setMatches(transformedMatches);
                     }
                 });
 
                 // Handle all live matches
                 connection.on('ReceiveAllLiveMatches', (data: ClientMatch[]) => {
                     if (!isPaused && isMounted) {
-                        const newMatchesMap = new Map(data.map(match => [match.id, transformMatch(match)]));
+                        console.log('Received all live matches:', data);
+                        const transformedMatches = data.map(match => {
+                            const existingMatch = latestAllMatchesRef.current.get(match.id);
+                            const transformedMatch = transformMatch(match);
 
-                        const updatedMatches = data.map(newMatch => {
-                            const existingMatch = latestAllMatchesRef.current.get(newMatch.id);
-                            const transformedMatch = transformMatch(newMatch);
+                            // Log the transformation for debugging
+                            console.log('Original match:', {
+                                id: match.id,
+                                matchSituation: match.matchSituation,
+                                matchDetails: match.matchDetails
+                            });
+                            console.log('Transformed match:', {
+                                id: transformedMatch.id,
+                                matchSituation: transformedMatch.matchSituation,
+                                matchDetails: transformedMatch.matchDetails
+                            });
 
                             if (existingMatch) {
-                                // Preserve the isChanged state for outcomes
                                 transformedMatch.markets = transformedMatch.markets.map((market, marketIndex) => ({
                                     ...market,
                                     outcomes: market.outcomes.map((outcome, outcomeIndex) => ({
@@ -383,8 +374,9 @@ export const useMatchData = () => {
                             return transformedMatch;
                         });
 
-                        latestAllMatchesRef.current = newMatchesMap;
-                        setAllLiveMatches(updatedMatches);
+                        // Update refs and state
+                        latestAllMatchesRef.current = new Map(transformedMatches.map(match => [match.id, match]));
+                        setAllLiveMatches(transformedMatches);
                     }
                 });
 

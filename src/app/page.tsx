@@ -98,7 +98,7 @@ interface Match {
       attackPercentage: number;
       dangerousAttackPercentage: number;
     };
-    types: string[];
+    types: Record<string, string>;
   };
   markets: Array<{
     id: string;
@@ -1014,12 +1014,10 @@ const MarketRow = ({
                       <span className='text-xs text-gray-500'>Dominant:</span>
                       <span
                         className={`text-sm font-medium ${
-                          match.matchSituation?.dominantTeam ===
-                          match.teams.home.name
-                            ? 'text-blue-600'
-                            : match.matchSituation?.dominantTeam ===
-                              match.teams.away.name
+                          match.matchSituation?.dominantTeam === 'Away'
                             ? 'text-purple-600'
+                            : match.matchSituation?.dominantTeam === 'Home'
+                            ? 'text-blue-600'
                             : 'text-gray-600'
                         }`}
                       >
@@ -1030,12 +1028,10 @@ const MarketRow = ({
                       <span className='text-xs text-gray-500'>Trend:</span>
                       <span
                         className={`text-sm font-medium ${
-                          match.matchSituation?.matchMomentum ===
-                          match.teams.home.name
-                            ? 'text-blue-600'
-                            : match.matchSituation?.matchMomentum ===
-                              match.teams.away.name
+                          match.matchSituation?.matchMomentum === 'Away'
                             ? 'text-purple-600'
+                            : match.matchSituation?.matchMomentum === 'Home'
+                            ? 'text-blue-600'
                             : 'text-gray-600'
                         }`}
                       >
@@ -1100,10 +1096,12 @@ const MarketRow = ({
                       <span className='text-xs text-blue-600'>HOME</span>
                       <div className='flex items-center gap-2'>
                         <span className='text-sm font-medium text-amber-600'>
-                          {match.matchDetails?.home.dangerousAttacks || 0} dng
+                          {match.matchSituation?.home.totalDangerousCount || 0}{' '}
+                          dng
                         </span>
                         <span className='text-sm font-medium text-blue-600'>
-                          {match.matchDetails?.home.totalAttacks || 0} total
+                          {match.matchSituation?.home.totalAttackCount || 0}{' '}
+                          total
                         </span>
                       </div>
                     </div>
@@ -1111,21 +1109,34 @@ const MarketRow = ({
                       <span className='text-xs text-purple-600'>AWAY</span>
                       <div className='flex items-center gap-2'>
                         <span className='text-sm font-medium text-amber-600'>
-                          {match.matchDetails?.away.dangerousAttacks || 0} dng
+                          {match.matchSituation?.away.totalDangerousCount || 0}{' '}
+                          dng
                         </span>
                         <span className='text-sm font-medium text-blue-600'>
-                          {match.matchDetails?.away.totalAttacks || 0} total
+                          {match.matchSituation?.away.totalAttackCount || 0}{' '}
+                          total
                         </span>
                       </div>
                     </div>
                     <div className='flex justify-between items-center'>
-                      <span className='text-xs text-gray-500'>Ball Safe:</span>
+                      <span className='text-xs text-gray-500'>Safe:</span>
                       <div className='flex items-center gap-2'>
                         <span className='text-sm font-medium text-blue-600'>
-                          {match.matchDetails?.home.ballSafe || 0}H
+                          {match.matchSituation?.home.totalSafeCount || 0}H
                         </span>
                         <span className='text-sm font-medium text-purple-600'>
-                          {match.matchDetails?.away.ballSafe || 0}A
+                          {match.matchSituation?.away.totalSafeCount || 0}A
+                        </span>
+                      </div>
+                    </div>
+                    <div className='flex justify-between items-center'>
+                      <span className='text-xs text-gray-500'>Attack %:</span>
+                      <div className='flex items-center gap-2'>
+                        <span className='text-sm font-medium text-blue-600'>
+                          {match.matchSituation?.home.attackPercentage || 0}%H
+                        </span>
+                        <span className='text-sm font-medium text-purple-600'>
+                          {match.matchSituation?.away.attackPercentage || 0}%A
                         </span>
                       </div>
                     </div>
@@ -1134,8 +1145,58 @@ const MarketRow = ({
               </div>
 
               {/* Additional Match Stats */}
-              <div className='grid grid-cols-3 gap-4'>
-                {/* Corner Stats */}
+              <div className='grid grid-cols-4 gap-4'>
+                {/* Attack Percentages */}
+                <div className='bg-gray-50 rounded-lg p-3'>
+                  <h4 className='text-xs font-medium text-gray-500 mb-2'>
+                    ATTACK BREAKDOWN
+                  </h4>
+                  <div className='space-y-2'>
+                    <div className='flex justify-between items-center'>
+                      <span className='text-xs text-blue-600'>HOME</span>
+                      <div className='flex items-center gap-2'>
+                        <span className='text-sm font-medium text-amber-600'>
+                          {match.matchSituation?.home
+                            .dangerousAttackPercentage || 0}
+                          % dng
+                        </span>
+                        <span className='text-sm font-medium text-blue-600'>
+                          {match.matchSituation?.home.safeAttackPercentage || 0}
+                          % safe
+                        </span>
+                      </div>
+                    </div>
+                    <div className='flex justify-between items-center'>
+                      <span className='text-xs text-purple-600'>AWAY</span>
+                      <div className='flex items-center gap-2'>
+                        <span className='text-sm font-medium text-amber-600'>
+                          {match.matchSituation?.away
+                            .dangerousAttackPercentage || 0}
+                          % dng
+                        </span>
+                        <span className='text-sm font-medium text-blue-600'>
+                          {match.matchSituation?.away.safeAttackPercentage || 0}
+                          % safe
+                        </span>
+                      </div>
+                    </div>
+                    <div className='flex justify-between items-center'>
+                      <span className='text-xs text-gray-500'>
+                        Total Count:
+                      </span>
+                      <div className='flex items-center gap-2'>
+                        <span className='text-sm font-medium text-blue-600'>
+                          {match.matchSituation?.home.totalAttackCount || 0}H
+                        </span>
+                        <span className='text-sm font-medium text-purple-600'>
+                          {match.matchSituation?.away.totalAttackCount || 0}A
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Corners & Cards */}
                 <div className='bg-gray-50 rounded-lg p-3'>
                   <h4 className='text-xs font-medium text-gray-500 mb-2'>
                     CORNERS & CARDS
@@ -1203,34 +1264,38 @@ const MarketRow = ({
                   </div>
                 </div>
 
-                {/* Other Stats */}
+                {/* Key Insights */}
                 <div className='bg-gray-50 rounded-lg p-3'>
                   <h4 className='text-xs font-medium text-gray-500 mb-2'>
-                    OTHER STATS
+                    KEY INSIGHTS
                   </h4>
-                  <div className='space-y-2'>
-                    <div className='flex justify-between items-center'>
-                      <span className='text-xs text-blue-600'>HOME</span>
-                      <div className='flex items-center gap-2'>
-                        <span className='text-sm font-medium'>
-                          {match.matchDetails?.home.offsides || 0} off
-                        </span>
-                        <span className='text-sm font-medium text-amber-600'>
-                          {match.matchDetails?.home.saves || 0} saves
-                        </span>
-                      </div>
-                    </div>
-                    <div className='flex justify-between items-center'>
-                      <span className='text-xs text-purple-600'>AWAY</span>
-                      <div className='flex items-center gap-2'>
-                        <span className='text-sm font-medium'>
-                          {match.matchDetails?.away.offsides || 0} off
-                        </span>
-                        <span className='text-sm font-medium text-amber-600'>
-                          {match.matchDetails?.away.saves || 0} saves
-                        </span>
-                      </div>
-                    </div>
+                  <div className='space-y-1 max-h-[80px] overflow-y-auto text-xs'>
+                    {predictionMatch?.reasonsForPrediction ? (
+                      predictionMatch.reasonsForPrediction.map(
+                        (reason: string, idx: number) => (
+                          <div
+                            key={idx}
+                            className='text-gray-600 flex items-start'
+                          >
+                            <span className='text-blue-600 mr-1'>•</span>
+                            {reason}
+                          </div>
+                        )
+                      )
+                    ) : (
+                      <>
+                        <div className='text-gray-600 flex items-start'>
+                          <span className='text-blue-600 mr-1'>•</span>
+                          High-scoring potential: {match.teams.home.name} (2.14
+                          home) vs {match.teams.away.name} (3.12 away)
+                        </div>
+                        <div className='text-gray-600 flex items-start'>
+                          <span className='text-blue-600 mr-1'>•</span>
+                          H2H: High-scoring fixtures averaging 3.1 goals per
+                          game
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1378,45 +1443,6 @@ const MarketRow = ({
                   </div>
                 </div>
               </div>
-
-              {/* Key Insights */}
-              <div className='bg-gray-50 rounded-lg p-2 mt-2'>
-                <h4 className='text-xs font-medium text-gray-500 mb-1'>
-                  KEY INSIGHTS
-                </h4>
-                <ul className='space-y-1 max-h-[60px] overflow-y-auto text-xs'>
-                  {predictionMatch?.reasonsForPrediction ? (
-                    predictionMatch.reasonsForPrediction.map(
-                      (reason: string, idx: number) => (
-                        <li
-                          key={idx}
-                          className='text-gray-600 flex items-start'
-                        >
-                          <span className='text-blue-600 mr-1'>•</span>
-                          {reason}
-                        </li>
-                      )
-                    )
-                  ) : (
-                    <>
-                      <li className='text-gray-600 flex items-start'>
-                        <span className='text-blue-600 mr-1'>•</span>
-                        High-scoring potential: {match.teams.home.name} (2.14
-                        home) vs {match.teams.away.name} (3.12 away)
-                      </li>
-                      <li className='text-gray-600 flex items-start'>
-                        <span className='text-blue-600 mr-1'>•</span>
-                        H2H: High-scoring fixtures averaging 3.1 goals per game
-                      </li>
-                      <li className='text-gray-600 flex items-start'>
-                        <span className='text-blue-600 mr-1'>•</span>
-                        Slight favorite: {match.teams.away.name} (H: 2.91, A:
-                        2.39)
-                      </li>
-                    </>
-                  )}
-                </ul>
-              </div>
             </div>
           </td>
         </tr>
@@ -1504,7 +1530,17 @@ const MatchesPage = () => {
   }, [allLiveMatches, isConnected]);
 
   const getSortedAndFilteredMatches = (matches: Match[]): Match[] => {
-    const filtered = matches.filter((match) => {
+    const transformedMatches = matches.map((match) => ({
+      ...match,
+      matchDetails: match.matchDetails
+        ? {
+            ...match.matchDetails,
+            types: match.matchDetails.types || {},
+          }
+        : undefined,
+    }));
+
+    const filtered = transformedMatches.filter((match) => {
       // Split search query into home and away team parts
       const searchLower = searchQuery.toLowerCase().trim();
       const [homeSearch, awaySearch] = searchLower
