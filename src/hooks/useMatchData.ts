@@ -35,9 +35,101 @@ const safeNumber = (value: unknown): number => {
 const processMatchData = (match: Match) => {
     const normalizedTime = normalizeTimeFormat(match.time);
 
+    const defaultTeamData = {
+        id: '',
+        name: '',
+        position: 0,
+        logo: '🏆',
+        avgHomeGoals: 0,
+        avgAwayGoals: 0,
+        avgTotalGoals: 0,
+        homeMatchesOver15: 0,
+        awayMatchesOver15: 0,
+        totalHomeMatches: 0,
+        totalAwayMatches: 0,
+        form: '',
+        homeForm: '',
+        awayForm: '',
+        cleanSheets: 0,
+        homeCleanSheets: 0,
+        awayCleanSheets: 0,
+        scoringFirstWinRate: 0,
+        concedingFirstWinRate: 0,
+        firstHalfGoalsPercent: null,
+        secondHalfGoalsPercent: null,
+        avgCorners: 0,
+        bttsRate: 0,
+        homeBttsRate: 0,
+        awayBttsRate: 0,
+        lateGoalRate: 0,
+        goalDistribution: {
+            '0-15': { total: 0, home: 0, away: 0 },
+            '16-30': { total: 0, home: 0, away: 0 },
+            '31-45': { total: 0, home: 0, away: 0 },
+            '46-60': { total: 0, home: 0, away: 0 },
+            '61-75': { total: 0, home: 0, away: 0 },
+            '76-90': { total: 0, home: 0, away: 0 }
+        },
+        againstTopTeamsPoints: null,
+        againstMidTeamsPoints: null,
+        againstBottomTeamsPoints: null,
+        isHomeTeam: false,
+        formStrength: 0,
+        formRating: 0,
+        winPercentage: 0,
+        drawPercentage: 0,
+        homeWinPercentage: 0,
+        awayWinPercentage: 0,
+        cleanSheetPercentage: 0,
+        averageGoalsScored: 0,
+        averageGoalsConceded: 0,
+        homeAverageGoalsScored: 0,
+        homeAverageGoalsConceded: 0,
+        awayAverageGoalsScored: 0,
+        awayAverageGoalsConceded: 0,
+        goalsScoredAverage: 0,
+        goalsConcededAverage: 0,
+        averageCorners: 0,
+        avgOdds: 0,
+        leagueAvgGoals: 0,
+        possession: 50,
+        opponentName: '',
+        totalHomeWins: 0,
+        totalAwayWins: 0,
+        totalHomeDraws: 0,
+        totalAwayDraws: 0,
+        totalHomeLosses: 0,
+        totalAwayLosses: 0,
+        over05: 0,
+        over15: 0,
+        over25: 0,
+        over35: 0,
+        over45: 0,
+        cleanSheetRate: 0,
+        cornerStats: {
+            avgCorners: 0,
+            avgCornersFor: 0,
+            avgCornersAgainst: 0
+        },
+        scoringStats: {
+            avgGoalsScored: 0,
+            avgGoalsConceded: 0,
+            avgTotalGoals: 0
+        },
+        patterns: {
+            btts: 0,
+            over15: 0,
+            over25: 0,
+            over35: 0
+        }
+    };
+
     const homeTeamData = {
+        ...defaultTeamData,
         ...match.homeTeam,
         name: enhancedCleanTeamName(match.homeTeam.name),
+        isHomeTeam: true,
+        opponentName: match.awayTeam.name,
         avgHomeGoals: safeNumber(match.homeTeam.homeAverageGoalsScored) ||
             safeNumber(match.homeTeam.averageGoalsScored) ||
             safeNumber(match.homeTeam.avgHomeGoals),
@@ -48,8 +140,11 @@ const processMatchData = (match: Match) => {
     };
 
     const awayTeamData = {
+        ...defaultTeamData,
         ...match.awayTeam,
         name: enhancedCleanTeamName(match.awayTeam.name),
+        isHomeTeam: false,
+        opponentName: match.homeTeam.name,
         avgHomeGoals: safeNumber(match.awayTeam.homeAverageGoalsScored) ||
             safeNumber(match.awayTeam.averageGoalsScored) ||
             safeNumber(match.awayTeam.avgHomeGoals),
@@ -64,6 +159,44 @@ const processMatchData = (match: Match) => {
         time: normalizedTime,
         homeTeam: homeTeamData,
         awayTeam: awayTeamData,
+        positionGap: safeNumber(match.positionGap),
+        favorite: match.favorite || null,
+        confidenceScore: safeNumber(match.confidenceScore),
+        averageGoals: safeNumber(match.averageGoals),
+        expectedGoals: safeNumber(match.expectedGoals),
+        defensiveStrength: safeNumber(match.defensiveStrength),
+        odds: {
+            homeWin: safeNumber(match.odds?.homeWin),
+            draw: safeNumber(match.odds?.draw),
+            awayWin: safeNumber(match.odds?.awayWin),
+            over15Goals: safeNumber(match.odds?.over15Goals),
+            under15Goals: safeNumber(match.odds?.under15Goals),
+            over25Goals: safeNumber(match.odds?.over25Goals),
+            under25Goals: safeNumber(match.odds?.under25Goals),
+            bttsYes: safeNumber(match.odds?.bttsYes),
+            bttsNo: safeNumber(match.odds?.bttsNo)
+        },
+        headToHead: {
+            matches: safeNumber(match.headToHead?.matches),
+            wins: safeNumber(match.headToHead?.wins),
+            draws: safeNumber(match.headToHead?.draws),
+            losses: safeNumber(match.headToHead?.losses),
+            goalsScored: safeNumber(match.headToHead?.goalsScored),
+            goalsConceded: safeNumber(match.headToHead?.goalsConceded),
+            recentMatches: match.headToHead?.recentMatches || []
+        },
+        cornerStats: {
+            homeAvg: safeNumber(match.cornerStats?.homeAvg),
+            awayAvg: safeNumber(match.cornerStats?.awayAvg),
+            totalAvg: safeNumber(match.cornerStats?.totalAvg)
+        },
+        scoringPatterns: {
+            homeFirstGoalRate: safeNumber(match.scoringPatterns?.homeFirstGoalRate),
+            awayFirstGoalRate: safeNumber(match.scoringPatterns?.awayFirstGoalRate),
+            homeLateGoalRate: safeNumber(match.scoringPatterns?.homeLateGoalRate),
+            awayLateGoalRate: safeNumber(match.scoringPatterns?.awayLateGoalRate)
+        },
+        reasonsForPrediction: match.reasonsForPrediction || []
     };
 };
 

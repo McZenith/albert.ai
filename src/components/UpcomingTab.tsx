@@ -11,48 +11,92 @@ import {
 import { useCartStore } from '@/hooks/useStore';
 
 interface Team {
+  id: string;
   name: string;
   position: number;
-  logo?: string;
-  avgHomeGoals?: number;
-  avgAwayGoals?: number;
+  logo: string;
+  avgHomeGoals: number;
+  avgAwayGoals: number;
   avgTotalGoals: number;
-  homeMatchesOver15?: number;
-  awayMatchesOver15?: number;
-  totalHomeMatches?: number;
-  totalAwayMatches?: number;
+  homeMatchesOver15: number;
+  awayMatchesOver15: number;
+  totalHomeMatches: number;
+  totalAwayMatches: number;
   form: string;
-  homeForm?: string;
-  awayForm?: string;
+  homeForm: string;
+  awayForm: string;
   cleanSheets: number;
-  homeCleanSheets?: number;
-  awayCleanSheets?: number;
-  scoringFirstWinRate?: number;
-  concedingFirstWinRate?: number;
-  firstHalfGoalsPercent?: number;
-  secondHalfGoalsPercent?: number;
-  avgCorners?: number;
-  bttsRate?: number;
-  homeBttsRate?: number;
-  awayBttsRate?: number;
-  lateGoalRate?: number;
-  homeAverageGoalsScored?: number;
-  awayAverageGoalsScored?: number;
-  averageGoalsScored?: number;
-  homeAverageGoalsConceded?: number;
-  awayAverageGoalsConceded?: number;
-  averageGoalsConceded?: number;
-  goalDistribution?: {
-    '0-15': number;
-    '16-30': number;
-    '31-45': number;
-    '46-60': number;
-    '61-75': number;
-    '76-90': number;
+  homeCleanSheets: number;
+  awayCleanSheets: number;
+  scoringFirstWinRate: number;
+  concedingFirstWinRate: number;
+  firstHalfGoalsPercent: number | null;
+  secondHalfGoalsPercent: number | null;
+  avgCorners: number;
+  bttsRate: number;
+  homeBttsRate: number;
+  awayBttsRate: number;
+  lateGoalRate: number;
+  goalDistribution: {
+    '0-15': { total: number; home: number; away: number };
+    '16-30': { total: number; home: number; away: number };
+    '31-45': { total: number; home: number; away: number };
+    '46-60': { total: number; home: number; away: number };
+    '61-75': { total: number; home: number; away: number };
+    '76-90': { total: number; home: number; away: number };
   };
-  againstTopTeamsPoints?: number;
-  againstMidTeamsPoints?: number;
-  againstBottomTeamsPoints?: number;
+  againstTopTeamsPoints: number | null;
+  againstMidTeamsPoints: number | null;
+  againstBottomTeamsPoints: number | null;
+  isHomeTeam: boolean;
+  formStrength: number;
+  formRating: number;
+  winPercentage: number;
+  drawPercentage: number;
+  homeWinPercentage: number;
+  awayWinPercentage: number;
+  cleanSheetPercentage: number;
+  averageGoalsScored: number;
+  averageGoalsConceded: number;
+  homeAverageGoalsScored: number;
+  homeAverageGoalsConceded: number;
+  awayAverageGoalsScored: number;
+  awayAverageGoalsConceded: number;
+  goalsScoredAverage: number;
+  goalsConcededAverage: number;
+  averageCorners: number;
+  avgOdds: number;
+  leagueAvgGoals: number;
+  possession: number;
+  opponentName: string;
+  totalHomeWins: number;
+  totalAwayWins: number;
+  totalHomeDraws: number;
+  totalAwayDraws: number;
+  totalHomeLosses: number;
+  totalAwayLosses: number;
+  over05: number;
+  over15: number;
+  over25: number;
+  over35: number;
+  over45: number;
+  cleanSheetRate: number;
+  cornerStats: {
+    avgCorners: number;
+    avgCornersFor: number;
+    avgCornersAgainst: number;
+  };
+  scoringStats: {
+    avgGoalsScored: number;
+    avgGoalsConceded: number;
+    avgTotalGoals: number;
+  };
+  patterns: {
+    btts: number;
+    over15: number;
+    over25: number;
+    over35: number;
+  };
 }
 
 interface HeadToHead {
@@ -62,7 +106,7 @@ interface HeadToHead {
   losses: number;
   goalsScored: number;
   goalsConceded: number;
-  recentMatches?: {
+  recentMatches: {
     date: string;
     result: string;
   }[];
@@ -81,27 +125,18 @@ interface Odds {
 }
 
 interface CornerStats {
-  home: {
-    average: number;
-    total: number;
-  };
-  away: {
-    average: number;
-    total: number;
-  };
+  homeAvg: number;
+  awayAvg: number;
+  totalAvg: number;
 }
 
 interface ScoringPatterns {
-  home: {
-    firstGoalRate: number;
-    lateGoalRate: number;
-    bttsRate: number;
-  };
-  away: {
-    firstGoalRate: number;
-    lateGoalRate: number;
-    bttsRate: number;
-  };
+  homeFirstGoalRate: number;
+  awayFirstGoalRate: number;
+  homeLateGoalRate: number;
+  awayLateGoalRate: number;
+  homeBttsRate: number;
+  awayBttsRate: number;
 }
 
 interface Match {
@@ -443,26 +478,17 @@ const MatchPredictor = () => {
           bttsNo: upcomingMatch.odds?.bttsNo || 0,
         },
         cornerStats: upcomingMatch.cornerStats || {
-          home: {
-            average: 0,
-            total: 0,
-          },
-          away: {
-            average: 0,
-            total: 0,
-          },
+          homeAvg: 0,
+          awayAvg: 0,
+          totalAvg: 0,
         },
         scoringPatterns: upcomingMatch.scoringPatterns || {
-          home: {
-            firstGoalRate: 0,
-            lateGoalRate: 0,
-            bttsRate: 0,
-          },
-          away: {
-            firstGoalRate: 0,
-            lateGoalRate: 0,
-            bttsRate: 0,
-          },
+          homeFirstGoalRate: 0,
+          awayFirstGoalRate: 0,
+          homeLateGoalRate: 0,
+          awayLateGoalRate: 0,
+          homeBttsRate: 0,
+          awayBttsRate: 0,
         },
         reasonsForPrediction: upcomingMatch.reasonsForPrediction || [],
       }));
@@ -2138,13 +2164,13 @@ const MatchPredictor = () => {
                                         </span>
                                         <div
                                           className={`text-lg ${getFirstGoalRateColor(
-                                            match.scoringPatterns?.home
-                                              ?.firstGoalRate || 0
+                                            match.scoringPatterns
+                                              ?.homeFirstGoalRate || 0
                                           )}`}
                                         >
                                           {getFirstGoalRateText(
-                                            match.scoringPatterns?.home
-                                              ?.firstGoalRate || 0
+                                            match.scoringPatterns
+                                              ?.homeFirstGoalRate || 0
                                           )}
                                         </div>
                                       </div>
@@ -2154,8 +2180,8 @@ const MatchPredictor = () => {
                                         </span>
                                         <span className='font-medium text-gray-900 text-xs'>
                                           {(
-                                            match.scoringPatterns?.home
-                                              ?.lateGoalRate ?? 0
+                                            match.scoringPatterns
+                                              ?.homeLateGoalRate || 0
                                           ).toFixed(1)}
                                           %
                                         </span>
@@ -2166,8 +2192,8 @@ const MatchPredictor = () => {
                                         </span>
                                         <span className='font-medium text-gray-900 text-xs'>
                                           {(
-                                            match.scoringPatterns?.home
-                                              ?.bttsRate ?? 0
+                                            match.scoringPatterns
+                                              ?.homeFirstGoalRate || 0
                                           ).toFixed(1)}
                                           %
                                         </span>
@@ -2178,7 +2204,7 @@ const MatchPredictor = () => {
                                         </span>
                                         <span className='font-medium text-gray-900 text-xs'>
                                           {(
-                                            match.homeTeam.homeBttsRate || 0
+                                            match.homeTeam.bttsRate || 0
                                           ).toFixed(1)}
                                           %
                                         </span>
@@ -2196,8 +2222,8 @@ const MatchPredictor = () => {
                                         </span>
                                         <span className='font-medium text-gray-900 text-xs'>
                                           {(
-                                            match.scoringPatterns?.away
-                                              ?.firstGoalRate || 0
+                                            match.scoringPatterns
+                                              ?.awayFirstGoalRate || 0
                                           ).toFixed(1)}
                                           %
                                         </span>
@@ -2208,8 +2234,8 @@ const MatchPredictor = () => {
                                         </span>
                                         <span className='font-medium text-gray-900 text-xs'>
                                           {(
-                                            match.scoringPatterns?.away
-                                              ?.lateGoalRate ?? 0
+                                            match.scoringPatterns
+                                              ?.awayLateGoalRate || 0
                                           ).toFixed(1)}
                                           %
                                         </span>
@@ -2220,8 +2246,8 @@ const MatchPredictor = () => {
                                         </span>
                                         <span className='font-medium text-gray-900 text-xs'>
                                           {(
-                                            match.scoringPatterns?.away
-                                              ?.bttsRate ?? 0
+                                            match.scoringPatterns
+                                              ?.awayFirstGoalRate || 0
                                           ).toFixed(1)}
                                           %
                                         </span>
@@ -2232,7 +2258,7 @@ const MatchPredictor = () => {
                                         </span>
                                         <span className='font-medium text-gray-900 text-xs'>
                                           {(
-                                            match.awayTeam.awayBttsRate || 0
+                                            match.awayTeam.bttsRate || 0
                                           ).toFixed(1)}
                                           %
                                         </span>
