@@ -2055,41 +2055,56 @@ const MatchPredictor = () => {
                                     <div className='space-y-1.5'>
                                       <div className='flex justify-between items-center'>
                                         <span className='text-gray-600 text-xs'>
-                                          Total Clean Sheets:
-                                        </span>
-                                        <span className='font-medium text-gray-900 text-xs'>
-                                          {match.homeTeam.cleanSheets || '0'}
-                                        </span>
-                                      </div>
-                                      <div className='flex justify-between items-center'>
-                                        <span className='text-gray-600 text-xs'>
-                                          Home Clean Sheets:
-                                        </span>
-                                        <span className='font-medium text-gray-900 text-xs'>
-                                          {match.homeTeam.homeCleanSheets ||
-                                            '0'}
-                                        </span>
-                                      </div>
-                                      <div className='flex justify-between items-center'>
-                                        <span className='text-gray-600 text-xs'>
-                                          Scoring First Win %:
+                                          Clean Sheet Rate:
                                         </span>
                                         <span className='font-medium text-gray-900 text-xs'>
                                           {(
-                                            match.homeTeam
-                                              .scoringFirstWinRate || 0
+                                            match.homeTeam.cleanSheetRate || 0
                                           ).toFixed(1)}
                                           %
                                         </span>
                                       </div>
                                       <div className='flex justify-between items-center'>
                                         <span className='text-gray-600 text-xs'>
-                                          Conceding First Win %:
+                                          Goals Scored Avg:
+                                        </span>
+                                        <span className='font-medium text-gray-900 text-xs'>
+                                          {(
+                                            match.homeTeam.averageGoalsScored ||
+                                            0
+                                          ).toFixed(1)}
+                                        </span>
+                                      </div>
+                                      <div className='flex justify-between items-center'>
+                                        <span className='text-gray-600 text-xs'>
+                                          Goals Conceded Avg:
                                         </span>
                                         <span className='font-medium text-gray-900 text-xs'>
                                           {(
                                             match.homeTeam
-                                              .concedingFirstWinRate || 0
+                                              .averageGoalsConceded || 0
+                                          ).toFixed(1)}
+                                        </span>
+                                      </div>
+                                      <div className='flex justify-between items-center'>
+                                        <span className='text-gray-600 text-xs'>
+                                          Win Rate:
+                                        </span>
+                                        <span className='font-medium text-gray-900 text-xs'>
+                                          {(
+                                            match.homeTeam.winPercentage || 0
+                                          ).toFixed(1)}
+                                          %
+                                        </span>
+                                      </div>
+                                      <div className='flex justify-between items-center'>
+                                        <span className='text-gray-600 text-xs'>
+                                          Home Win Rate:
+                                        </span>
+                                        <span className='font-medium text-gray-900 text-xs'>
+                                          {(
+                                            match.homeTeam.homeWinPercentage ||
+                                            0
                                           ).toFixed(1)}
                                           %
                                         </span>
@@ -2103,41 +2118,56 @@ const MatchPredictor = () => {
                                     <div className='space-y-1.5'>
                                       <div className='flex justify-between items-center'>
                                         <span className='text-gray-600 text-xs'>
-                                          Total Clean Sheets:
-                                        </span>
-                                        <span className='font-medium text-gray-900 text-xs'>
-                                          {match.awayTeam.cleanSheets || '0'}
-                                        </span>
-                                      </div>
-                                      <div className='flex justify-between items-center'>
-                                        <span className='text-gray-600 text-xs'>
-                                          Away Clean Sheets:
-                                        </span>
-                                        <span className='font-medium text-gray-900 text-xs'>
-                                          {match.awayTeam.awayCleanSheets ||
-                                            '0'}
-                                        </span>
-                                      </div>
-                                      <div className='flex justify-between items-center'>
-                                        <span className='text-gray-600 text-xs'>
-                                          Scoring First Win %:
+                                          Clean Sheet Rate:
                                         </span>
                                         <span className='font-medium text-gray-900 text-xs'>
                                           {(
-                                            match.awayTeam
-                                              .scoringFirstWinRate || 0
+                                            match.awayTeam.cleanSheetRate || 0
                                           ).toFixed(1)}
                                           %
                                         </span>
                                       </div>
                                       <div className='flex justify-between items-center'>
                                         <span className='text-gray-600 text-xs'>
-                                          Conceding First Win %:
+                                          Goals Scored Avg:
+                                        </span>
+                                        <span className='font-medium text-gray-900 text-xs'>
+                                          {(
+                                            match.awayTeam.averageGoalsScored ||
+                                            0
+                                          ).toFixed(1)}
+                                        </span>
+                                      </div>
+                                      <div className='flex justify-between items-center'>
+                                        <span className='text-gray-600 text-xs'>
+                                          Goals Conceded Avg:
                                         </span>
                                         <span className='font-medium text-gray-900 text-xs'>
                                           {(
                                             match.awayTeam
-                                              .concedingFirstWinRate || 0
+                                              .averageGoalsConceded || 0
+                                          ).toFixed(1)}
+                                        </span>
+                                      </div>
+                                      <div className='flex justify-between items-center'>
+                                        <span className='text-gray-600 text-xs'>
+                                          Win Rate:
+                                        </span>
+                                        <span className='font-medium text-gray-900 text-xs'>
+                                          {(
+                                            match.awayTeam.winPercentage || 0
+                                          ).toFixed(1)}
+                                          %
+                                        </span>
+                                      </div>
+                                      <div className='flex justify-between items-center'>
+                                        <span className='text-gray-600 text-xs'>
+                                          Away Win Rate:
+                                        </span>
+                                        <span className='font-medium text-gray-900 text-xs'>
+                                          {(
+                                            match.awayTeam.awayWinPercentage ||
+                                            0
                                           ).toFixed(1)}
                                           %
                                         </span>
