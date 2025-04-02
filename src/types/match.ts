@@ -1,6 +1,13 @@
 export interface ClientTeam {
     id: string;
     name: string;
+    position: number;
+    homeAverageGoalsScored?: number;
+    awayAverageGoalsScored?: number;
+    averageGoalsScored?: number;
+    avgHomeGoals?: number;
+    avgAwayGoals?: number;
+    avgTotalGoals?: number;
 }
 
 export interface ClientTeams {
@@ -100,7 +107,58 @@ export interface ClientMatchDetails {
     types: string[];
 }
 
-export interface ClientMatch {
+export interface RecentMatch {
+    date: string;
+    homeTeam: string;
+    awayTeam: string;
+    score: string;
+    result: 'W' | 'D' | 'L';
+}
+
+export interface MatchStats {
+    positionGap?: number;
+    favorite?: 'home' | 'away' | null;
+    confidenceScore?: number;
+    averageGoals?: number;
+    expectedGoals?: number;
+    defensiveStrength?: number;
+    date?: string;
+    venue?: string;
+    odds?: {
+        homeWin: number;
+        draw: number;
+        awayWin: number;
+        over15Goals: number;
+        under15Goals: number;
+        over25Goals: number;
+        under25Goals: number;
+        bttsYes: number;
+        bttsNo: number;
+    };
+    headToHead?: {
+        matches: number;
+        wins: number;
+        draws: number;
+        losses: number;
+        goalsScored: number;
+        goalsConceded: number;
+        recentMatches: RecentMatch[];
+    };
+    cornerStats?: {
+        homeAvg: number;
+        awayAvg: number;
+        totalAvg: number;
+    };
+    scoringPatterns?: {
+        homeFirstGoalRate: number;
+        awayFirstGoalRate: number;
+        homeLateGoalRate: number;
+        awayLateGoalRate: number;
+    };
+    reasonsForPrediction?: string[];
+}
+
+export interface ClientMatch extends MatchStats {
     id: string;
     seasonId: string;
     teams: ClientTeams;
@@ -113,6 +171,21 @@ export interface ClientMatch {
     lastUpdated: string;
     matchSituation?: ClientMatchSituation;
     matchDetails?: ClientMatchDetails;
+}
+
+export interface TransformedMatch extends MatchStats {
+    id: string;
+    seasonId: string;
+    teams: ClientTeams;
+    tournamentName: string;
+    status: 'FT' | '1H' | '2H' | 'HT' | 'NS';
+    playedSeconds: number;
+    matchSituation?: TransformedMatchSituation;
+    matchDetails?: TransformedMatchDetails;
+    score: string;
+    markets: ClientMarket[];
+    createdAt: string;
+    matchTime: string;
 }
 
 export interface TransformedMatchSituation {
@@ -187,35 +260,6 @@ export interface TransformedMatchDetails {
         dangerousAttackPercentage: number;
     };
     types: string[];
-}
-
-export interface TransformedMatch {
-    id: string;
-    seasonId: string;
-    teams: ClientTeams;
-    tournamentName: string;
-    status: 'FT' | '1H' | '2H' | 'HT' | 'NS';
-    playedSeconds: number;
-    matchSituation?: TransformedMatchSituation;
-    matchDetails?: TransformedMatchDetails;
-    markets: Array<{
-        id: string;
-        description: string;
-        specifier: string;
-        favourite: string;
-        profitPercentage: number;
-        margin: number;
-        outcomes: Array<{
-            id: string;
-            description: string;
-            odds: number;
-            stakePercentage: number;
-            isChanged?: boolean;
-        }>;
-    }>;
-    score: string;
-    createdAt: string;
-    matchTime: string;
 }
 
 export interface UpcomingMatch {

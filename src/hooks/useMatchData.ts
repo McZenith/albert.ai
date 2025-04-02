@@ -31,9 +31,26 @@ const safeNumber = (value: unknown): number => {
     return isNaN(num) ? 0 : num;
 };
 
+// Helper function to check if match is ClientMatch
+const isClientMatch = (match: Match): match is ClientMatch => {
+    return 'teams' in match;
+};
+
+// Helper function to get home team data
+const getHomeTeam = (match: Match) => {
+    return isClientMatch(match) ? match.teams.home : match.homeTeam;
+};
+
+// Helper function to get away team data
+const getAwayTeam = (match: Match) => {
+    return isClientMatch(match) ? match.teams.away : match.awayTeam;
+};
+
 // Process match data
 const processMatchData = (match: Match) => {
-    const normalizedTime = normalizeTimeFormat(match.time);
+    const normalizedTime = normalizeTimeFormat(isClientMatch(match) ? match.playedTime : '');
+    const homeTeam = getHomeTeam(match);
+    const awayTeam = getAwayTeam(match);
 
     const defaultTeamData = {
         id: '',
@@ -126,37 +143,39 @@ const processMatchData = (match: Match) => {
 
     const homeTeamData = {
         ...defaultTeamData,
-        ...match.homeTeam,
-        name: enhancedCleanTeamName(match.homeTeam.name),
+        ...homeTeam,
+        name: enhancedCleanTeamName(homeTeam.name),
         isHomeTeam: true,
-        opponentName: match.awayTeam.name,
-        avgHomeGoals: safeNumber(match.homeTeam.homeAverageGoalsScored) ||
-            safeNumber(match.homeTeam.averageGoalsScored) ||
-            safeNumber(match.homeTeam.avgHomeGoals),
-        avgAwayGoals: safeNumber(match.homeTeam.awayAverageGoalsScored) ||
-            safeNumber(match.homeTeam.averageGoalsScored) ||
-            safeNumber(match.homeTeam.avgAwayGoals),
-        avgTotalGoals: safeNumber(match.homeTeam.avgTotalGoals),
+        opponentName: awayTeam.name,
+        avgHomeGoals: safeNumber(homeTeam.homeAverageGoalsScored) ||
+            safeNumber(homeTeam.averageGoalsScored) ||
+            safeNumber(homeTeam.avgHomeGoals),
+        avgAwayGoals: safeNumber(homeTeam.awayAverageGoalsScored) ||
+            safeNumber(homeTeam.averageGoalsScored) ||
+            safeNumber(homeTeam.avgAwayGoals),
+        avgTotalGoals: safeNumber(homeTeam.avgTotalGoals),
     };
 
     const awayTeamData = {
         ...defaultTeamData,
-        ...match.awayTeam,
-        name: enhancedCleanTeamName(match.awayTeam.name),
+        ...awayTeam,
+        name: enhancedCleanTeamName(awayTeam.name),
         isHomeTeam: false,
-        opponentName: match.homeTeam.name,
-        avgHomeGoals: safeNumber(match.awayTeam.homeAverageGoalsScored) ||
-            safeNumber(match.awayTeam.averageGoalsScored) ||
-            safeNumber(match.awayTeam.avgHomeGoals),
-        avgAwayGoals: safeNumber(match.awayTeam.awayAverageGoalsScored) ||
-            safeNumber(match.awayTeam.averageGoalsScored) ||
-            safeNumber(match.awayTeam.avgAwayGoals),
-        avgTotalGoals: safeNumber(match.awayTeam.avgTotalGoals),
+        opponentName: homeTeam.name,
+        avgHomeGoals: safeNumber(awayTeam.homeAverageGoalsScored) ||
+            safeNumber(awayTeam.averageGoalsScored) ||
+            safeNumber(awayTeam.avgHomeGoals),
+        avgAwayGoals: safeNumber(awayTeam.awayAverageGoalsScored) ||
+            safeNumber(awayTeam.averageGoalsScored) ||
+            safeNumber(awayTeam.avgAwayGoals),
+        avgTotalGoals: safeNumber(awayTeam.avgTotalGoals),
     };
 
     return {
         ...match,
         time: normalizedTime,
+        date: match.date || new Date().toISOString(),
+        venue: match.venue || 'TBD',
         homeTeam: homeTeamData,
         awayTeam: awayTeamData,
         positionGap: safeNumber(match.positionGap),
