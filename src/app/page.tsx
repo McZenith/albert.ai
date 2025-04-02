@@ -237,6 +237,16 @@ const formatPlayedTime = (seconds: number): string => {
   return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
 };
 
+// Calculate form points utility
+const calculateFormPoints = (form: string): number => {
+  if (!form) return 0;
+  const wins = (form.match(/W/g) || []).length;
+  const draws = (form.match(/D/g) || []).length;
+  const points = wins * 3 + draws * 1;
+  const maxPoints = form.length * 3;
+  return Math.round((points / maxPoints) * 100);
+};
+
 // Header Cell Component with Filter
 const HeaderCell = ({
   title,
@@ -621,15 +631,6 @@ const MarketRow = ({
     return 'text-sm font-medium text-right bg-yellow-100 transition-colors duration-500';
   };
 
-  const calculateFormPoints = (form: string): number => {
-    if (!form) return 0;
-    const wins = (form.match(/W/g) || []).length;
-    const draws = (form.match(/D/g) || []).length;
-    const points = wins * 3 + draws * 1;
-    const maxPoints = form.length * 3;
-    return Math.round((points / maxPoints) * 100);
-  };
-
   return (
     <>
       <tr
@@ -811,1070 +812,422 @@ const MarketRow = ({
       {isExpanded && hasPrediction && predictionMatch && (
         <tr className='bg-blue-50/50'>
           <td colSpan={12} className='p-4'>
-            <div className='border border-blue-100 rounded-lg bg-white p-4 shadow-sm'>
-              {/* Complete match row from Upcoming tab */}
-              <div className='mb-6 pb-4 border-b border-gray-100'>
-                <div className='w-full overflow-x-auto min-w-0'>
-                  <table className='w-full border-collapse table-fixed min-w-[1400px]'>
-                    <thead>
-                      <tr className='bg-gray-50/80 text-left sticky top-0 z-10'>
-                        <th className='p-3 text-sm font-medium text-gray-500 w-[200px]'>
-                          Teams
-                        </th>
-                        <th className='p-3 text-sm font-medium text-gray-500 text-center w-[100px]'>
-                          Date
-                        </th>
-                        <th className='p-3 text-sm font-medium text-gray-500 text-center w-[100px]'>
-                          Home Avg
-                        </th>
-                        <th className='p-3 text-sm font-medium text-gray-500 text-center w-[100px]'>
-                          Away Avg
-                        </th>
-                        <th className='p-3 text-sm font-medium text-gray-500 text-center w-[100px]'>
-                          Pos Gap
-                        </th>
-                        <th className='p-3 text-sm font-medium text-gray-500 text-center w-[120px]'>
-                          Position
-                        </th>
-                        <th className='p-3 text-sm font-medium text-gray-500 text-center w-[120px]'>
-                          Home/Away
-                        </th>
-                        <th className='p-3 text-sm font-medium text-gray-500 text-center w-[100px]'>
-                          Form %
-                        </th>
-                        <th className='p-3 text-sm font-medium text-gray-500 text-center w-[100px]'>
-                          Fav Form
-                        </th>
-                        <th className='p-3 text-sm font-medium text-gray-500 text-center w-[100px]'>
-                          H2H
-                        </th>
-                        <th className='p-3 text-sm font-medium text-gray-500 text-center w-[100px]'>
-                          Exp Goals
-                        </th>
-                        <th className='p-3 text-sm font-medium text-gray-500 text-center w-[100px]'>
-                          Def Rating
-                        </th>
-                        <th className='p-3 text-sm font-medium text-gray-500 text-center w-[150px]'>
-                          Favorite
-                        </th>
-                        <th className='p-3 text-sm font-medium text-gray-500 text-center w-[100px]'>
-                          Confidence
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr className='border-b border-gray-100 hover:bg-gray-50/50 transition-colors duration-150'>
-                        {/* Teams Column */}
-                        <td className='p-3 w-[200px]'>
-                          <div className='flex flex-col'>
-                            <div className='flex items-center'>
-                              <span className='text-xl mr-2'>🏆</span>
-                              <span className='font-medium text-gray-800'>
-                                {predictionMatch.homeTeam.name}
-                              </span>
-                              <span className='text-xs text-gray-500 ml-2'>
-                                ({predictionMatch.homeTeam.position || '-'})
-                              </span>
-                            </div>
-                            <div className='flex items-center mt-1'>
-                              <span className='text-xl mr-2'>🏆</span>
-                              <span className='font-medium text-gray-800'>
-                                {predictionMatch.awayTeam.name}
-                              </span>
-                              <span className='text-xs text-gray-500 ml-2'>
-                                ({predictionMatch.awayTeam.position || '-'})
-                              </span>
-                            </div>
-                          </div>
-                        </td>
-
-                        {/* Date Column */}
-                        <td className='p-3 text-center whitespace-nowrap w-[100px]'>
-                          <div className='text-gray-800 font-medium'>
-                            {predictionMatch.date} {predictionMatch.time}
-                          </div>
-                        </td>
-
-                        {/* Home Avg Column */}
-                        <td className='p-3 text-center w-[100px]'>
-                          <div className='px-3 py-1.5 rounded-lg bg-blue-50 text-blue-800 font-medium'>
-                            {Math.round(
-                              (predictionMatch.homeTeam.avgHomeGoals ?? 0) > 0
-                                ? predictionMatch.homeTeam.avgHomeGoals ?? 0
-                                : (predictionMatch.expectedGoals ?? 0) / 2
-                            )}
-                          </div>
-                        </td>
-
-                        {/* Away Avg Column */}
-                        <td className='p-3 text-center w-[100px]'>
-                          <div className='px-3 py-1.5 rounded-lg bg-purple-50 text-purple-800 font-medium'>
-                            {Math.round(
-                              (predictionMatch.awayTeam.avgAwayGoals ?? 0) > 0
-                                ? predictionMatch.awayTeam.avgAwayGoals ?? 0
-                                : (predictionMatch.expectedGoals ?? 0) / 2
-                            )}
-                          </div>
-                        </td>
-
-                        {/* Position Gap Column */}
-                        <td className='p-3 text-center w-[100px]'>
-                          <div
-                            className={`px-3 py-1.5 rounded-lg font-medium ${
-                              predictionMatch.positionGap >= 10
-                                ? 'bg-green-50 text-green-800'
-                                : predictionMatch.positionGap >= 5
-                                ? 'bg-yellow-50 text-yellow-800'
-                                : 'bg-gray-50 text-gray-800'
-                            }`}
-                          >
-                            {predictionMatch.positionGap || '-'}
-                          </div>
-                        </td>
-
-                        {/* Position Column */}
-                        <td className='p-3 text-center w-[120px]'>
-                          <div className='flex items-center justify-center gap-2 text-sm'>
-                            <span className='px-3 py-1.5 rounded-lg bg-blue-50 text-blue-800 font-medium'>
-                              {predictionMatch.homeTeam.position || '-'}
-                            </span>
-                            <span className='text-gray-500'>/</span>
-                            <span className='px-3 py-1.5 rounded-lg bg-purple-50 text-purple-800 font-medium'>
-                              {predictionMatch.awayTeam.position || '-'}
-                            </span>
-                          </div>
-                        </td>
-
-                        {/* Home/Away Form Column */}
-                        <td className='p-3 text-center w-[120px]'>
-                          <div className='flex flex-col gap-2'>
-                            <div className='px-3 py-1.5 rounded-lg bg-blue-50 text-blue-800 text-sm font-medium'>
-                              H:{' '}
-                              {predictionMatch.homeTeam.homeForm ||
-                                predictionMatch.homeTeam.form ||
-                                '-'}
-                            </div>
-                            <div className='px-3 py-1.5 rounded-lg bg-purple-50 text-purple-800 text-sm font-medium'>
-                              A:{' '}
-                              {predictionMatch.awayTeam.awayForm ||
-                                predictionMatch.awayTeam.form ||
-                                '-'}
-                            </div>
-                          </div>
-                        </td>
-
-                        {/* Form Points Column */}
-                        <td className='p-3 text-center w-[100px]'>
-                          <div className='flex flex-col gap-1'>
-                            <span className='px-2 py-1 rounded-lg text-xs font-medium bg-blue-50 text-blue-800'>
-                              {calculateFormPoints(
-                                predictionMatch.homeTeam.form || ''
-                              )}
-                              %
-                            </span>
-                            <span className='px-2 py-1 rounded-lg text-xs font-medium bg-purple-50 text-purple-800'>
-                              {calculateFormPoints(
-                                predictionMatch.awayTeam.form || ''
-                              )}
-                              %
-                            </span>
-                          </div>
-                        </td>
-
-                        {/* Favorite Form Column */}
-                        <td className='p-3 text-center w-[100px]'>
-                          <div
-                            className={`px-2 py-1 rounded-lg font-medium ${
-                              predictionMatch.favorite === 'home'
-                                ? 'bg-blue-50 text-blue-800'
-                                : predictionMatch.favorite === 'away'
-                                ? 'bg-purple-50 text-purple-800'
-                                : 'bg-gray-50 text-gray-800'
-                            }`}
-                          >
-                            {predictionMatch.favorite === 'home'
-                              ? predictionMatch.homeTeam.form
-                              : predictionMatch.favorite === 'away'
-                              ? predictionMatch.awayTeam.form
-                              : '-'}
-                          </div>
-                        </td>
-
-                        {/* H2H Column */}
-                        <td className='p-3 text-center w-[100px]'>
-                          {predictionMatch.headToHead &&
-                          predictionMatch.headToHead.matches > 0 ? (
-                            <div
-                              className={`px-3 py-1.5 rounded-lg font-medium ${
-                                predictionMatch.headToHead.wins /
-                                  predictionMatch.headToHead.matches >
-                                0.7
-                                  ? 'bg-green-50 text-green-800'
-                                  : predictionMatch.headToHead.wins /
-                                      predictionMatch.headToHead.matches >
-                                    0.4
-                                  ? 'bg-yellow-50 text-yellow-800'
-                                  : 'bg-red-50 text-red-800'
-                              }`}
-                            >
-                              {predictionMatch.headToHead.wins}-
-                              {predictionMatch.headToHead.draws}-
-                              {predictionMatch.headToHead.losses}
-                            </div>
-                          ) : (
-                            <div className='px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 font-medium'>
-                              N/A
-                            </div>
-                          )}
-                        </td>
-
-                        {/* Expected Goals Column */}
-                        <td className='p-3 text-center w-[100px]'>
-                          <div
-                            className={`px-3 py-1.5 rounded-lg font-medium ${
-                              predictionMatch.expectedGoals >= 2.2
-                                ? 'bg-green-50 text-green-800'
-                                : predictionMatch.expectedGoals >= 1.5
-                                ? 'bg-yellow-50 text-yellow-800'
-                                : 'bg-red-50 text-red-800'
-                            }`}
-                          >
-                            {Math.round(predictionMatch.expectedGoals) || '-'}
-                          </div>
-                        </td>
-
-                        {/* Defensive Strength Column */}
-                        <td className='p-3 text-center w-[100px]'>
-                          <div
-                            className={`px-3 py-1.5 rounded-lg font-medium ${
-                              1 / (predictionMatch.defensiveStrength || 1) >=
-                              1.2
-                                ? 'bg-green-50 text-green-800'
-                                : 1 /
-                                    (predictionMatch.defensiveStrength || 1) >=
-                                  1.0
-                                ? 'bg-yellow-50 text-yellow-800'
-                                : 'bg-gray-50 text-gray-800'
-                            }`}
-                          >
-                            {predictionMatch.defensiveStrength?.toFixed(2) ||
-                              '-'}
-                          </div>
-                        </td>
-
-                        {/* Favorite Column */}
-                        <td className='p-3 text-center w-[150px]'>
-                          {predictionMatch.favorite ? (
-                            <div
-                              className={`px-2 py-1 rounded-lg inline-flex items-center justify-center text-xs font-medium ${
-                                predictionMatch.favorite === 'home'
-                                  ? 'bg-blue-50 text-blue-800 border border-blue-200'
-                                  : 'bg-purple-50 text-purple-800 border border-purple-200'
-                              }`}
-                            >
-                              <span className='text-lg mr-1'>🏆</span>
-                              <span className='truncate max-w-[100px]'>
-                                {predictionMatch.favorite === 'home'
-                                  ? predictionMatch.homeTeam.name
-                                  : predictionMatch.awayTeam.name}
-                              </span>
-                            </div>
-                          ) : (
-                            <div className='px-2 py-1 rounded-lg bg-gray-100 text-gray-600 border border-gray-200 text-xs font-medium'>
-                              None
-                            </div>
-                          )}
-                        </td>
-
-                        {/* Confidence Column */}
-                        <td className='p-3 text-center w-[100px]'>
-                          <div
-                            className={`px-2 py-1 rounded-lg text-xs font-medium ${
-                              predictionMatch.confidenceScore >= 80
-                                ? 'bg-green-50 text-green-800'
-                                : predictionMatch.confidenceScore >= 60
-                                ? 'bg-yellow-50 text-yellow-800'
-                                : 'bg-red-50 text-red-800'
-                            }`}
-                          >
-                            {predictionMatch.confidenceScore}%
-                          </div>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              {/* Live Match Details Section */}
-              <div className='mb-6 pb-4 border-b border-gray-100'>
-                <h3 className='text-lg font-semibold text-gray-700 mb-4'>
-                  Live Match Details
-                </h3>
-                <div className='grid grid-cols-1 lg:grid-cols-2 gap-2 w-full'>
-                  {/* Team Positions */}
-                  <div className='bg-white rounded-lg border border-gray-100 shadow-sm p-2'>
-                    <h4 className='text-sm font-medium text-gray-700 mb-3'>
-                      Team Positions & Momentum
-                    </h4>
-                    <div className='space-y-2'>
-                      <div className='flex justify-between items-center'>
-                        <span className='text-gray-600 text-xs'>
-                          Position Gap:
-                        </span>
-                        <div
-                          className={`px-2 py-1 rounded-lg text-xs font-medium ${
-                            predictionMatch && predictionMatch.positionGap
-                              ? predictionMatch.positionGap >= 10
-                                ? 'bg-green-50 text-green-800'
-                                : predictionMatch.positionGap >= 5
-                                ? 'bg-yellow-50 text-yellow-800'
-                                : 'bg-gray-50 text-gray-800'
-                              : 'bg-gray-50 text-gray-800'
-                          }`}
-                        >
-                          {predictionMatch
-                            ? predictionMatch.positionGap || '-'
-                            : match.positionGap || '-'}
-                        </div>
+            <div className='border border-blue-100 rounded-lg bg-white p-4 shadow-sm space-y-4'>
+              {/* Match Status & Teams */}
+              <div className='grid grid-cols-3 gap-4'>
+                <div className='col-span-2 bg-gray-50 rounded-lg p-3'>
+                  <h4 className='text-xs font-medium text-gray-500 mb-2'>
+                    MATCH STATUS
+                  </h4>
+                  <div className='flex items-center justify-between'>
+                    <div className='text-center'>
+                      <div className='text-2xl font-bold text-blue-600'>
+                        {match.teams.home.name}
                       </div>
-                      <div className='flex justify-between items-center'>
-                        <span className='text-gray-600 text-xs'>
-                          Home Position:
-                        </span>
-                        <div className='px-2 py-1 rounded-lg text-xs font-medium bg-blue-50 text-blue-800'>
-                          {predictionMatch
-                            ? predictionMatch.homeTeam.position || '-'
-                            : match.teams.home.position || '-'}
-                        </div>
+                      <div className='text-xs text-gray-600'>HOME</div>
+                    </div>
+                    <div className='text-center'>
+                      <div className='text-2xl font-bold text-gray-600'>
+                        {match.score || '0-0'}
                       </div>
-                      <div className='flex justify-between items-center'>
-                        <span className='text-gray-600 text-xs'>
-                          Away Position:
-                        </span>
-                        <div className='px-2 py-1 rounded-lg text-xs font-medium bg-purple-50 text-purple-800'>
-                          {predictionMatch
-                            ? predictionMatch.awayTeam.position || '-'
-                            : match.teams.away.position || '-'}
-                        </div>
-                      </div>
-                      <div className='flex justify-between items-center'>
-                        <span className='text-gray-600 text-xs'>
-                          Dominant Team:
-                        </span>
-                        <div
-                          className={`px-2 py-1 rounded-lg text-xs font-medium ${
-                            match.matchSituation?.dominantTeam ===
-                            match.teams.home.name
-                              ? 'bg-blue-50 text-blue-800'
-                              : match.matchSituation?.dominantTeam ===
-                                match.teams.away.name
-                              ? 'bg-purple-50 text-purple-800'
-                              : 'bg-gray-50 text-gray-800'
-                          }`}
-                        >
-                          {match.matchSituation?.dominantTeam || 'None'}
-                        </div>
-                      </div>
-                      <div className='flex justify-between items-center'>
-                        <span className='text-gray-600 text-xs'>
-                          Match Momentum:
-                        </span>
-                        <div
-                          className={`px-2 py-1 rounded-lg text-xs font-medium ${
-                            match.matchSituation?.matchMomentum ===
-                            match.teams.home.name
-                              ? 'bg-blue-50 text-blue-800'
-                              : match.matchSituation?.matchMomentum ===
-                                match.teams.away.name
-                              ? 'bg-purple-50 text-purple-800'
-                              : 'bg-amber-50 text-amber-800'
-                          }`}
-                        >
-                          {match.matchSituation?.matchMomentum || 'Neutral'}
-                        </div>
+                      <div className='text-xs text-gray-600'>
+                        {match.status}
                       </div>
                     </div>
+                    <div className='text-center'>
+                      <div className='text-2xl font-bold text-purple-600'>
+                        {match.teams.away.name}
+                      </div>
+                      <div className='text-xs text-gray-600'>AWAY</div>
+                    </div>
                   </div>
-
-                  {/* Match Situation */}
-                  <div className='bg-white rounded-lg border border-gray-100 shadow-sm p-2'>
-                    <h4 className='text-sm font-medium text-gray-700 mb-3'>
-                      Match Situation
-                    </h4>
-                    <div className='space-y-2'>
-                      <div className='flex justify-between items-center'>
-                        <span className='text-gray-600 text-xs'>
-                          Total Time:
-                        </span>
-                        <span className='font-medium text-gray-900 text-xs'>
-                          {formatPlayedTime(match.playedSeconds)}
-                        </span>
-                      </div>
-                      <div className='flex justify-between items-center'>
-                        <span className='text-gray-600 text-xs'>Status:</span>
-                        <span className='font-medium text-gray-900 text-xs'>
-                          {match.status}
-                        </span>
-                      </div>
-                      <div className='flex justify-between items-center'>
-                        <span className='text-gray-600 text-xs'>
-                          Tournament:
-                        </span>
-                        <span className='font-medium text-gray-900 text-xs'>
-                          {match.tournamentName}
-                        </span>
-                      </div>
+                </div>
+                <div className='bg-gray-50 rounded-lg p-3'>
+                  <h4 className='text-xs font-medium text-gray-500 mb-2'>
+                    MATCH TIME
+                  </h4>
+                  <div className='text-center'>
+                    <div className='text-2xl font-bold text-gray-600'>
+                      {formatPlayedTime(match.playedSeconds)}
+                    </div>
+                    <div className='text-xs text-gray-600'>
+                      {match.tournamentName}
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Attack Statistics */}
-              <div className='mb-6 pb-4 border-b border-gray-100'>
-                <h3 className='text-lg font-semibold text-gray-700 mb-4'>
-                  Attack Statistics
-                </h3>
-                <div className='space-y-2'>
-                  <div className='flex justify-between items-center'>
-                    <span className='text-gray-600 text-xs'>
-                      Total Attacks:
+              {/* Team Stats */}
+              <div className='grid grid-cols-3 gap-2 mt-2'>
+                {/* Home Team Stats */}
+                <div className='bg-gray-50 rounded-lg p-2'>
+                  <h4 className='text-xs font-medium text-blue-600 mb-1'>
+                    HOME STATS
+                  </h4>
+                  <div className='grid grid-cols-2 gap-x-4 gap-y-1 text-xs'>
+                    <span className='text-gray-500'>Form:</span>
+                    <span className='text-right font-medium'>
+                      {predictionMatch?.homeTeam.form || '-'}
                     </span>
-                    <div className='flex gap-3'>
-                      <span className='font-medium text-blue-600 text-xs min-w-[30px] text-right'>
-                        {match.matchSituation?.home.totalAttacks || '0'}
-                      </span>
-                      <span className='font-medium text-purple-600 text-xs min-w-[30px] text-right'>
-                        {match.matchSituation?.away.totalAttacks || '0'}
-                      </span>
-                    </div>
-                  </div>
-                  <div className='flex justify-between items-center'>
-                    <span className='text-gray-600 text-xs'>
-                      Dangerous Attacks:
+                    <span className='text-gray-500'>Home Clean:</span>
+                    <span className='text-right font-medium'>
+                      {predictionMatch?.homeTeam.homeCleanSheets || 0}
                     </span>
-                    <div className='flex gap-3'>
-                      <span className='font-medium text-blue-600 text-xs min-w-[30px] text-right'>
-                        {match.matchSituation?.home.totalDangerousAttacks ||
-                          '0'}
-                      </span>
-                      <span className='font-medium text-purple-600 text-xs min-w-[30px] text-right'>
-                        {match.matchSituation?.away.totalDangerousAttacks ||
-                          '0'}
-                      </span>
-                    </div>
-                  </div>
-                  <div className='flex justify-between items-center'>
-                    <span className='text-gray-600 text-xs'>Safe Attacks:</span>
-                    <div className='flex gap-3'>
-                      <span className='font-medium text-blue-600 text-xs min-w-[30px] text-right'>
-                        {match.matchSituation?.home.totalSafeAttacks || '0'}
-                      </span>
-                      <span className='font-medium text-purple-600 text-xs min-w-[30px] text-right'>
-                        {match.matchSituation?.away.totalSafeAttacks || '0'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Match Details */}
-              <div className='mb-6 pb-4 border-b border-gray-100'>
-                <h3 className='text-lg font-semibold text-gray-700 mb-4'>
-                  Match Details
-                </h3>
-                <div className='grid grid-cols-2 gap-3'>
-                  <div className='space-y-2'>
-                    <h5 className='text-xs font-medium text-blue-600 mb-2'>
-                      Home Team
-                    </h5>
-                    <div className='space-y-1.5'>
-                      <div className='flex justify-between items-center'>
-                        <span className='text-gray-600 text-xs'>
-                          Shots on Target:
-                        </span>
-                        <span className='font-medium text-gray-900 text-xs'>
-                          {match.matchDetails?.home.shotsOnTarget || '0'}
-                        </span>
-                      </div>
-                      <div className='flex justify-between items-center'>
-                        <span className='text-gray-600 text-xs'>
-                          Shots off Target:
-                        </span>
-                        <span className='font-medium text-gray-900 text-xs'>
-                          {match.matchDetails?.home.shotsOffTarget || '0'}
-                        </span>
-                      </div>
-                      <div className='flex justify-between items-center'>
-                        <span className='text-gray-600 text-xs'>
-                          Corner Kicks:
-                        </span>
-                        <span className='font-medium text-gray-900 text-xs'>
-                          {match.matchDetails?.home.cornerKicks || '0'}
-                        </span>
-                      </div>
-                      <div className='flex justify-between items-center'>
-                        <span className='text-gray-600 text-xs'>Fouls:</span>
-                        <span className='font-medium text-gray-900 text-xs'>
-                          {match.matchDetails?.home.fouls || '0'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className='space-y-2'>
-                    <h5 className='text-xs font-medium text-purple-600 mb-2'>
-                      Away Team
-                    </h5>
-                    <div className='space-y-1.5'>
-                      <div className='flex justify-between items-center'>
-                        <span className='text-gray-600 text-xs'>
-                          Shots on Target:
-                        </span>
-                        <span className='font-medium text-gray-900 text-xs'>
-                          {match.matchDetails?.away.shotsOnTarget || '0'}
-                        </span>
-                      </div>
-                      <div className='flex justify-between items-center'>
-                        <span className='text-gray-600 text-xs'>
-                          Shots off Target:
-                        </span>
-                        <span className='font-medium text-gray-900 text-xs'>
-                          {match.matchDetails?.away.shotsOffTarget || '0'}
-                        </span>
-                      </div>
-                      <div className='flex justify-between items-center'>
-                        <span className='text-gray-600 text-xs'>
-                          Corner Kicks:
-                        </span>
-                        <span className='font-medium text-gray-900 text-xs'>
-                          {match.matchDetails?.away.cornerKicks || '0'}
-                        </span>
-                      </div>
-                      <div className='flex justify-between items-center'>
-                        <span className='text-gray-600 text-xs'>Fouls:</span>
-                        <span className='font-medium text-gray-900 text-xs'>
-                          {match.matchDetails?.away.fouls || '0'}
-                        </span>
-                      </div>
-                    </div>
+                    <span className='text-gray-500'>Home Goals:</span>
+                    <span className='text-right font-medium'>
+                      {predictionMatch?.homeTeam.avgHomeGoals?.toFixed(1) ||
+                        '0.0'}
+                    </span>
+                    <span className='text-gray-500'>Home BTTS:</span>
+                    <span className='text-right font-medium'>
+                      {predictionMatch?.homeTeam.homeBttsRate?.toFixed(0) ||
+                        '0'}
+                      %
+                    </span>
+                    <span className='text-gray-500'>1st Win:</span>
+                    <span className='text-right font-medium'>
+                      {predictionMatch?.homeTeam.scoringFirstWinRate?.toFixed(
+                        0
+                      ) || '0'}
+                      %
+                    </span>
+                    <span className='text-gray-500'>Late Goal:</span>
+                    <span className='text-right font-medium'>
+                      {predictionMatch?.homeTeam.lateGoalRate?.toFixed(0) ||
+                        '0'}
+                      %
+                    </span>
                   </div>
                 </div>
-              </div>
 
-              {/* Cards and Possession */}
-              <div className='mb-6 pb-4 border-b border-gray-100'>
-                <h3 className='text-lg font-semibold text-gray-700 mb-4'>
-                  Cards & Possession
-                </h3>
-                <div className='grid grid-cols-2 gap-3'>
-                  <div className='space-y-2'>
-                    <h5 className='text-xs font-medium text-blue-600 mb-2'>
-                      Home Team
-                    </h5>
-                    <div className='space-y-1.5'>
-                      <div className='flex justify-between items-center'>
-                        <span className='text-gray-600 text-xs'>
-                          Yellow Cards:
-                        </span>
-                        <span className='font-medium text-yellow-600 text-xs'>
-                          {match.matchDetails?.home.yellowCards || '0'}
+                {/* H2H */}
+                <div className='bg-gray-50 rounded-lg p-2'>
+                  <h4 className='text-xs font-medium text-gray-500 mb-1'>
+                    HEAD TO HEAD
+                  </h4>
+                  {predictionMatch?.headToHead &&
+                  predictionMatch.headToHead.matches > 0 ? (
+                    <div className='space-y-1 text-xs'>
+                      <div className='flex justify-between'>
+                        <span className='text-gray-500'>Record:</span>
+                        <span className='font-medium'>
+                          {predictionMatch.headToHead.wins}W{' '}
+                          {predictionMatch.headToHead.draws}D{' '}
+                          {predictionMatch.headToHead.losses}L
                         </span>
                       </div>
-                      <div className='flex justify-between items-center'>
-                        <span className='text-gray-600 text-xs'>
-                          Red Cards:
-                        </span>
-                        <span className='font-medium text-red-600 text-xs'>
-                          {match.matchDetails?.home.redCards || '0'}
-                        </span>
-                      </div>
-                      <div className='flex justify-between items-center'>
-                        <span className='text-gray-600 text-xs'>
-                          Ball Safe:
-                        </span>
-                        <span className='font-medium text-gray-900 text-xs'>
-                          {match.matchDetails?.home.ballSafe || '0'}%
+                      <div className='flex justify-between'>
+                        <span className='text-gray-500'>Goals:</span>
+                        <span className='font-medium'>
+                          {predictionMatch.headToHead.goalsScored}-
+                          {predictionMatch.headToHead.goalsConceded}
                         </span>
                       </div>
-                    </div>
-                  </div>
-                  <div className='space-y-2'>
-                    <h5 className='text-xs font-medium text-purple-600 mb-2'>
-                      Away Team
-                    </h5>
-                    <div className='space-y-1.5'>
-                      <div className='flex justify-between items-center'>
-                        <span className='text-gray-600 text-xs'>
-                          Yellow Cards:
-                        </span>
-                        <span className='font-medium text-yellow-600 text-xs'>
-                          {match.matchDetails?.away.yellowCards || '0'}
+                      <div className='flex justify-between'>
+                        <span className='text-gray-500'>Matches:</span>
+                        <span className='font-medium'>
+                          {predictionMatch.headToHead.matches}
                         </span>
                       </div>
-                      <div className='flex justify-between items-center'>
-                        <span className='text-gray-600 text-xs'>
-                          Red Cards:
-                        </span>
-                        <span className='font-medium text-red-600 text-xs'>
-                          {match.matchDetails?.away.redCards || '0'}
-                        </span>
-                      </div>
-                      <div className='flex justify-between items-center'>
-                        <span className='text-gray-600 text-xs'>
-                          Ball Safe:
-                        </span>
-                        <span className='font-medium text-gray-900 text-xs'>
-                          {match.matchDetails?.away.ballSafe || '0'}%
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Prediction details section - match details, teams comparison, and reasons */}
-              <div className='grid grid-cols-1 md:grid-cols-3 gap-4 w-full'>
-                {/* Match Details */}
-                <div className='md:border-r border-gray-100 md:pr-4'>
-                  <h3 className='font-semibold text-gray-700 mb-4 text-lg'>
-                    Match Details
-                  </h3>
-                  <div className='space-y-3'>
-                    <div className='flex justify-between items-center'>
-                      <span className='text-gray-500'>Date:</span>
-                      <span className='font-medium text-gray-800'>
-                        {predictionMatch.date}
-                      </span>
-                    </div>
-                    <div className='flex justify-between items-center'>
-                      <span className='text-gray-500'>Time:</span>
-                      <span className='font-medium text-gray-800'>
-                        {predictionMatch.time}
-                      </span>
-                    </div>
-                    <div className='flex justify-between items-center'>
-                      <span className='text-gray-500'>Venue:</span>
-                      <span className='font-medium text-gray-800'>
-                        {predictionMatch.venue}
-                      </span>
-                    </div>
-                    {/* Fix the odds property TypeScript errors */}
-                    {(predictionMatch as any).odds && (
-                      <>
-                        <div className='flex justify-between items-center'>
-                          <span className='text-gray-500'>Over 1.5 Goals:</span>
-                          <span className='font-medium text-gray-800'>
-                            {(
-                              predictionMatch as any
-                            ).odds?.over15Goals?.toFixed(2) || 'N/A'}
-                          </span>
+                      {predictionMatch.headToHead.recentMatches && (
+                        <div className='flex gap-1 mt-1'>
+                          {predictionMatch.headToHead.recentMatches
+                            .slice(0, 5)
+                            .map((match: any, idx: number) => (
+                              <div
+                                key={idx}
+                                className={`text-xs px-1.5 py-0.5 rounded ${
+                                  match.result.charAt(0) === 'W'
+                                    ? 'bg-green-100 text-green-700'
+                                    : match.result.charAt(0) === 'D'
+                                    ? 'bg-yellow-100 text-yellow-700'
+                                    : 'bg-red-100 text-red-700'
+                                }`}
+                              >
+                                {match.result.charAt(0)}
+                              </div>
+                            ))}
                         </div>
-                        <div className='flex justify-between items-center'>
-                          <span className='text-gray-500'>Home/Draw/Away:</span>
-                          <span className='font-medium text-gray-800'>
-                            {(predictionMatch as any).odds?.homeWin?.toFixed(
-                              2
-                            ) || 'N/A'}{' '}
-                            /{' '}
-                            {(predictionMatch as any).odds?.draw?.toFixed(2) ||
-                              'N/A'}{' '}
-                            /{' '}
-                            {(predictionMatch as any).odds?.awayWin?.toFixed(
-                              2
-                            ) || 'N/A'}
-                          </span>
-                        </div>
-                      </>
-                    )}
+                      )}
+                    </div>
+                  ) : (
+                    <div className='text-xs text-gray-500'>
+                      No previous meetings
+                    </div>
+                  )}
+                </div>
+
+                {/* Away Team Stats */}
+                <div className='bg-gray-50 rounded-lg p-2'>
+                  <h4 className='text-xs font-medium text-purple-600 mb-1'>
+                    AWAY STATS
+                  </h4>
+                  <div className='grid grid-cols-2 gap-x-4 gap-y-1 text-xs'>
+                    <span className='text-gray-500'>Form:</span>
+                    <span className='text-right font-medium'>
+                      {predictionMatch?.awayTeam.form || '-'}
+                    </span>
+                    <span className='text-gray-500'>Away Clean:</span>
+                    <span className='text-right font-medium'>
+                      {predictionMatch?.awayTeam.awayCleanSheets || 0}
+                    </span>
+                    <span className='text-gray-500'>Away Goals:</span>
+                    <span className='text-right font-medium'>
+                      {predictionMatch?.awayTeam.avgAwayGoals?.toFixed(1) ||
+                        '0.0'}
+                    </span>
+                    <span className='text-gray-500'>Away BTTS:</span>
+                    <span className='text-right font-medium'>
+                      {predictionMatch?.awayTeam.awayBttsRate?.toFixed(0) ||
+                        '0'}
+                      %
+                    </span>
+                    <span className='text-gray-500'>1st Win:</span>
+                    <span className='text-right font-medium'>
+                      {predictionMatch?.awayTeam.scoringFirstWinRate?.toFixed(
+                        0
+                      ) || '0'}
+                      %
+                    </span>
+                    <span className='text-gray-500'>Late Goal:</span>
+                    <span className='text-right font-medium'>
+                      {predictionMatch?.awayTeam.lateGoalRate?.toFixed(0) ||
+                        '0'}
+                      %
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Match Momentum & Attack Success */}
+              <div className='grid grid-cols-6 gap-2 mt-2'>
+                {/* Form & Points */}
+                <div className='col-span-2 bg-gray-50 rounded-lg p-2'>
+                  <h4 className='text-xs font-medium text-gray-500 mb-1'>
+                    FORM
+                  </h4>
+                  <div className='space-y-1'>
+                    <div className='flex justify-between items-center'>
+                      <span className='text-xs text-blue-600'>HOME</span>
+                      <div className='flex items-center gap-1'>
+                        <span className='text-xs font-bold'>
+                          {predictionMatch?.homeTeam.form || '-'}
+                        </span>
+                        <span className='text-xs text-gray-500'>
+                          (
+                          {calculateFormPoints(
+                            predictionMatch?.homeTeam.form || ''
+                          )}
+                          %)
+                        </span>
+                      </div>
+                    </div>
+                    <div className='flex justify-between items-center'>
+                      <span className='text-xs text-purple-600'>AWAY</span>
+                      <div className='flex items-center gap-1'>
+                        <span className='text-xs font-bold'>
+                          {predictionMatch?.awayTeam.form || '-'}
+                        </span>
+                        <span className='text-xs text-gray-500'>
+                          (
+                          {calculateFormPoints(
+                            predictionMatch?.awayTeam.form || ''
+                          )}
+                          %)
+                        </span>
+                      </div>
+                    </div>
+                    <div className='flex justify-between items-center'>
+                      <span className='text-xs text-gray-500'>FAV</span>
+                      <div
+                        className={`text-xs font-bold ${
+                          predictionMatch?.favorite === 'home'
+                            ? 'text-blue-600'
+                            : predictionMatch?.favorite === 'away'
+                            ? 'text-purple-600'
+                            : 'text-gray-600'
+                        }`}
+                      >
+                        {predictionMatch?.favorite === 'home'
+                          ? 'HOME'
+                          : predictionMatch?.favorite === 'away'
+                          ? 'AWAY'
+                          : '-'}
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                {/* Teams Comparison */}
-                <div className='md:border-r border-gray-100 md:px-4'>
-                  <h3 className='font-semibold text-gray-700 mb-4 text-lg'>
-                    Teams Comparison
-                  </h3>
-                  <table className='w-full text-sm'>
-                    <thead>
-                      <tr>
-                        <th className='text-left font-medium text-gray-500 pb-2'>
-                          Metric
-                        </th>
-                        <th className='text-center font-medium text-gray-500 pb-2'>
-                          {predictionMatch.homeTeam.name}
-                        </th>
-                        <th className='text-center font-medium text-gray-500 pb-2'>
-                          {predictionMatch.awayTeam.name}
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className='divide-y divide-gray-100'>
-                      <tr>
-                        <td className='py-3 text-gray-500'>Position</td>
-                        <td className='py-3 text-center font-medium'>
-                          {predictionMatch.homeTeam.position || '-'}
-                        </td>
-                        <td className='py-3 text-center font-medium'>
-                          {predictionMatch.awayTeam.position || '-'}
-                        </td>
-                      </tr>
-                      <tr>
-                        <td className='py-3 text-gray-500'>Form</td>
-                        <td className='py-3 text-center font-medium'>
-                          {predictionMatch.homeTeam.form || '-'}
-                        </td>
-                        <td className='py-3 text-center font-medium'>
-                          {predictionMatch.awayTeam.form || '-'}
-                        </td>
-                      </tr>
-                      <tr>
-                        <td className='py-3 text-gray-500'>Form Points</td>
-                        <td className='py-3 text-center font-medium'>
-                          {calculateFormPoints(
-                            predictionMatch.homeTeam.form || ''
-                          )}
-                          %
-                        </td>
-                        <td className='py-3 text-center font-medium'>
-                          {calculateFormPoints(
-                            predictionMatch.awayTeam.form || ''
-                          )}
-                          %
-                        </td>
-                      </tr>
-                      <tr>
-                        <td className='py-3 text-gray-500'>Avg Goals</td>
-                        <td className='py-3 text-center font-medium'>
-                          {predictionMatch.homeTeam.avgHomeGoals
-                            ? Math.round(predictionMatch.homeTeam.avgHomeGoals)
-                            : 'N/A'}
-                        </td>
-                        <td className='py-3 text-center font-medium'>
-                          {predictionMatch.awayTeam.avgAwayGoals
-                            ? Math.round(predictionMatch.awayTeam.avgAwayGoals)
-                            : 'N/A'}
-                        </td>
-                      </tr>
-                      <tr>
-                        <td className='py-3 text-gray-500'>Clean Sheets</td>
-                        <td className='py-3 text-center font-medium'>
-                          {predictionMatch.homeTeam.cleanSheets || '-'}
-                        </td>
-                        <td className='py-3 text-center font-medium'>
-                          {predictionMatch.awayTeam.cleanSheets || '-'}
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
+                {/* Momentum */}
+                <div className='col-span-2 bg-gray-50 rounded-lg p-2'>
+                  <h4 className='text-xs font-medium text-gray-500 mb-1'>
+                    MOMENTUM
+                  </h4>
+                  <div className='space-y-1'>
+                    <div className='flex justify-between items-center'>
+                      <span className='text-xs text-gray-500'>Dominant:</span>
+                      <span
+                        className={`text-xs font-bold ${
+                          match.matchSituation?.dominantTeam ===
+                          match.teams.home.name
+                            ? 'text-blue-600'
+                            : match.matchSituation?.dominantTeam ===
+                              match.teams.away.name
+                            ? 'text-purple-600'
+                            : 'text-gray-600'
+                        }`}
+                      >
+                        {match.matchSituation?.dominantTeam?.split(' ')[0] ||
+                          'None'}
+                      </span>
+                    </div>
+                    <div className='flex justify-between items-center'>
+                      <span className='text-xs text-gray-500'>Trend:</span>
+                      <span
+                        className={`text-xs font-bold ${
+                          match.matchSituation?.matchMomentum ===
+                          match.teams.home.name
+                            ? 'text-blue-600'
+                            : match.matchSituation?.matchMomentum ===
+                              match.teams.away.name
+                            ? 'text-purple-600'
+                            : 'text-gray-600'
+                        }`}
+                      >
+                        {match.matchSituation?.matchMomentum?.split(' ')[0] ||
+                          'Neutral'}
+                      </span>
+                    </div>
+                    <div className='flex justify-between items-center'>
+                      <span className='text-xs text-gray-500'>Conf:</span>
+                      <span
+                        className={`text-xs font-bold ${
+                          predictionMatch?.confidenceScore >= 80
+                            ? 'text-green-600'
+                            : predictionMatch?.confidenceScore >= 60
+                            ? 'text-yellow-600'
+                            : 'text-red-600'
+                        }`}
+                      >
+                        {predictionMatch?.confidenceScore || '-'}%
+                      </span>
+                    </div>
+                  </div>
                 </div>
 
-                {/* Prediction Reasons */}
-                <div className='md:pl-4'>
-                  <h3 className='font-semibold text-gray-700 mb-4 text-lg'>
-                    Prediction Reasons
-                  </h3>
-                  <ul className='list-disc pl-4 space-y-2'>
-                    {predictionMatch.reasonsForPrediction?.map(
+                {/* Attack Success */}
+                <div className='col-span-2 bg-gray-50 rounded-lg p-2'>
+                  <h4 className='text-xs font-medium text-gray-500 mb-1'>
+                    ATTACK %
+                  </h4>
+                  <div className='space-y-1'>
+                    <div className='flex justify-between items-center'>
+                      <span className='text-xs text-blue-600'>HOME</span>
+                      <span className='text-xs font-medium'>
+                        {match.matchSituation?.home.dangerousAttackPercentage ||
+                          0}
+                        %
+                      </span>
+                    </div>
+                    <div className='flex justify-between items-center'>
+                      <span className='text-xs text-purple-600'>AWAY</span>
+                      <span className='text-xs font-medium'>
+                        {match.matchSituation?.away.dangerousAttackPercentage ||
+                          0}
+                        %
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Over 1.5 & Defense */}
+              <div className='grid grid-cols-6 gap-2 mt-2'>
+                {/* Over 1.5 */}
+                <div className='col-span-2 bg-gray-50 rounded-lg p-2'>
+                  <h4 className='text-xs font-medium text-gray-500 mb-1'>
+                    OVER 1.5
+                  </h4>
+                  <div className='space-y-1'>
+                    <div className='flex justify-between items-center'>
+                      <span className='text-xs text-gray-500'>Odds:</span>
+                      <span className='text-xs font-bold'>
+                        {predictionMatch?.odds?.over15Goals?.toFixed(2) || '-'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Defense */}
+                <div className='col-span-2 bg-gray-50 rounded-lg p-2'>
+                  <h4 className='text-xs font-medium text-gray-500 mb-1'>
+                    DEFENSE
+                  </h4>
+                  <div className='space-y-1'>
+                    <div className='flex justify-between items-center'>
+                      <span className='text-xs text-gray-500'>Def Str:</span>
+                      <span className='text-xs font-bold'>
+                        {predictionMatch?.defensiveStrength?.toFixed(2) || '-'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Team Stats */}
+                <div className='col-span-2 bg-gray-50 rounded-lg p-2'>
+                  <h4 className='text-xs font-medium text-gray-500 mb-1'>
+                    TEAM STATS
+                  </h4>
+                  <div className='space-y-1'>
+                    <div className='flex justify-between items-center'>
+                      <span className='text-xs text-gray-500'>Form:</span>
+                      <span className='text-xs font-bold'>
+                        {predictionMatch?.teamForm || '-'}
+                      </span>
+                    </div>
+                    <div className='flex justify-between items-center'>
+                      <span className='text-xs text-gray-500'>
+                        Clean Sheets:
+                      </span>
+                      <span className='text-xs font-bold'>
+                        {predictionMatch?.cleanSheets || 0}
+                      </span>
+                    </div>
+                    <div className='flex justify-between items-center'>
+                      <span className='text-xs text-gray-500'>Goals:</span>
+                      <span className='text-xs font-bold'>
+                        {predictionMatch?.goalsScored}-
+                        {predictionMatch?.goalsConceded}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Prediction Reasons */}
+              <div className='bg-gray-50 rounded-lg p-2 mt-2'>
+                <h4 className='text-xs font-medium text-gray-500 mb-1'>
+                  PREDICTION REASONS
+                </h4>
+                {predictionMatch?.reasonsForPrediction ? (
+                  <ul className='space-y-1 max-h-[60px] overflow-y-auto text-xs'>
+                    {predictionMatch.reasonsForPrediction.map(
                       (reason: string, idx: number) => (
-                        <li key={idx} className='text-gray-700 text-sm'>
+                        <li
+                          key={idx}
+                          className='text-gray-600 flex items-start'
+                        >
+                          <span className='text-blue-600 mr-1'>•</span>
                           {reason}
                         </li>
                       )
                     )}
                   </ul>
-
-                  {/* H2H Records */}
-                  {predictionMatch.headToHead &&
-                    predictionMatch.headToHead.matches > 0 && (
-                      <div className='mt-6'>
-                        <h4 className='font-medium text-gray-700 mb-3 text-base'>
-                          Head-to-Head
-                        </h4>
-                        <div className='text-sm text-gray-600 mb-3'>
-                          Record: {predictionMatch.headToHead.wins}W{' '}
-                          {predictionMatch.headToHead.draws}D{' '}
-                          {predictionMatch.headToHead.losses}L (
-                          {predictionMatch.headToHead.goalsScored}-
-                          {predictionMatch.headToHead.goalsConceded})
-                        </div>
-                        {(predictionMatch.headToHead as any).recentMatches && (
-                          <div>
-                            <h5 className='text-xs font-medium text-gray-500 mb-2'>
-                              Recent Matches:
-                            </h5>
-                            <ul className='text-xs space-y-1.5'>
-                              {(
-                                predictionMatch.headToHead as any
-                              ).recentMatches.map(
-                                (h2hMatch: any, idx: number) => (
-                                  <li key={idx} className='text-gray-600'>
-                                    {h2hMatch.date?.substring(0, 10)}:{' '}
-                                    {h2hMatch.result}
-                                  </li>
-                                )
-                              )}
-                            </ul>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                </div>
-              </div>
-
-              {/* Confidence score progress bar */}
-              <div className='mt-6'>
-                <p className='text-sm font-medium text-gray-700 mb-2'>
-                  Confidence Score:
-                </p>
-                <div className='flex items-center gap-3'>
-                  <div className='w-full bg-gray-200 rounded-full h-3'>
-                    <div
-                      className={`h-3 rounded-full transition-all duration-500 ${
-                        predictionMatch.confidenceScore >= 80
-                          ? 'bg-green-600'
-                          : predictionMatch.confidenceScore >= 60
-                          ? 'bg-yellow-500'
-                          : 'bg-red-500'
-                      }`}
-                      style={{
-                        width: `${predictionMatch.confidenceScore}%`,
-                      }}
-                    ></div>
+                ) : (
+                  <div className='text-xs text-gray-500'>
+                    No prediction data available
                   </div>
-                  <span className='text-sm font-medium min-w-[60px] text-right'>
-                    {predictionMatch.confidenceScore}%
-                  </span>
-                </div>
-              </div>
-
-              {/* Team Statistics Section */}
-              <div className='mb-6 pb-4 border-b border-gray-100'>
-                <h3 className='text-lg font-semibold text-gray-700 mb-4'>
-                  Team Statistics
-                </h3>
-                <div className='grid grid-cols-1 lg:grid-cols-2 gap-4'>
-                  {/* Clean Sheets & Scoring Stats */}
-                  <div className='bg-white rounded-lg border border-gray-100 shadow-sm p-3'>
-                    <h4 className='text-sm font-medium text-gray-700 mb-3'>
-                      Clean Sheets & Scoring
-                    </h4>
-                    <div className='grid grid-cols-2 gap-3'>
-                      <div className='space-y-2'>
-                        <h5 className='text-xs font-medium text-blue-600 mb-2'>
-                          Home Team
-                        </h5>
-                        <div className='space-y-1.5'>
-                          <div className='flex justify-between items-center'>
-                            <span className='text-gray-600 text-xs'>
-                              Home Avg Goals:
-                            </span>
-                            <span className='font-medium text-gray-900 text-xs'>
-                              {predictionMatch.homeTeam.avgHomeGoals?.toFixed(
-                                2
-                              ) || '0'}
-                            </span>
-                          </div>
-                          <div className='flex justify-between items-center'>
-                            <span className='text-gray-600 text-xs'>
-                              Total Clean Sheets:
-                            </span>
-                            <span className='font-medium text-gray-900 text-xs'>
-                              {predictionMatch.homeTeam.cleanSheets || '0'}
-                            </span>
-                          </div>
-                          <div className='flex justify-between items-center'>
-                            <span className='text-gray-600 text-xs'>
-                              Home Clean Sheets:
-                            </span>
-                            <span className='font-medium text-gray-900 text-xs'>
-                              {predictionMatch.homeTeam.homeCleanSheets || '0'}
-                            </span>
-                          </div>
-                          <div className='flex justify-between items-center'>
-                            <span className='text-gray-600 text-xs'>
-                              Scoring First Win %:
-                            </span>
-                            <span className='font-medium text-gray-900 text-xs'>
-                              {(
-                                predictionMatch.homeTeam.scoringFirstWinRate ||
-                                0
-                              ).toFixed(1)}
-                              %
-                            </span>
-                          </div>
-                          <div className='flex justify-between items-center'>
-                            <span className='text-gray-600 text-xs'>
-                              Conceding First Win %:
-                            </span>
-                            <span className='font-medium text-gray-900 text-xs'>
-                              {(
-                                predictionMatch.homeTeam
-                                  .concedingFirstWinRate || 0
-                              ).toFixed(1)}
-                              %
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className='space-y-2'>
-                        <h5 className='text-xs font-medium text-purple-600 mb-2'>
-                          Away Team
-                        </h5>
-                        <div className='space-y-1.5'>
-                          <div className='flex justify-between items-center'>
-                            <span className='text-gray-600 text-xs'>
-                              Total Clean Sheets:
-                            </span>
-                            <span className='font-medium text-gray-900 text-xs'>
-                              {predictionMatch.awayTeam.cleanSheets || '0'}
-                            </span>
-                          </div>
-                          <div className='flex justify-between items-center'>
-                            <span className='text-gray-600 text-xs'>
-                              Away Clean Sheets:
-                            </span>
-                            <span className='font-medium text-gray-900 text-xs'>
-                              {predictionMatch.awayTeam.awayCleanSheets || '0'}
-                            </span>
-                          </div>
-                          <div className='flex justify-between items-center'>
-                            <span className='text-gray-600 text-xs'>
-                              Scoring First Win %:
-                            </span>
-                            <span className='font-medium text-gray-900 text-xs'>
-                              {(
-                                predictionMatch.awayTeam.scoringFirstWinRate ||
-                                0
-                              ).toFixed(1)}
-                              %
-                            </span>
-                          </div>
-                          <div className='flex justify-between items-center'>
-                            <span className='text-gray-600 text-xs'>
-                              Conceding First Win %:
-                            </span>
-                            <span className='font-medium text-gray-900 text-xs'>
-                              {(
-                                predictionMatch.awayTeam
-                                  .concedingFirstWinRate || 0
-                              ).toFixed(1)}
-                              %
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Match Pattern Stats */}
-                  <div className='bg-white rounded-lg border border-gray-100 shadow-sm p-3'>
-                    <h4 className='text-sm font-medium text-gray-700 mb-3'>
-                      Match Patterns
-                    </h4>
-                    <div className='grid grid-cols-2 gap-3'>
-                      <div className='space-y-2'>
-                        <h5 className='text-xs font-medium text-blue-600 mb-2'>
-                          Home Team
-                        </h5>
-                        <div className='space-y-1.5'>
-                          <div className='flex justify-between items-center'>
-                            <span className='text-gray-600 text-xs'>
-                              Avg Corners:
-                            </span>
-                            <span className='font-medium text-gray-900 text-xs'>
-                              {(
-                                predictionMatch.homeTeam.avgCorners || 0
-                              ).toFixed(1)}
-                            </span>
-                          </div>
-                          <div className='flex justify-between items-center'>
-                            <span className='text-gray-600 text-xs'>
-                              BTTS Rate:
-                            </span>
-                            <span className='font-medium text-gray-900 text-xs'>
-                              {(predictionMatch.homeTeam.bttsRate || 0).toFixed(
-                                1
-                              )}
-                              %
-                            </span>
-                          </div>
-                          <div className='flex justify-between items-center'>
-                            <span className='text-gray-600 text-xs'>
-                              Home BTTS Rate:
-                            </span>
-                            <span className='font-medium text-gray-900 text-xs'>
-                              {(
-                                predictionMatch.homeTeam.homeBttsRate || 0
-                              ).toFixed(1)}
-                              %
-                            </span>
-                          </div>
-                          <div className='flex justify-between items-center'>
-                            <span className='text-gray-600 text-xs'>
-                              Late Goal Rate:
-                            </span>
-                            <span className='font-medium text-gray-900 text-xs'>
-                              {(
-                                predictionMatch.homeTeam.lateGoalRate || 0
-                              ).toFixed(1)}
-                              %
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className='space-y-2'>
-                        <h5 className='text-xs font-medium text-purple-600 mb-2'>
-                          Away Team
-                        </h5>
-                        <div className='space-y-1.5'>
-                          <div className='flex justify-between items-center'>
-                            <span className='text-gray-600 text-xs'>
-                              Avg Corners:
-                            </span>
-                            <span className='font-medium text-gray-900 text-xs'>
-                              {(
-                                predictionMatch.awayTeam.avgCorners || 0
-                              ).toFixed(1)}
-                            </span>
-                          </div>
-                          <div className='flex justify-between items-center'>
-                            <span className='text-gray-600 text-xs'>
-                              BTTS Rate:
-                            </span>
-                            <span className='font-medium text-gray-900 text-xs'>
-                              {(predictionMatch.awayTeam.bttsRate || 0).toFixed(
-                                1
-                              )}
-                              %
-                            </span>
-                          </div>
-                          <div className='flex justify-between items-center'>
-                            <span className='text-gray-600 text-xs'>
-                              Away BTTS Rate:
-                            </span>
-                            <span className='font-medium text-gray-900 text-xs'>
-                              {(
-                                predictionMatch.awayTeam.awayBttsRate || 0
-                              ).toFixed(1)}
-                              %
-                            </span>
-                          </div>
-                          <div className='flex justify-between items-center'>
-                            <span className='text-gray-600 text-xs'>
-                              Late Goal Rate:
-                            </span>
-                            <span className='font-medium text-gray-900 text-xs'>
-                              {(
-                                predictionMatch.awayTeam.lateGoalRate || 0
-                              ).toFixed(1)}
-                              %
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                )}
               </div>
             </div>
           </td>
@@ -2431,3 +1784,4 @@ const MatchesPage = () => {
 };
 
 export default MatchesPage;
+
