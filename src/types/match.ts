@@ -398,6 +398,11 @@ export interface Team {
     };
 }
 
+interface RecentMatch {
+    date: string;
+    result: string;
+}
+
 export interface Match {
     id: string | number;
     homeTeam: {
@@ -506,7 +511,7 @@ export interface Match {
         losses: number;
         goalsScored: number;
         goalsConceded: number;
-        recentMatches: any[];
+        recentMatches: RecentMatch[];
     };
     odds: {
         homeWin: number;

@@ -1,162 +1,38 @@
 import { useState, useEffect, useRef } from 'react';
 import { HubConnection, HubConnectionBuilder } from '@microsoft/signalr';
 import { useCartStore } from './useStore';
-import { TransformedMatch } from '@/types/match';
+import { ClientMatch, TransformedMatch, Match } from '@/types/match';
 import { transformMatch, findPredictionForMatch } from '@/utils/matchUtils';
 
-// Updated interfaces to match server models
-interface ClientTeam {
-    id: string;
-    name: string;
-}
-
-interface ClientTeams {
-    home: ClientTeam;
-    away: ClientTeam;
-}
-
-interface ClientOutcome {
-    id: string;
-    description: string;
-    odds: number;
-    stakePercentage: number;
-    isChanged?: boolean;
-}
-
-interface ClientMarket {
-    id: string;
-    description: string;
-    specifier: string;
-    margin: number;
-    favourite: string;
-    profitPercentage: number;
-    outcomes: ClientOutcome[];
-}
-
-interface ClientMatch {
-    id: string;
-    seasonId: string;
-    teams: ClientTeams;
-    tournamentName: string;
-    score: string;
-    period: string;
-    matchStatus: string;
-    playedTime: string;
-    markets: ClientMarket[];
-    lastUpdated: string;
-    matchSituation?: {
-        totalTime: string;
-        dominantTeam: string;
-        matchMomentum: string;
-        home: {
-            totalAttacks: string;
-            totalDangerousAttacks: string;
-            totalSafeAttacks: string;
-            totalAttackCount: string;
-            totalDangerousCount: string;
-            totalSafeCount: string;
-            attackPercentage: string;
-            dangerousAttackPercentage: string;
-            safeAttackPercentage: string;
-        };
-        away: {
-            totalAttacks: string;
-            totalDangerousAttacks: string;
-            totalSafeAttacks: string;
-            totalAttackCount: string;
-            totalDangerousCount: string;
-            totalSafeCount: string;
-            attackPercentage: string;
-            dangerousAttackPercentage: string;
-            safeAttackPercentage: string;
-        };
-    };
-    matchDetails?: {
-        home: {
-            yellowCards: string;
-            redCards: string;
-            freeKicks: string;
-            goalKicks: string;
-            throwIns: string;
-            offsides: string;
-            cornerKicks: string;
-            shotsOnTarget: string;
-            shotsOffTarget: string;
-            saves: string;
-            fouls: string;
-            injuries: string;
-            dangerousAttacks: string;
-            ballSafe: string;
-            totalAttacks: string;
-            goalAttempts: string;
-            ballSafePercentage: string;
-            attackPercentage: string;
-            dangerousAttackPercentage: string;
-        };
-        away: {
-            yellowCards: string;
-            redCards: string;
-            freeKicks: string;
-            goalKicks: string;
-            throwIns: string;
-            offsides: string;
-            cornerKicks: string;
-            shotsOnTarget: string;
-            shotsOffTarget: string;
-            saves: string;
-            fouls: string;
-            injuries: string;
-            dangerousAttacks: string;
-            ballSafe: string;
-            totalAttacks: string;
-            goalAttempts: string;
-            ballSafePercentage: string;
-            attackPercentage: string;
-            dangerousAttackPercentage: string;
-        };
-        types: string[];
+interface PredictionDataResponse {
+    data: {
+        upcomingMatches: Match[];
     };
 }
 
 // Helper function to clean team names
 const enhancedCleanTeamName = (name: string): string => {
-    if (!name) return '';
-    const cleanedName = name.replace(/^\d+\s+/, '').trim();
-    if (!cleanedName || /^\d+$/.test(cleanedName)) {
-        return 'Team ' + name.trim();
-    }
-    return cleanedName;
+    return name
+        .replace(/\([^)]*\)/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
 };
 
-// Helper function to normalize time formats
+// Helper function to normalize time format
 const normalizeTimeFormat = (timeStr: string): string => {
     if (!timeStr) return '';
-    if (/^\d{1,2}:\d{2}$/.test(timeStr)) {
-        const [hours, minutes] = timeStr.split(':');
-        return `${hours.padStart(2, '0')}:${minutes}`;
-    }
-    const amPmMatch = timeStr.match(/^(\d{1,2}):(\d{2})\s*(am|pm)$/i);
-    if (amPmMatch) {
-        const [, hours, minutes, ampm] = amPmMatch;
-        let hourNum = parseInt(hours);
-        if (ampm.toLowerCase() === 'pm' && hourNum < 12) {
-            hourNum += 12;
-        } else if (ampm.toLowerCase() === 'am' && hourNum === 12) {
-            hourNum = 0;
-        }
-        return `${hourNum.toString().padStart(2, '0')}:${minutes}`;
-    }
-    return timeStr;
+    const [minutes, seconds] = timeStr.split(':').map(Number);
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 };
 
-// Helper function to safely convert to number
+// Helper function to safely convert values to numbers
 const safeNumber = (value: unknown): number => {
     const num = Number(value);
-    return !isNaN(num) ? num : 0;
+    return isNaN(num) ? 0 : num;
 };
 
 // Process match data
-const processMatchData = (match: any) => {
+const processMatchData = (match: Match) => {
     const normalizedTime = normalizeTimeFormat(match.time);
 
     const homeTeamData = {
@@ -265,7 +141,7 @@ export const useMatchData = () => {
                 });
 
                 // Handle prediction data
-                connection.on('ReceivePredictionData', (data: any) => {
+                connection.on('ReceivePredictionData', (data: PredictionDataResponse) => {
                     console.log('Received prediction data:', data);
                     if (data?.data?.upcomingMatches) {
                         const processedMatches = data.data.upcomingMatches.map(processMatchData);
@@ -381,7 +257,7 @@ export const useMatchData = () => {
                 connectionRef.current.stop();
             }
         };
-    }, [isPaused, setPredictionData, setIsPredictionDataLoaded]);
+    }, [isPaused, setPredictionData, setIsPredictionDataLoaded, isPredictionDataLoaded, predictionData]);
 
     const togglePause = () => setIsPaused(prev => !prev);
 

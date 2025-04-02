@@ -1592,6 +1592,16 @@ const MarketRow = ({
                         <div className='space-y-1.5'>
                           <div className='flex justify-between items-center'>
                             <span className='text-gray-600 text-xs'>
+                              Home Avg Goals:
+                            </span>
+                            <span className='font-medium text-gray-900 text-xs'>
+                              {predictionMatch.homeTeam.avgHomeGoals?.toFixed(
+                                2
+                              ) || '0'}
+                            </span>
+                          </div>
+                          <div className='flex justify-between items-center'>
+                            <span className='text-gray-600 text-xs'>
                               Total Clean Sheets:
                             </span>
                             <span className='font-medium text-gray-900 text-xs'>
@@ -1869,12 +1879,8 @@ const MatchesPage = () => {
     addItem,
     removeItem,
     clearCart,
-    addUpcomingMatch,
-    removeUpcomingMatch,
     clearUpcomingMatches,
-    isUpcomingMatchInCart,
     getUpcomingMatchesCount,
-    findPredictionForMatch,
   } = useCartStore();
 
   // Update isInitialLoading based on allLiveMatches
