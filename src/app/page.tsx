@@ -1115,7 +1115,7 @@ const MarketRow = ({
                   {/* Team Positions */}
                   <div className='bg-white rounded-lg border border-gray-100 shadow-sm p-2'>
                     <h4 className='text-sm font-medium text-gray-700 mb-3'>
-                      Team Positions
+                      Team Positions & Momentum
                     </h4>
                     <div className='space-y-2'>
                       <div className='flex justify-between items-center'>
@@ -1124,14 +1124,18 @@ const MarketRow = ({
                         </span>
                         <div
                           className={`px-2 py-1 rounded-lg text-xs font-medium ${
-                            (match.positionGap || 0) >= 10
-                              ? 'bg-green-50 text-green-800'
-                              : (match.positionGap || 0) >= 5
-                              ? 'bg-yellow-50 text-yellow-800'
+                            predictionMatch && predictionMatch.positionGap
+                              ? predictionMatch.positionGap >= 10
+                                ? 'bg-green-50 text-green-800'
+                                : predictionMatch.positionGap >= 5
+                                ? 'bg-yellow-50 text-yellow-800'
+                                : 'bg-gray-50 text-gray-800'
                               : 'bg-gray-50 text-gray-800'
                           }`}
                         >
-                          {match.positionGap || '-'}
+                          {predictionMatch
+                            ? predictionMatch.positionGap || '-'
+                            : match.positionGap || '-'}
                         </div>
                       </div>
                       <div className='flex justify-between items-center'>
@@ -1139,7 +1143,9 @@ const MarketRow = ({
                           Home Position:
                         </span>
                         <div className='px-2 py-1 rounded-lg text-xs font-medium bg-blue-50 text-blue-800'>
-                          {match.teams.home.position || '-'}
+                          {predictionMatch
+                            ? predictionMatch.homeTeam.position || '-'
+                            : match.teams.home.position || '-'}
                         </div>
                       </div>
                       <div className='flex justify-between items-center'>
@@ -1147,7 +1153,45 @@ const MarketRow = ({
                           Away Position:
                         </span>
                         <div className='px-2 py-1 rounded-lg text-xs font-medium bg-purple-50 text-purple-800'>
-                          {match.teams.away.position || '-'}
+                          {predictionMatch
+                            ? predictionMatch.awayTeam.position || '-'
+                            : match.teams.away.position || '-'}
+                        </div>
+                      </div>
+                      <div className='flex justify-between items-center'>
+                        <span className='text-gray-600 text-xs'>
+                          Dominant Team:
+                        </span>
+                        <div
+                          className={`px-2 py-1 rounded-lg text-xs font-medium ${
+                            match.matchSituation?.dominantTeam ===
+                            match.teams.home.name
+                              ? 'bg-blue-50 text-blue-800'
+                              : match.matchSituation?.dominantTeam ===
+                                match.teams.away.name
+                              ? 'bg-purple-50 text-purple-800'
+                              : 'bg-gray-50 text-gray-800'
+                          }`}
+                        >
+                          {match.matchSituation?.dominantTeam || 'None'}
+                        </div>
+                      </div>
+                      <div className='flex justify-between items-center'>
+                        <span className='text-gray-600 text-xs'>
+                          Match Momentum:
+                        </span>
+                        <div
+                          className={`px-2 py-1 rounded-lg text-xs font-medium ${
+                            match.matchSituation?.matchMomentum ===
+                            match.teams.home.name
+                              ? 'bg-blue-50 text-blue-800'
+                              : match.matchSituation?.matchMomentum ===
+                                match.teams.away.name
+                              ? 'bg-purple-50 text-purple-800'
+                              : 'bg-amber-50 text-amber-800'
+                          }`}
+                        >
+                          {match.matchSituation?.matchMomentum || 'Neutral'}
                         </div>
                       </div>
                     </div>
