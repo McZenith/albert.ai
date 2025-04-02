@@ -173,19 +173,128 @@ export interface ClientMatch extends MatchStats {
     matchDetails?: ClientMatchDetails;
 }
 
-export interface TransformedMatch extends MatchStats {
+export interface TeamBase {
     id: string;
-    seasonId: string;
-    teams: ClientTeams;
+    name: string;
+    position: number;
+    logo?: string;
+}
+
+export interface Team extends TeamBase {
+    avgHomeGoals: number;
+    avgAwayGoals: number;
+    avgTotalGoals: number;
+    homeMatchesOver15: number;
+    awayMatchesOver15: number;
+    totalHomeMatches: number;
+    totalAwayMatches: number;
+    form: string;
+    homeForm: string;
+    awayForm: string;
+    cleanSheets: number;
+    homeCleanSheets: number;
+    awayCleanSheets: number;
+    scoringFirstWinRate: number;
+    concedingFirstWinRate: number;
+    firstHalfGoalsPercent: number | null;
+    secondHalfGoalsPercent: number | null;
+    avgCorners: number;
+    bttsRate: number;
+    homeBttsRate: number;
+    awayBttsRate: number;
+    lateGoalRate: number;
+    goalDistribution: {
+        '0-15': { total: number; home: number; away: number };
+        '16-30': { total: number; home: number; away: number };
+        '31-45': { total: number; home: number; away: number };
+        '46-60': { total: number; home: number; away: number };
+        '61-75': { total: number; home: number; away: number };
+        '76-90': { total: number; home: number; away: number };
+    };
+    againstTopTeamsPoints: number | null;
+    againstMidTeamsPoints: number | null;
+    againstBottomTeamsPoints: number | null;
+    isHomeTeam: boolean;
+    formStrength: number;
+    formRating: number;
+    winPercentage: number;
+    homeWinPercentage: number;
+    awayWinPercentage: number;
+    cleanSheetPercentage: number;
+    averageGoalsScored: number;
+    averageGoalsConceded: number;
+    homeAverageGoalsScored: number;
+    homeAverageGoalsConceded: number;
+    awayAverageGoalsScored: number;
+    awayAverageGoalsConceded: number;
+    goalsScoredAverage: number;
+    goalsConcededAverage: number;
+    averageCorners: number;
+    avgOdds: number;
+    leagueAvgGoals: number;
+    possession: number;
+    opponentName: string;
+    totalHomeWins: number;
+    totalAwayWins: number;
+    totalHomeDraws: number;
+    totalAwayDraws: number;
+    totalHomeLosses: number;
+    totalAwayLosses: number;
+    over05: number;
+    over15: number;
+    over25: number;
+    over35: number;
+    over45: number;
+    cleanSheetRate: number;
+    cornerStats: {
+        avgCorners: number;
+        avgCornersFor: number;
+        avgCornersAgainst: number;
+    };
+    scoringStats: {
+        avgGoalsScored: number;
+        avgGoalsConceded: number;
+        avgTotalGoals: number;
+    };
+    patterns: {
+        btts: number;
+        over15: number;
+        over25: number;
+        over35: number;
+    };
+}
+
+export interface TransformedMatch {
+    id: string;
+    seasonId?: number;
+    teams: {
+        home: TeamBase;
+        away: TeamBase;
+    };
     tournamentName: string;
     status: 'FT' | '1H' | '2H' | 'HT' | 'NS';
     playedSeconds: number;
     matchSituation?: TransformedMatchSituation;
     matchDetails?: TransformedMatchDetails;
+    markets: Array<{
+        id: string;
+        description: string;
+        profitPercentage: number;
+        favourite: string;
+        margin: number;
+        outcomes: Array<{
+            id: string;
+            description: string;
+            odds: number;
+            stakePercentage: number;
+            isChanged?: boolean;
+        }>;
+    }>;
     score: string;
-    markets: ClientMarket[];
     createdAt: string;
     matchTime: string;
+    homeTeam?: Team;
+    awayTeam?: Team;
 }
 
 export interface TransformedMatchSituation {
@@ -263,270 +372,23 @@ export interface TransformedMatchDetails {
 }
 
 export interface UpcomingMatch {
-    id: string | number;
+    id: string;
+    homeTeam: Team;
+    awayTeam: Team;
     date: string;
     time: string;
     venue: string;
-    homeTeam: {
-        id: string;
-        name: string;
-        position: number;
-        logo: string;
-        avgHomeGoals: number;
-        avgAwayGoals: number;
-        avgTotalGoals: number;
-        homeMatchesOver15: number;
-        awayMatchesOver15: number;
-        totalHomeMatches: number;
-        totalAwayMatches: number;
-        form: string;
-        homeForm: string;
-        awayForm: string;
-        cleanSheets: number;
-        homeCleanSheets: number;
-        awayCleanSheets: number;
-        scoringFirstWinRate: number;
-        concedingFirstWinRate: number;
-        firstHalfGoalsPercent: number | null;
-        secondHalfGoalsPercent: number | null;
-        avgCorners: number;
-        bttsRate: number;
-        homeBttsRate: number;
-        awayBttsRate: number;
-        lateGoalRate: number;
-        goalDistribution: {
-            '0-15': { total: number; home: number; away: number };
-            '16-30': { total: number; home: number; away: number };
-            '31-45': { total: number; home: number; away: number };
-            '46-60': { total: number; home: number; away: number };
-            '61-75': { total: number; home: number; away: number };
-            '76-90': { total: number; home: number; away: number };
-        };
-        againstTopTeamsPoints: number | null;
-        againstMidTeamsPoints: number | null;
-        againstBottomTeamsPoints: number | null;
-        isHomeTeam: boolean;
-        formStrength: number;
-        formRating: number;
-        winPercentage: number;
-        homeWinPercentage: number;
-        awayWinPercentage: number;
-        cleanSheetPercentage: number;
-        averageGoalsScored: number;
-        averageGoalsConceded: number;
-        homeAverageGoalsScored: number;
-        homeAverageGoalsConceded: number;
-        awayAverageGoalsScored: number;
-        awayAverageGoalsConceded: number;
-        goalsScoredAverage: number;
-        goalsConcededAverage: number;
-        averageCorners: number;
-        avgOdds: number;
-        leagueAvgGoals: number;
-        possession: number;
-        opponentName: string;
-        totalHomeWins: number;
-        totalAwayWins: number;
-        totalHomeDraws: number;
-        totalAwayDraws: number;
-        totalHomeLosses: number;
-        totalAwayLosses: number;
-    };
-    awayTeam: {
-        id: string;
-        name: string;
-        position: number;
-        logo: string;
-        avgHomeGoals: number;
-        avgAwayGoals: number;
-        avgTotalGoals: number;
-        homeMatchesOver15: number;
-        awayMatchesOver15: number;
-        totalHomeMatches: number;
-        totalAwayMatches: number;
-        form: string;
-        homeForm: string;
-        awayForm: string;
-        cleanSheets: number;
-        homeCleanSheets: number;
-        awayCleanSheets: number;
-        scoringFirstWinRate: number;
-        concedingFirstWinRate: number;
-        firstHalfGoalsPercent: number | null;
-        secondHalfGoalsPercent: number | null;
-        avgCorners: number;
-        bttsRate: number;
-        homeBttsRate: number;
-        awayBttsRate: number;
-        lateGoalRate: number;
-        goalDistribution: {
-            '0-15': { total: number; home: number; away: number };
-            '16-30': { total: number; home: number; away: number };
-            '31-45': { total: number; home: number; away: number };
-            '46-60': { total: number; home: number; away: number };
-            '61-75': { total: number; home: number; away: number };
-            '76-90': { total: number; home: number; away: number };
-        };
-        againstTopTeamsPoints: number | null;
-        againstMidTeamsPoints: number | null;
-        againstBottomTeamsPoints: number | null;
-        isHomeTeam: boolean;
-        formStrength: number;
-        formRating: number;
-        winPercentage: number;
-        homeWinPercentage: number;
-        awayWinPercentage: number;
-        cleanSheetPercentage: number;
-        averageGoalsScored: number;
-        averageGoalsConceded: number;
-        homeAverageGoalsScored: number;
-        homeAverageGoalsConceded: number;
-        awayAverageGoalsScored: number;
-        awayAverageGoalsConceded: number;
-        goalsScoredAverage: number;
-        goalsConcededAverage: number;
-        averageCorners: number;
-        avgOdds: number;
-        leagueAvgGoals: number;
-        possession: number;
-        opponentName: string;
-        totalHomeWins: number;
-        totalAwayWins: number;
-        totalHomeDraws: number;
-        totalAwayDraws: number;
-        totalHomeLosses: number;
-        totalAwayLosses: number;
-    };
     positionGap: number;
     favorite: 'home' | 'away' | null;
     confidenceScore: number;
-    averageGoals: number;
-    expectedGoals: number;
-    defensiveStrength: number;
-    odds: {
-        homeWin: number;
-        draw: number;
-        awayWin: number;
-        over15Goals: number;
-        under15Goals: number;
-        over25Goals: number;
-        under25Goals: number;
-        bttsYes: number;
-        bttsNo: number;
-    };
-    headToHead: {
-        matches: number;
-        wins: number;
-        draws: number;
-        losses: number;
-        goalsScored: number;
-        goalsConceded: number;
-        recentMatches: Array<{
-            date: string;
-            result: string;
-        }>;
-    };
-    cornerStats: {
-        homeAvg: number;
-        awayAvg: number;
-        totalAvg: number;
-    };
-    scoringPatterns: {
-        homeFirstGoalRate: number;
-        awayFirstGoalRate: number;
-        homeLateGoalRate: number;
-        awayLateGoalRate: number;
-    };
-    reasonsForPrediction: string[];
-}
-
-export interface Team {
-    id: string;
-    name: string;
-    position: number;
-    logo: string;
-    avgHomeGoals: number;
-    avgAwayGoals: number;
-    avgTotalGoals: number;
-    homeMatchesOver15: number;
-    awayMatchesOver15: number;
-    totalHomeMatches: number;
-    totalAwayMatches: number;
-    form: string;
-    homeForm: string;
-    awayForm: string;
-    cleanSheets: number;
-    homeCleanSheets: number;
-    awayCleanSheets: number;
-    scoringFirstWinRate: number;
-    concedingFirstWinRate: number;
-    firstHalfGoalsPercent: number | null;
-    secondHalfGoalsPercent: number | null;
-    avgCorners: number;
-    bttsRate: number;
-    homeBttsRate: number;
-    awayBttsRate: number;
-    lateGoalRate: number;
-    goalDistribution: {
-        '0-15': { total: number; home: number; away: number };
-        '16-30': { total: number; home: number; away: number };
-        '31-45': { total: number; home: number; away: number };
-        '46-60': { total: number; home: number; away: number };
-        '61-75': { total: number; home: number; away: number };
-        '76-90': { total: number; home: number; away: number };
-    };
-    againstTopTeamsPoints: number | null;
-    againstMidTeamsPoints: number | null;
-    againstBottomTeamsPoints: number | null;
-    isHomeTeam: boolean;
-    formStrength: number;
-    formRating: number;
-    winPercentage: number;
-    drawPercentage: number;
-    homeWinPercentage: number;
-    awayWinPercentage: number;
-    cleanSheetPercentage: number;
-    averageGoalsScored: number;
-    averageGoalsConceded: number;
-    homeAverageGoalsScored: number;
-    homeAverageGoalsConceded: number;
-    awayAverageGoalsScored: number;
-    awayAverageGoalsConceded: number;
-    goalsScoredAverage: number;
-    goalsConcededAverage: number;
-    averageCorners: number;
-    avgOdds: number;
-    leagueAvgGoals: number;
-    possession: number;
-    opponentName: string;
-    totalHomeWins: number;
-    totalAwayWins: number;
-    totalHomeDraws: number;
-    totalAwayDraws: number;
-    totalHomeLosses: number;
-    totalAwayLosses: number;
-    over05: number;
-    over15: number;
-    over25: number;
-    over35: number;
-    over45: number;
-    cleanSheetRate: number;
-    cornerStats: {
-        avgCorners: number;
-        avgCornersFor: number;
-        avgCornersAgainst: number;
-    };
-    scoringStats: {
-        avgGoalsScored: number;
-        avgGoalsConceded: number;
-        avgTotalGoals: number;
-    };
-    patterns: {
-        btts: number;
-        over15: number;
-        over25: number;
-        over35: number;
-    };
+    averageGoals?: number;
+    expectedGoals?: number;
+    defensiveStrength?: number;
+    headToHead?: HeadToHead;
+    odds?: MatchOdds;
+    cornerStats?: CornerStats;
+    scoringPatterns?: ScoringPatterns;
+    reasonsForPrediction?: string[];
 }
 
 export interface MatchDetails {
@@ -571,4 +433,54 @@ export interface MatchDetails {
     types: Record<string, string>;
 }
 
-export type Match = UpcomingMatch | ClientMatch | TransformedMatch; 
+export interface HeadToHead {
+    matches: number;
+    wins: number;
+    draws: number;
+    losses: number;
+    goalsScored: number;
+    goalsConceded: number;
+    recentMatches: Array<{
+        date: string;
+        result: string;
+    }>;
+}
+
+export interface MatchOdds {
+    homeWin: number;
+    draw: number;
+    awayWin: number;
+    over15Goals: number;
+    under15Goals: number;
+    over25Goals: number;
+    under25Goals: number;
+    bttsYes: number;
+    bttsNo: number;
+}
+
+export interface CornerStats {
+    homeAvg: number;
+    awayAvg: number;
+    totalAvg: number;
+}
+
+export interface ScoringPatterns {
+    homeFirstGoalRate: number;
+    awayFirstGoalRate: number;
+    homeLateGoalRate: number;
+    awayLateGoalRate: number;
+    homeBttsRate: number;
+    awayBttsRate: number;
+}
+
+export type Match = TransformedMatch | UpcomingMatch | ClientMatch;
+
+// Type guard to check if a match is a ClientMatch
+export const isClientMatch = (match: Match): match is TransformedMatch => {
+    return 'teams' in match && !('homeTeam' in match);
+};
+
+// Type guard to check if a match is an UpcomingMatch
+export const isUpcomingMatch = (match: Match): match is UpcomingMatch => {
+    return 'homeTeam' in match && !('teams' in match);
+}; 

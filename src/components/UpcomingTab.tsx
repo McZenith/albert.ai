@@ -532,7 +532,7 @@ const MatchPredictor = () => {
       // Add to cart with proper structure
       addUpcomingMatch({
         ...matchToAdd,
-        id: uniqueId,
+        id: String(uniqueId),
         homeTeam: homeTeamWithId,
         awayTeam: awayTeamWithId,
       });
@@ -924,7 +924,7 @@ const MatchPredictor = () => {
         // Add to cart with proper structure
         addUpcomingMatch({
           ...match,
-          id: uniqueId,
+          id: String(uniqueId),
           homeTeam: homeTeamWithId,
           awayTeam: awayTeamWithId,
         });

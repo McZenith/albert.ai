@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { HubConnection, HubConnectionBuilder } from '@microsoft/signalr';
 import { useCartStore } from './useStore';
-import { ClientMatch, TransformedMatch, Match } from '@/types/match';
+import { ClientMatch, TransformedMatch, Match, UpcomingMatch } from '@/types/match';
 import { transformMatch, findPredictionForMatch } from '@/utils/matchUtils';
 
 interface PredictionDataResponse {
@@ -26,14 +26,21 @@ const normalizeTimeFormat = (timeStr: string): string => {
 };
 
 // Helper function to safely convert values to numbers
-const safeNumber = (value: unknown): number => {
+export const safeNumber = (value: unknown): number => {
+    if (typeof value === 'number') return value;
+    if (!value) return 0;
     const num = Number(value);
     return isNaN(num) ? 0 : num;
 };
 
 // Helper function to check if match is ClientMatch
 const isClientMatch = (match: Match): match is ClientMatch => {
-    return 'teams' in match;
+    return 'playedTime' in match;
+};
+
+// Helper function to check if match is UpcomingMatch
+const isUpcomingMatch = (match: Match): match is UpcomingMatch => {
+    return 'date' in match && 'venue' in match;
 };
 
 // Helper function to get home team data
@@ -47,7 +54,7 @@ const getAwayTeam = (match: Match) => {
 };
 
 // Process match data
-const processMatchData = (match: Match) => {
+const processMatchData = (match: Match): UpcomingMatch => {
     const normalizedTime = normalizeTimeFormat(isClientMatch(match) ? match.playedTime : '');
     const homeTeam = getHomeTeam(match);
     const awayTeam = getAwayTeam(match);
@@ -141,6 +148,58 @@ const processMatchData = (match: Match) => {
         }
     };
 
+    if (!homeTeam || !awayTeam) {
+        console.warn('Missing team data for match:', match.id);
+        return {
+            id: String(match.id),
+            homeTeam: defaultTeamData,
+            awayTeam: defaultTeamData,
+            date: new Date().toISOString(),
+            time: '',
+            venue: 'TBD',
+            positionGap: 0,
+            favorite: null,
+            confidenceScore: 0,
+            averageGoals: 0,
+            expectedGoals: 0,
+            defensiveStrength: 0,
+            headToHead: {
+                matches: 0,
+                wins: 0,
+                draws: 0,
+                losses: 0,
+                goalsScored: 0,
+                goalsConceded: 0,
+                recentMatches: []
+            },
+            odds: {
+                homeWin: 0,
+                draw: 0,
+                awayWin: 0,
+                over15Goals: 0,
+                under15Goals: 0,
+                over25Goals: 0,
+                under25Goals: 0,
+                bttsYes: 0,
+                bttsNo: 0
+            },
+            cornerStats: {
+                homeAvg: 0,
+                awayAvg: 0,
+                totalAvg: 0
+            },
+            scoringPatterns: {
+                homeFirstGoalRate: 0,
+                awayFirstGoalRate: 0,
+                homeLateGoalRate: 0,
+                awayLateGoalRate: 0,
+                homeBttsRate: 0,
+                awayBttsRate: 0
+            },
+            reasonsForPrediction: []
+        };
+    }
+
     const homeTeamData = {
         ...defaultTeamData,
         ...homeTeam,
@@ -172,50 +231,81 @@ const processMatchData = (match: Match) => {
     };
 
     return {
-        ...match,
-        time: normalizedTime,
-        date: match.date || new Date().toISOString(),
-        venue: match.venue || 'TBD',
+        id: String(match.id),
         homeTeam: homeTeamData,
         awayTeam: awayTeamData,
-        positionGap: safeNumber(match.positionGap),
-        favorite: match.favorite || null,
-        confidenceScore: safeNumber(match.confidenceScore),
-        averageGoals: safeNumber(match.averageGoals),
-        expectedGoals: safeNumber(match.expectedGoals),
-        defensiveStrength: safeNumber(match.defensiveStrength),
-        odds: {
-            homeWin: safeNumber(match.odds?.homeWin),
-            draw: safeNumber(match.odds?.draw),
-            awayWin: safeNumber(match.odds?.awayWin),
-            over15Goals: safeNumber(match.odds?.over15Goals),
-            under15Goals: safeNumber(match.odds?.under15Goals),
-            over25Goals: safeNumber(match.odds?.over25Goals),
-            under25Goals: safeNumber(match.odds?.under25Goals),
-            bttsYes: safeNumber(match.odds?.bttsYes),
-            bttsNo: safeNumber(match.odds?.bttsNo)
+        date: isUpcomingMatch(match) ? match.date : new Date().toISOString(),
+        time: normalizedTime,
+        venue: isUpcomingMatch(match) ? match.venue : 'TBD',
+        positionGap: isUpcomingMatch(match) ? safeNumber(match.positionGap) : 0,
+        favorite: isUpcomingMatch(match) ? match.favorite : null,
+        confidenceScore: isUpcomingMatch(match) ? safeNumber(match.confidenceScore) : 0,
+        averageGoals: isUpcomingMatch(match) ? safeNumber(match.averageGoals) : 0,
+        expectedGoals: isUpcomingMatch(match) ? safeNumber(match.expectedGoals) : 0,
+        defensiveStrength: isUpcomingMatch(match) ? safeNumber(match.defensiveStrength) : 0,
+        headToHead: isUpcomingMatch(match) ? match.headToHead || {
+            matches: 0,
+            wins: 0,
+            draws: 0,
+            losses: 0,
+            goalsScored: 0,
+            goalsConceded: 0,
+            recentMatches: []
+        } : {
+            matches: 0,
+            wins: 0,
+            draws: 0,
+            losses: 0,
+            goalsScored: 0,
+            goalsConceded: 0,
+            recentMatches: []
         },
-        headToHead: {
-            matches: safeNumber(match.headToHead?.matches),
-            wins: safeNumber(match.headToHead?.wins),
-            draws: safeNumber(match.headToHead?.draws),
-            losses: safeNumber(match.headToHead?.losses),
-            goalsScored: safeNumber(match.headToHead?.goalsScored),
-            goalsConceded: safeNumber(match.headToHead?.goalsConceded),
-            recentMatches: match.headToHead?.recentMatches || []
+        odds: isUpcomingMatch(match) ? match.odds || {
+            homeWin: 0,
+            draw: 0,
+            awayWin: 0,
+            over15Goals: 0,
+            under15Goals: 0,
+            over25Goals: 0,
+            under25Goals: 0,
+            bttsYes: 0,
+            bttsNo: 0
+        } : {
+            homeWin: 0,
+            draw: 0,
+            awayWin: 0,
+            over15Goals: 0,
+            under15Goals: 0,
+            over25Goals: 0,
+            under25Goals: 0,
+            bttsYes: 0,
+            bttsNo: 0
         },
-        cornerStats: {
-            homeAvg: safeNumber(match.cornerStats?.homeAvg),
-            awayAvg: safeNumber(match.cornerStats?.awayAvg),
-            totalAvg: safeNumber(match.cornerStats?.totalAvg)
+        cornerStats: isUpcomingMatch(match) ? match.cornerStats || {
+            homeAvg: 0,
+            awayAvg: 0,
+            totalAvg: 0
+        } : {
+            homeAvg: 0,
+            awayAvg: 0,
+            totalAvg: 0
         },
-        scoringPatterns: {
-            homeFirstGoalRate: safeNumber(match.scoringPatterns?.homeFirstGoalRate),
-            awayFirstGoalRate: safeNumber(match.scoringPatterns?.awayFirstGoalRate),
-            homeLateGoalRate: safeNumber(match.scoringPatterns?.homeLateGoalRate),
-            awayLateGoalRate: safeNumber(match.scoringPatterns?.awayLateGoalRate)
+        scoringPatterns: isUpcomingMatch(match) ? match.scoringPatterns || {
+            homeFirstGoalRate: 0,
+            awayFirstGoalRate: 0,
+            homeLateGoalRate: 0,
+            awayLateGoalRate: 0,
+            homeBttsRate: 0,
+            awayBttsRate: 0
+        } : {
+            homeFirstGoalRate: 0,
+            awayFirstGoalRate: 0,
+            homeLateGoalRate: 0,
+            awayLateGoalRate: 0,
+            homeBttsRate: 0,
+            awayBttsRate: 0
         },
-        reasonsForPrediction: match.reasonsForPrediction || []
+        reasonsForPrediction: isUpcomingMatch(match) ? match.reasonsForPrediction || [] : []
     };
 };
 

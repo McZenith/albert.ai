@@ -174,40 +174,28 @@ export const transformMarkets = (markets: ClientMatch['markets']) => {
     }));
 };
 
+const getPlayedSeconds = (playedTime: string): number => {
+    if (!playedTime) return 0;
+    const [minutes, seconds = '0'] = playedTime.split(':');
+    return (parseInt(minutes, 10) * 60) + parseInt(seconds, 10);
+};
+
 // Transform a single match
 export const transformMatch = (match: ClientMatch): TransformedMatch => {
-    // Log incoming match data
-    console.log('Transforming match:', {
-        id: match.id,
-        matchSituation: match.matchSituation,
-        matchDetails: match.matchDetails
-    });
-
-    const { status, playedSeconds } = transformMatchStatus(match);
-    const transformedMatchSituation = transformMatchSituation(match.matchSituation);
-    const transformedMatchDetails = transformMatchDetails(match.matchDetails);
+    const transformedMatchSituation = match.matchSituation ? transformMatchSituation(match.matchSituation) : undefined;
+    const transformedMatchDetails = match.matchDetails ? transformMatchDetails(match.matchDetails) : undefined;
+    const { status } = transformMatchStatus(match);
 
     const transformed = {
-        id: match.id,
-        seasonId: match.seasonId,
-        teams: match.teams,
-        tournamentName: match.tournamentName,
-        status,
-        playedSeconds,
+        ...match,
+        seasonId: Number(match.seasonId),
         matchSituation: transformedMatchSituation,
         matchDetails: transformedMatchDetails,
-        markets: transformMarkets(match.markets),
-        score: match.score,
-        createdAt: match.lastUpdated,
-        matchTime: match.lastUpdated
+        playedSeconds: getPlayedSeconds(match.playedTime),
+        matchTime: match.playedTime || '',
+        status,
+        createdAt: match.lastUpdated
     };
-
-    // Log final transformed match
-    console.log('Transformed match result:', {
-        id: transformed.id,
-        matchSituation: transformed.matchSituation,
-        matchDetails: transformed.matchDetails
-    });
 
     return transformed;
 };
