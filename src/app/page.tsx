@@ -874,83 +874,6 @@ const MarketRow = ({
                 </div>
               </div>
 
-              {/* Over 1.5 & Defense Combined */}
-              <div className='grid grid-cols-2 gap-4'>
-                <div className='bg-gray-50 rounded-lg p-3'>
-                  <h4 className='text-xs font-medium text-gray-500 mb-2'>
-                    OVER 1.5 & DEFENSE
-                  </h4>
-                  <div className='grid grid-cols-2 gap-4'>
-                    <div className='space-y-2'>
-                      <div className='flex justify-between items-center'>
-                        <span className='text-xs text-gray-500'>Over 1.5:</span>
-                        <span className='text-sm font-bold'>
-                          {predictionMatch?.odds?.over15Goals?.toFixed(2) ||
-                            '-'}
-                        </span>
-                      </div>
-                      <div className='flex justify-between items-center'>
-                        <span className='text-xs text-gray-500'>Defense:</span>
-                        <span className='text-sm font-bold'>
-                          {predictionMatch?.defensiveStrength?.toFixed(2) ||
-                            '-'}
-                        </span>
-                      </div>
-                    </div>
-                    <div className='border-l border-gray-200 pl-4'>
-                      <div className='space-y-2'>
-                        <div className='flex justify-between items-center'>
-                          <span className='text-xs text-gray-500'>
-                            Confidence:
-                          </span>
-                          <span
-                            className={`text-sm font-bold ${
-                              predictionMatch?.confidenceScore >= 80
-                                ? 'text-green-600'
-                                : predictionMatch?.confidenceScore >= 60
-                                ? 'text-yellow-600'
-                                : 'text-red-600'
-                            }`}
-                          >
-                            {predictionMatch?.confidenceScore}%
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Team Stats */}
-                <div className='bg-gray-50 rounded-lg p-2'>
-                  <h4 className='text-xs font-medium text-gray-500 mb-1'>
-                    TEAM STATS
-                  </h4>
-                  <div className='space-y-1'>
-                    <div className='flex justify-between items-center'>
-                      <span className='text-xs text-gray-500'>Form:</span>
-                      <span className='text-xs font-bold'>
-                        {predictionMatch?.teamForm || '-'}
-                      </span>
-                    </div>
-                    <div className='flex justify-between items-center'>
-                      <span className='text-xs text-gray-500'>
-                        Clean Sheets:
-                      </span>
-                      <span className='text-xs font-bold'>
-                        {predictionMatch?.cleanSheets || 0}
-                      </span>
-                    </div>
-                    <div className='flex justify-between items-center'>
-                      <span className='text-xs text-gray-500'>Goals:</span>
-                      <span className='text-xs font-bold'>
-                        {predictionMatch?.goalsScored}-
-                        {predictionMatch?.goalsConceded}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
               {/* Match Momentum & Attack Success */}
               <div className='grid grid-cols-6 gap-2 mt-2'>
                 {/* Form & Points */}
@@ -1093,64 +1016,70 @@ const MarketRow = ({
                 </div>
               </div>
 
-              {/* Over 1.5 & Defense */}
-              <div className='grid grid-cols-6 gap-2 mt-2'>
-                {/* Over 1.5 */}
-                <div className='col-span-2 bg-gray-50 rounded-lg p-2'>
-                  <h4 className='text-xs font-medium text-gray-500 mb-1'>
-                    OVER 1.5
-                  </h4>
-                  <div className='space-y-1'>
-                    <div className='flex justify-between items-center'>
-                      <span className='text-xs text-gray-500'>Odds:</span>
-                      <span className='text-xs font-bold'>
-                        {predictionMatch?.odds?.over15Goals?.toFixed(2) || '-'}
-                      </span>
+              {/* Over 1.5 & Defense Combined Box */}
+              <div className='bg-gray-50 rounded-lg p-3'>
+                <div className='grid grid-cols-2 gap-4'>
+                  <div>
+                    <h4 className='text-xs font-medium text-gray-500 mb-2'>
+                      OVER 1.5 & BTTS
+                    </h4>
+                    <div className='space-y-2'>
+                      <div className='flex justify-between items-center'>
+                        <span className='text-xs text-gray-500'>Over 1.5:</span>
+                        <span className='text-sm font-bold'>
+                          {predictionMatch?.odds?.over15Goals?.toFixed(2) ||
+                            '-'}
+                        </span>
+                      </div>
+                      <div className='flex justify-between items-center'>
+                        <span className='text-xs text-gray-500'>BTTS:</span>
+                        <span className='text-sm font-bold'>
+                          {predictionMatch?.odds?.bttsYes?.toFixed(2) || '-'}
+                        </span>
+                      </div>
+                      <div className='flex justify-between items-center'>
+                        <span className='text-xs text-gray-500'>
+                          BTTS Rate:
+                        </span>
+                        <span className='text-sm font-bold'>
+                          {Math.round(
+                            (predictionMatch?.homeTeam?.bttsRate +
+                              predictionMatch?.awayTeam?.bttsRate) /
+                              2 || 0
+                          )}
+                          %
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-
-                {/* Defense */}
-                <div className='col-span-2 bg-gray-50 rounded-lg p-2'>
-                  <h4 className='text-xs font-medium text-gray-500 mb-1'>
-                    DEFENSE
-                  </h4>
-                  <div className='space-y-1'>
-                    <div className='flex justify-between items-center'>
-                      <span className='text-xs text-gray-500'>Def Str:</span>
-                      <span className='text-xs font-bold'>
-                        {predictionMatch?.defensiveStrength?.toFixed(2) || '-'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Team Stats */}
-                <div className='col-span-2 bg-gray-50 rounded-lg p-2'>
-                  <h4 className='text-xs font-medium text-gray-500 mb-1'>
-                    TEAM STATS
-                  </h4>
-                  <div className='space-y-1'>
-                    <div className='flex justify-between items-center'>
-                      <span className='text-xs text-gray-500'>Form:</span>
-                      <span className='text-xs font-bold'>
-                        {predictionMatch?.teamForm || '-'}
-                      </span>
-                    </div>
-                    <div className='flex justify-between items-center'>
-                      <span className='text-xs text-gray-500'>
-                        Clean Sheets:
-                      </span>
-                      <span className='text-xs font-bold'>
-                        {predictionMatch?.cleanSheets || 0}
-                      </span>
-                    </div>
-                    <div className='flex justify-between items-center'>
-                      <span className='text-xs text-gray-500'>Goals:</span>
-                      <span className='text-xs font-bold'>
-                        {predictionMatch?.goalsScored}-
-                        {predictionMatch?.goalsConceded}
-                      </span>
+                  <div className='border-l border-gray-200 pl-4'>
+                    <h4 className='text-xs font-medium text-gray-500 mb-2'>
+                      DEFENSE
+                    </h4>
+                    <div className='space-y-2'>
+                      <div className='flex justify-between items-center'>
+                        <span className='text-xs text-gray-500'>Rating:</span>
+                        <span className='text-sm font-bold'>
+                          {predictionMatch?.defensiveStrength?.toFixed(2) ||
+                            '-'}
+                        </span>
+                      </div>
+                      <div className='flex justify-between items-center'>
+                        <span className='text-xs text-gray-500'>
+                          Confidence:
+                        </span>
+                        <span
+                          className={`text-sm font-bold ${
+                            predictionMatch?.confidenceScore >= 80
+                              ? 'text-green-600'
+                              : predictionMatch?.confidenceScore >= 60
+                              ? 'text-yellow-600'
+                              : 'text-red-600'
+                          }`}
+                        >
+                          {predictionMatch?.confidenceScore}%
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1205,6 +1134,92 @@ const MarketRow = ({
                         {predictionMatch?.expectedGoals?.toFixed(1) || '-'}
                       </span>
                       <span className='text-xs text-gray-500 ml-1'>xG</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Live Odds */}
+              <div className='bg-gray-50 rounded-lg p-3'>
+                <h4 className='text-xs font-medium text-gray-500 mb-2'>
+                  LIVE ODDS
+                </h4>
+                <div className='grid grid-cols-2 gap-4'>
+                  <div>
+                    <h4 className='text-xs font-medium text-gray-500 mb-2'>
+                      1X2
+                    </h4>
+                    <div className='space-y-2'>
+                      <div className='flex justify-between items-center'>
+                        <span className='text-xs text-blue-600'>Home:</span>
+                        <span className='text-sm font-medium'>
+                          {match.markets
+                            .find((m) =>
+                              m.outcomes.some((o) => o.description === '1')
+                            )
+                            ?.outcomes.find((o) => o.description === '1')
+                            ?.odds.toFixed(2) || '-'}
+                        </span>
+                      </div>
+                      <div className='flex justify-between items-center'>
+                        <span className='text-xs text-gray-500'>Draw:</span>
+                        <span className='text-sm font-medium'>
+                          {match.markets
+                            .find((m) =>
+                              m.outcomes.some((o) => o.description === 'X')
+                            )
+                            ?.outcomes.find((o) => o.description === 'X')
+                            ?.odds.toFixed(2) || '-'}
+                        </span>
+                      </div>
+                      <div className='flex justify-between items-center'>
+                        <span className='text-xs text-purple-600'>Away:</span>
+                        <span className='text-sm font-medium'>
+                          {match.markets
+                            .find((m) =>
+                              m.outcomes.some((o) => o.description === '2')
+                            )
+                            ?.outcomes.find((o) => o.description === '2')
+                            ?.odds.toFixed(2) || '-'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className='border-l border-gray-200 pl-4'>
+                    <h4 className='text-xs font-medium text-gray-500 mb-2'>
+                      GOALS
+                    </h4>
+                    <div className='space-y-2'>
+                      <div className='flex justify-between items-center'>
+                        <span className='text-xs text-gray-500'>Over 1.5:</span>
+                        <span className='text-sm font-medium'>
+                          {match.markets
+                            .find((m) =>
+                              m.outcomes.some((o) =>
+                                o.description.includes('Over 1.5')
+                              )
+                            )
+                            ?.outcomes.find((o) =>
+                              o.description.includes('Over 1.5')
+                            )
+                            ?.odds.toFixed(2) || '-'}
+                        </span>
+                      </div>
+                      <div className='flex justify-between items-center'>
+                        <span className='text-xs text-gray-500'>BTTS:</span>
+                        <span className='text-sm font-medium'>
+                          {match.markets
+                            .find((m) =>
+                              m.outcomes.some((o) =>
+                                o.description.includes('Yes')
+                              )
+                            )
+                            ?.outcomes.find((o) =>
+                              o.description.includes('Yes')
+                            )
+                            ?.odds.toFixed(2) || '-'}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
