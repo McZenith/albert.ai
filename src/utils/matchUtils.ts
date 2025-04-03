@@ -45,33 +45,45 @@ export const transformMatchSituation = (matchSituation: ClientMatch['matchSituat
         return undefined;
     }
 
+    // Log incoming data
+    console.log('Transforming match situation:', {
+        totalTime: matchSituation.totalTime,
+        dominantTeam: matchSituation.dominantTeam,
+        matchMomentum: matchSituation.matchMomentum,
+        home: matchSituation.home,
+        away: matchSituation.away
+    });
+
     const transformed = {
         totalTime: Number(matchSituation.totalTime) || 0,
         dominantTeam: matchSituation.dominantTeam || '',
         matchMomentum: matchSituation.matchMomentum || '',
         home: {
-            totalAttacks: Number(matchSituation.home.totalAttacks) || 0,
-            totalDangerousAttacks: Number(matchSituation.home.totalDangerousAttacks) || 0,
-            totalSafeAttacks: Number(matchSituation.home.totalSafeAttacks) || 0,
-            totalAttackCount: Number(matchSituation.home.totalAttackCount) || 0,
-            totalDangerousCount: Number(matchSituation.home.totalDangerousCount) || 0,
-            totalSafeCount: Number(matchSituation.home.totalSafeCount) || 0,
-            attackPercentage: Number(matchSituation.home.attackPercentage) || 0,
-            dangerousAttackPercentage: Number(matchSituation.home.dangerousAttackPercentage) || 0,
-            safeAttackPercentage: Number(matchSituation.home.safeAttackPercentage) || 0
+            totalAttacks: Number(matchSituation.home?.totalAttacks) || 0,
+            totalDangerousAttacks: Number(matchSituation.home?.totalDangerousAttacks) || 0,
+            totalSafeAttacks: Number(matchSituation.home?.totalSafeAttacks) || 0,
+            totalAttackCount: Number(matchSituation.home?.totalAttackCount) || 0,
+            totalDangerousCount: Number(matchSituation.home?.totalDangerousCount) || 0,
+            totalSafeCount: Number(matchSituation.home?.totalSafeCount) || 0,
+            attackPercentage: Number(matchSituation.home?.attackPercentage) || 0,
+            dangerousAttackPercentage: Number(matchSituation.home?.dangerousAttackPercentage) || 0,
+            safeAttackPercentage: Number(matchSituation.home?.safeAttackPercentage) || 0
         },
         away: {
-            totalAttacks: Number(matchSituation.away.totalAttacks) || 0,
-            totalDangerousAttacks: Number(matchSituation.away.totalDangerousAttacks) || 0,
-            totalSafeAttacks: Number(matchSituation.away.totalSafeAttacks) || 0,
-            totalAttackCount: Number(matchSituation.away.totalAttackCount) || 0,
-            totalDangerousCount: Number(matchSituation.away.totalDangerousCount) || 0,
-            totalSafeCount: Number(matchSituation.away.totalSafeCount) || 0,
-            attackPercentage: Number(matchSituation.away.attackPercentage) || 0,
-            dangerousAttackPercentage: Number(matchSituation.away.dangerousAttackPercentage) || 0,
-            safeAttackPercentage: Number(matchSituation.away.safeAttackPercentage) || 0
+            totalAttacks: Number(matchSituation.away?.totalAttacks) || 0,
+            totalDangerousAttacks: Number(matchSituation.away?.totalDangerousAttacks) || 0,
+            totalSafeAttacks: Number(matchSituation.away?.totalSafeAttacks) || 0,
+            totalAttackCount: Number(matchSituation.away?.totalAttackCount) || 0,
+            totalDangerousCount: Number(matchSituation.away?.totalDangerousCount) || 0,
+            totalSafeCount: Number(matchSituation.away?.totalSafeCount) || 0,
+            attackPercentage: Number(matchSituation.away?.attackPercentage) || 0,
+            dangerousAttackPercentage: Number(matchSituation.away?.dangerousAttackPercentage) || 0,
+            safeAttackPercentage: Number(matchSituation.away?.safeAttackPercentage) || 0
         }
     };
+
+    // Log transformed data
+    console.log('Transformed match situation:', transformed);
 
     return transformed;
 };
@@ -82,70 +94,82 @@ export const transformMatchDetails = (matchDetails: ClientMatch['matchDetails'])
         return undefined;
     }
 
+    // Log incoming data
+    console.log('Transforming match details:', {
+        home: matchDetails.home,
+        away: matchDetails.away,
+        types: matchDetails.types
+    });
+
     const transformed = {
         home: {
-            yellowCards: Number(matchDetails.home.yellowCards) || 0,
-            redCards: Number(matchDetails.home.redCards) || 0,
-            freeKicks: Number(matchDetails.home.freeKicks) || 0,
-            goalKicks: Number(matchDetails.home.goalKicks) || 0,
-            throwIns: Number(matchDetails.home.throwIns) || 0,
-            offsides: Number(matchDetails.home.offsides) || 0,
-            cornerKicks: Number(matchDetails.home.cornerKicks) || 0,
-            shotsOnTarget: Number(matchDetails.home.shotsOnTarget) || 0,
-            shotsOffTarget: Number(matchDetails.home.shotsOffTarget) || 0,
-            saves: Number(matchDetails.home.saves) || 0,
-            fouls: Number(matchDetails.home.fouls) || 0,
-            injuries: Number(matchDetails.home.injuries) || 0,
-            dangerousAttacks: Number(matchDetails.home.dangerousAttacks) || 0,
-            ballSafe: Number(matchDetails.home.ballSafe) || 0,
-            totalAttacks: Number(matchDetails.home.totalAttacks) || 0,
-            goalAttempts: Number(matchDetails.home.goalAttempts) || 0,
-            ballSafePercentage: Number(matchDetails.home.ballSafePercentage) || 0,
-            attackPercentage: Number(matchDetails.home.attackPercentage) || 0,
-            dangerousAttackPercentage: Number(matchDetails.home.dangerousAttackPercentage) || 0
+            yellowCards: Number(matchDetails.home?.yellowCards) || 0,
+            redCards: Number(matchDetails.home?.redCards) || 0,
+            freeKicks: Number(matchDetails.home?.freeKicks) || 0,
+            goalKicks: Number(matchDetails.home?.goalKicks) || 0,
+            throwIns: Number(matchDetails.home?.throwIns) || 0,
+            offsides: Number(matchDetails.home?.offsides) || 0,
+            cornerKicks: Number(matchDetails.home?.cornerKicks) || 0,
+            shotsOnTarget: Number(matchDetails.home?.shotsOnTarget) || 0,
+            shotsOffTarget: Number(matchDetails.home?.shotsOffTarget) || 0,
+            saves: Number(matchDetails.home?.saves) || 0,
+            fouls: Number(matchDetails.home?.fouls) || 0,
+            injuries: Number(matchDetails.home?.injuries) || 0,
+            dangerousAttacks: Number(matchDetails.home?.dangerousAttacks) || 0,
+            ballSafe: Number(matchDetails.home?.ballSafe) || 0,
+            totalAttacks: Number(matchDetails.home?.totalAttacks) || 0,
+            goalAttempts: Number(matchDetails.home?.goalAttempts) || 0,
+            ballSafePercentage: Number(matchDetails.home?.ballSafePercentage) || 0,
+            attackPercentage: Number(matchDetails.home?.attackPercentage) || 0,
+            dangerousAttackPercentage: Number(matchDetails.home?.dangerousAttackPercentage) || 0
         },
         away: {
-            yellowCards: Number(matchDetails.away.yellowCards) || 0,
-            redCards: Number(matchDetails.away.redCards) || 0,
-            freeKicks: Number(matchDetails.away.freeKicks) || 0,
-            goalKicks: Number(matchDetails.away.goalKicks) || 0,
-            throwIns: Number(matchDetails.away.throwIns) || 0,
-            offsides: Number(matchDetails.away.offsides) || 0,
-            cornerKicks: Number(matchDetails.away.cornerKicks) || 0,
-            shotsOnTarget: Number(matchDetails.away.shotsOnTarget) || 0,
-            shotsOffTarget: Number(matchDetails.away.shotsOffTarget) || 0,
-            saves: Number(matchDetails.away.saves) || 0,
-            fouls: Number(matchDetails.away.fouls) || 0,
-            injuries: Number(matchDetails.away.injuries) || 0,
-            dangerousAttacks: Number(matchDetails.away.dangerousAttacks) || 0,
-            ballSafe: Number(matchDetails.away.ballSafe) || 0,
-            totalAttacks: Number(matchDetails.away.totalAttacks) || 0,
-            goalAttempts: Number(matchDetails.away.goalAttempts) || 0,
-            ballSafePercentage: Number(matchDetails.away.ballSafePercentage) || 0,
-            attackPercentage: Number(matchDetails.away.attackPercentage) || 0,
-            dangerousAttackPercentage: Number(matchDetails.away.dangerousAttackPercentage) || 0
+            yellowCards: Number(matchDetails.away?.yellowCards) || 0,
+            redCards: Number(matchDetails.away?.redCards) || 0,
+            freeKicks: Number(matchDetails.away?.freeKicks) || 0,
+            goalKicks: Number(matchDetails.away?.goalKicks) || 0,
+            throwIns: Number(matchDetails.away?.throwIns) || 0,
+            offsides: Number(matchDetails.away?.offsides) || 0,
+            cornerKicks: Number(matchDetails.away?.cornerKicks) || 0,
+            shotsOnTarget: Number(matchDetails.away?.shotsOnTarget) || 0,
+            shotsOffTarget: Number(matchDetails.away?.shotsOffTarget) || 0,
+            saves: Number(matchDetails.away?.saves) || 0,
+            fouls: Number(matchDetails.away?.fouls) || 0,
+            injuries: Number(matchDetails.away?.injuries) || 0,
+            dangerousAttacks: Number(matchDetails.away?.dangerousAttacks) || 0,
+            ballSafe: Number(matchDetails.away?.ballSafe) || 0,
+            totalAttacks: Number(matchDetails.away?.totalAttacks) || 0,
+            goalAttempts: Number(matchDetails.away?.goalAttempts) || 0,
+            ballSafePercentage: Number(matchDetails.away?.ballSafePercentage) || 0,
+            attackPercentage: Number(matchDetails.away?.attackPercentage) || 0,
+            dangerousAttackPercentage: Number(matchDetails.away?.dangerousAttackPercentage) || 0
         },
-        types: matchDetails.types
+        types: matchDetails.types || {}
     };
+
+    // Log transformed data
+    console.log('Transformed match details:', transformed);
 
     return transformed;
 };
 
 // Transform markets data
 export const transformMarkets = (markets: ClientMatch['markets']) => {
+    if (!markets) return [];
+
     return markets.map(market => ({
-        id: market.id,
-        description: market.description,
-        specifier: market.specifier,
-        favourite: market.favourite,
+        id: market.id || '',
+        description: market.description || '',
+        specifier: market.specifier || '',
+        favourite: market.favourite || '',
         profitPercentage: Number(market.profitPercentage) || 0,
         margin: Number(market.margin) || 0,
-        outcomes: market.outcomes.map(outcome => ({
-            id: outcome.id,
-            description: outcome.description,
+        outcomes: (market.outcomes || []).map(outcome => ({
+            id: outcome.id || '',
+            description: outcome.description || '',
             odds: Number(outcome.odds) || 0,
             stakePercentage: Number(outcome.stakePercentage) || 0,
-            isChanged: outcome.isChanged
+            isChanged: outcome.isChanged || false
         }))
     }));
 };
@@ -158,19 +182,23 @@ const getPlayedSeconds = (playedTime: string): number => {
 
 // Transform a single match
 export const transformMatch = (match: ClientMatch): TransformedMatch => {
+    if (!match) {
+        throw new Error('Invalid match data');
+    }
+
     const transformedMatchSituation = match.matchSituation ? transformMatchSituation(match.matchSituation) : undefined;
     const transformedMatchDetails = match.matchDetails ? transformMatchDetails(match.matchDetails) : undefined;
     const { status } = transformMatchStatus(match);
 
     const transformed = {
         ...match,
-        seasonId: Number(match.seasonId),
+        seasonId: Number(match.seasonId) || 0,
         matchSituation: transformedMatchSituation,
         matchDetails: transformedMatchDetails,
         playedSeconds: getPlayedSeconds(match.playedTime),
         matchTime: match.playedTime || '',
         status,
-        createdAt: match.lastUpdated
+        createdAt: match.lastUpdated || new Date().toISOString()
     };
 
     return transformed;

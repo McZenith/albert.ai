@@ -218,6 +218,7 @@ export interface Team extends TeamBase {
     formStrength: number;
     formRating: number;
     winPercentage: number;
+    drawPercentage: number;
     homeWinPercentage: number;
     awayWinPercentage: number;
     cleanSheetPercentage: number;

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { HubConnection, HubConnectionBuilder } from '@microsoft/signalr';
 import { useCartStore } from './useStore';
-import { ClientMatch, TransformedMatch, Match, UpcomingMatch } from '@/types/match';
+import { ClientMatch, TransformedMatch, Match, UpcomingMatch, Team } from '@/types/match';
 import { transformMatch, findPredictionForMatch } from '@/utils/matchUtils';
 
 interface PredictionDataResponse {
@@ -55,105 +55,194 @@ const getAwayTeam = (match: Match) => {
 
 // Process match data
 const processMatchData = (match: Match): UpcomingMatch => {
+    if (!match) {
+        throw new Error('Invalid match data');
+    }
+
     const normalizedTime = normalizeTimeFormat(isClientMatch(match) ? match.playedTime : '');
     const homeTeam = getHomeTeam(match);
     const awayTeam = getAwayTeam(match);
-
-    const defaultTeamData = {
-        id: '',
-        name: '',
-        position: 0,
-        logo: '🏆',
-        avgHomeGoals: 0,
-        avgAwayGoals: 0,
-        avgTotalGoals: 0,
-        homeMatchesOver15: 0,
-        awayMatchesOver15: 0,
-        totalHomeMatches: 0,
-        totalAwayMatches: 0,
-        form: '',
-        homeForm: '',
-        awayForm: '',
-        cleanSheets: 0,
-        homeCleanSheets: 0,
-        awayCleanSheets: 0,
-        scoringFirstWinRate: 0,
-        concedingFirstWinRate: 0,
-        firstHalfGoalsPercent: null,
-        secondHalfGoalsPercent: null,
-        avgCorners: 0,
-        bttsRate: 0,
-        homeBttsRate: 0,
-        awayBttsRate: 0,
-        lateGoalRate: 0,
-        goalDistribution: {
-            '0-15': { total: 0, home: 0, away: 0 },
-            '16-30': { total: 0, home: 0, away: 0 },
-            '31-45': { total: 0, home: 0, away: 0 },
-            '46-60': { total: 0, home: 0, away: 0 },
-            '61-75': { total: 0, home: 0, away: 0 },
-            '76-90': { total: 0, home: 0, away: 0 }
-        },
-        againstTopTeamsPoints: null,
-        againstMidTeamsPoints: null,
-        againstBottomTeamsPoints: null,
-        isHomeTeam: false,
-        formStrength: 0,
-        formRating: 0,
-        winPercentage: 0,
-        drawPercentage: 0,
-        homeWinPercentage: 0,
-        awayWinPercentage: 0,
-        cleanSheetPercentage: 0,
-        averageGoalsScored: 0,
-        averageGoalsConceded: 0,
-        homeAverageGoalsScored: 0,
-        homeAverageGoalsConceded: 0,
-        awayAverageGoalsScored: 0,
-        awayAverageGoalsConceded: 0,
-        goalsScoredAverage: 0,
-        goalsConcededAverage: 0,
-        averageCorners: 0,
-        avgOdds: 0,
-        leagueAvgGoals: 0,
-        possession: 50,
-        opponentName: '',
-        totalHomeWins: 0,
-        totalAwayWins: 0,
-        totalHomeDraws: 0,
-        totalAwayDraws: 0,
-        totalHomeLosses: 0,
-        totalAwayLosses: 0,
-        over05: 0,
-        over15: 0,
-        over25: 0,
-        over35: 0,
-        over45: 0,
-        cleanSheetRate: 0,
-        cornerStats: {
-            avgCorners: 0,
-            avgCornersFor: 0,
-            avgCornersAgainst: 0
-        },
-        scoringStats: {
-            avgGoalsScored: 0,
-            avgGoalsConceded: 0,
-            avgTotalGoals: 0
-        },
-        patterns: {
-            btts: 0,
-            over15: 0,
-            over25: 0,
-            over35: 0
-        }
-    };
 
     if (!homeTeam || !awayTeam) {
         console.warn('Missing team data for match:', match.id);
         return {
             id: String(match.id),
-            homeTeam: defaultTeamData,
-            awayTeam: defaultTeamData,
+            homeTeam: {
+                id: '',
+                name: '',
+                position: 0,
+                logo: '🏆',
+                avgHomeGoals: 0,
+                avgAwayGoals: 0,
+                avgTotalGoals: 0,
+                homeMatchesOver15: 0,
+                awayMatchesOver15: 0,
+                totalHomeMatches: 0,
+                totalAwayMatches: 0,
+                form: '',
+                homeForm: '',
+                awayForm: '',
+                cleanSheets: 0,
+                homeCleanSheets: 0,
+                awayCleanSheets: 0,
+                scoringFirstWinRate: 0,
+                concedingFirstWinRate: 0,
+                firstHalfGoalsPercent: 0,
+                secondHalfGoalsPercent: 0,
+                avgCorners: 0,
+                bttsRate: 0,
+                homeBttsRate: 0,
+                awayBttsRate: 0,
+                lateGoalRate: 0,
+                homeAverageGoalsScored: 0,
+                awayAverageGoalsScored: 0,
+                averageGoalsScored: 0,
+                homeAverageGoalsConceded: 0,
+                awayAverageGoalsConceded: 0,
+                averageGoalsConceded: 0,
+                goalDistribution: {
+                    '0-15': { total: 0, home: 0, away: 0 },
+                    '16-30': { total: 0, home: 0, away: 0 },
+                    '31-45': { total: 0, home: 0, away: 0 },
+                    '46-60': { total: 0, home: 0, away: 0 },
+                    '61-75': { total: 0, home: 0, away: 0 },
+                    '76-90': { total: 0, home: 0, away: 0 }
+                },
+                againstTopTeamsPoints: 0,
+                againstMidTeamsPoints: 0,
+                againstBottomTeamsPoints: 0,
+                isHomeTeam: true,
+                formStrength: 0,
+                formRating: 0,
+                winPercentage: 0,
+                drawPercentage: 0,
+                homeWinPercentage: 0,
+                awayWinPercentage: 0,
+                cleanSheetPercentage: 0,
+                goalsScoredAverage: 0,
+                goalsConcededAverage: 0,
+                averageCorners: 0,
+                avgOdds: 0,
+                leagueAvgGoals: 0,
+                possession: 50,
+                opponentName: '',
+                totalHomeWins: 0,
+                totalAwayWins: 0,
+                totalHomeDraws: 0,
+                totalAwayDraws: 0,
+                totalHomeLosses: 0,
+                totalAwayLosses: 0,
+                over05: 0,
+                over15: 0,
+                over25: 0,
+                over35: 0,
+                over45: 0,
+                cleanSheetRate: 0,
+                cornerStats: {
+                    avgCorners: 0,
+                    avgCornersFor: 0,
+                    avgCornersAgainst: 0
+                },
+                scoringStats: {
+                    avgGoalsScored: 0,
+                    avgGoalsConceded: 0,
+                    avgTotalGoals: 0
+                },
+                patterns: {
+                    btts: 0,
+                    over15: 0,
+                    over25: 0,
+                    over35: 0
+                }
+            },
+            awayTeam: {
+                id: '',
+                name: '',
+                position: 0,
+                logo: '🏆',
+                avgHomeGoals: 0,
+                avgAwayGoals: 0,
+                avgTotalGoals: 0,
+                homeMatchesOver15: 0,
+                awayMatchesOver15: 0,
+                totalHomeMatches: 0,
+                totalAwayMatches: 0,
+                form: '',
+                homeForm: '',
+                awayForm: '',
+                cleanSheets: 0,
+                homeCleanSheets: 0,
+                awayCleanSheets: 0,
+                scoringFirstWinRate: 0,
+                concedingFirstWinRate: 0,
+                firstHalfGoalsPercent: 0,
+                secondHalfGoalsPercent: 0,
+                avgCorners: 0,
+                bttsRate: 0,
+                homeBttsRate: 0,
+                awayBttsRate: 0,
+                lateGoalRate: 0,
+                homeAverageGoalsScored: 0,
+                awayAverageGoalsScored: 0,
+                averageGoalsScored: 0,
+                homeAverageGoalsConceded: 0,
+                awayAverageGoalsConceded: 0,
+                averageGoalsConceded: 0,
+                goalDistribution: {
+                    '0-15': { total: 0, home: 0, away: 0 },
+                    '16-30': { total: 0, home: 0, away: 0 },
+                    '31-45': { total: 0, home: 0, away: 0 },
+                    '46-60': { total: 0, home: 0, away: 0 },
+                    '61-75': { total: 0, home: 0, away: 0 },
+                    '76-90': { total: 0, home: 0, away: 0 }
+                },
+                againstTopTeamsPoints: 0,
+                againstMidTeamsPoints: 0,
+                againstBottomTeamsPoints: 0,
+                isHomeTeam: false,
+                formStrength: 0,
+                formRating: 0,
+                winPercentage: 0,
+                drawPercentage: 0,
+                homeWinPercentage: 0,
+                awayWinPercentage: 0,
+                cleanSheetPercentage: 0,
+                goalsScoredAverage: 0,
+                goalsConcededAverage: 0,
+                averageCorners: 0,
+                avgOdds: 0,
+                leagueAvgGoals: 0,
+                possession: 50,
+                opponentName: '',
+                totalHomeWins: 0,
+                totalAwayWins: 0,
+                totalHomeDraws: 0,
+                totalAwayDraws: 0,
+                totalHomeLosses: 0,
+                totalAwayLosses: 0,
+                over05: 0,
+                over15: 0,
+                over25: 0,
+                over35: 0,
+                over45: 0,
+                cleanSheetRate: 0,
+                cornerStats: {
+                    avgCorners: 0,
+                    avgCornersFor: 0,
+                    avgCornersAgainst: 0
+                },
+                scoringStats: {
+                    avgGoalsScored: 0,
+                    avgGoalsConceded: 0,
+                    avgTotalGoals: 0
+                },
+                patterns: {
+                    btts: 0,
+                    over15: 0,
+                    over25: 0,
+                    over35: 0
+                }
+            },
             date: new Date().toISOString(),
             time: '',
             venue: 'TBD',
@@ -201,7 +290,6 @@ const processMatchData = (match: Match): UpcomingMatch => {
     }
 
     const homeTeamData = {
-        ...defaultTeamData,
         ...homeTeam,
         name: enhancedCleanTeamName(homeTeam.name),
         isHomeTeam: true,
@@ -212,11 +300,10 @@ const processMatchData = (match: Match): UpcomingMatch => {
         avgAwayGoals: safeNumber(homeTeam.awayAverageGoalsScored) ||
             safeNumber(homeTeam.averageGoalsScored) ||
             safeNumber(homeTeam.avgAwayGoals),
-        avgTotalGoals: safeNumber(homeTeam.avgTotalGoals),
+        avgTotalGoals: safeNumber(homeTeam.avgTotalGoals)
     };
 
     const awayTeamData = {
-        ...defaultTeamData,
         ...awayTeam,
         name: enhancedCleanTeamName(awayTeam.name),
         isHomeTeam: false,
@@ -227,13 +314,13 @@ const processMatchData = (match: Match): UpcomingMatch => {
         avgAwayGoals: safeNumber(awayTeam.awayAverageGoalsScored) ||
             safeNumber(awayTeam.averageGoalsScored) ||
             safeNumber(awayTeam.avgAwayGoals),
-        avgTotalGoals: safeNumber(awayTeam.avgTotalGoals),
+        avgTotalGoals: safeNumber(awayTeam.avgTotalGoals)
     };
 
     return {
         id: String(match.id),
-        homeTeam: homeTeamData,
-        awayTeam: awayTeamData,
+        homeTeam: homeTeamData as Team,
+        awayTeam: awayTeamData as Team,
         date: isUpcomingMatch(match) ? match.date : new Date().toISOString(),
         time: normalizedTime,
         venue: isUpcomingMatch(match) ? match.venue : 'TBD',
@@ -373,15 +460,18 @@ export const useMatchData = () => {
                     .build();
 
                 connection.onreconnecting(() => {
+                    console.log('Attempting to reconnect...');
                     setIsConnected(false);
                 });
 
                 connection.onreconnected(() => {
+                    console.log('Reconnected successfully');
                     setIsConnected(true);
                 });
 
                 // Handle prediction data
                 connection.on('ReceivePredictionData', (data: PredictionDataResponse) => {
+                    console.log('Received prediction data:', data);
                     if (data?.data?.upcomingMatches) {
                         const processedMatches = data.data.upcomingMatches.map(processMatchData);
                         setPredictionData(processedMatches);
@@ -392,9 +482,22 @@ export const useMatchData = () => {
                 // Handle arbitrage matches
                 connection.on('ReceiveArbitrageLiveMatches', (data: ClientMatch[]) => {
                     if (!isPaused && isMounted) {
+                        console.log('Received arbitrage matches:', data);
                         const transformedMatches = data.map(match => {
                             const existingMatch = latestMatchesRef.current.get(match.id);
                             const transformedMatch = transformMatch(match);
+
+                            // Log the transformation for debugging
+                            console.log('Original match:', {
+                                id: match.id,
+                                matchSituation: match.matchSituation,
+                                matchDetails: match.matchDetails
+                            });
+                            console.log('Transformed match:', {
+                                id: transformedMatch.id,
+                                matchSituation: transformedMatch.matchSituation,
+                                matchDetails: transformedMatch.matchDetails
+                            });
 
                             if (existingMatch) {
                                 transformedMatch.markets = transformedMatch.markets.map((market, marketIndex) => ({
@@ -418,9 +521,22 @@ export const useMatchData = () => {
                 // Handle all live matches
                 connection.on('ReceiveAllLiveMatches', (data: ClientMatch[]) => {
                     if (!isPaused && isMounted) {
+                        console.log('Received all live matches:', data);
                         const transformedMatches = data.map(match => {
                             const existingMatch = latestAllMatchesRef.current.get(match.id);
                             const transformedMatch = transformMatch(match);
+
+                            // Log the transformation for debugging
+                            console.log('Original match:', {
+                                id: match.id,
+                                matchSituation: match.matchSituation,
+                                matchDetails: match.matchDetails
+                            });
+                            console.log('Transformed match:', {
+                                id: transformedMatch.id,
+                                matchSituation: transformedMatch.matchSituation,
+                                matchDetails: transformedMatch.matchDetails
+                            });
 
                             if (existingMatch) {
                                 transformedMatch.markets = transformedMatch.markets.map((market, marketIndex) => ({

@@ -842,7 +842,7 @@ const MarketRow = ({
                       </div>
                       <div className='text-xs font-medium mt-1 px-2 py-0.5 rounded-full bg-gray-100'>
                         DRAW:{' '}
-                        {predictionMatch?.drawPercentage?.toFixed(0) || '-37'}%
+                        {predictionMatch?.drawPercentage?.toFixed(0) || '0'}%
                       </div>
                     </div>
                     <div className='text-center'>
@@ -879,7 +879,7 @@ const MarketRow = ({
                       {predictionMatch?.expectedGoals?.toFixed(1) || '3.9'}
                     </div>
                     <div className='text-xs text-gray-600 mt-1'>
-                      Confidence: {predictionMatch?.confidenceScore || '26'}%
+                      Confidence: {predictionMatch?.confidenceScore || '0'}%
                     </div>
                   </div>
                 </div>
@@ -1349,19 +1349,19 @@ const MarketRow = ({
                     <div className='flex justify-between items-center'>
                       <span className='text-xs text-blue-600'>Home:</span>
                       <span className='text-sm font-medium'>
-                        {predictionMatch?.headToHead?.wins || '2'}W
+                        {predictionMatch?.headToHead?.wins || '0'}W
                       </span>
                     </div>
                     <div className='flex justify-between items-center'>
                       <span className='text-xs text-purple-600'>Away:</span>
                       <span className='text-sm font-medium'>
-                        {predictionMatch?.headToHead?.losses || '6'}W
+                        {predictionMatch?.headToHead?.losses || '0'}W
                       </span>
                     </div>
                     <div className='flex justify-between items-center'>
                       <span className='text-xs text-gray-500'>Draw:</span>
                       <span className='text-sm font-medium'>
-                        {predictionMatch?.headToHead?.draws || '2'}
+                        {predictionMatch?.headToHead?.draws || '0'}
                       </span>
                     </div>
                   </div>
