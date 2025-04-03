@@ -1052,10 +1052,10 @@ const MatchPredictor = () => {
       let matchDateTime;
 
       if (date && time) {
-        // Try parsing with T separator first
+        // SignalR data is already in YYYY-MM-DD and HH:mm format
         matchDateTime = new Date(`${date}T${time}`);
 
-        // If that fails, try with space separator
+        // If that fails, try with space separator as fallback
         if (isNaN(matchDateTime.getTime())) {
           matchDateTime = new Date(`${date} ${time}`);
         }
@@ -1082,11 +1082,13 @@ const MatchPredictor = () => {
         return `Today, ${matchDateTime.toLocaleTimeString([], {
           hour: '2-digit',
           minute: '2-digit',
+          hour12: false,
         })}`;
       } else if (matchDateTime.toDateString() === tomorrow.toDateString()) {
         return `Tomorrow, ${matchDateTime.toLocaleTimeString([], {
           hour: '2-digit',
           minute: '2-digit',
+          hour12: false,
         })}`;
       } else {
         // If not today or tomorrow, show the full date
@@ -1096,6 +1098,7 @@ const MatchPredictor = () => {
           day: 'numeric',
           hour: '2-digit',
           minute: '2-digit',
+          hour12: false,
         });
       }
     } catch (error) {

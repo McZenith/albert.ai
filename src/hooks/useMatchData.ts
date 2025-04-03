@@ -59,7 +59,16 @@ const processMatchData = (match: Match): UpcomingMatch => {
         throw new Error('Invalid match data');
     }
 
-    const normalizedTime = normalizeTimeFormat(isClientMatch(match) ? match.playedTime : '');
+    // Normalize the time format for SignalR data
+    const normalizedTime = isUpcomingMatch(match)
+        ? (match.time || '00:00').padStart(5, '0') // Ensure time is in HH:mm format
+        : normalizeTimeFormat(isClientMatch(match) ? match.playedTime : '');
+
+    // Normalize the date format for SignalR data
+    const normalizedDate = isUpcomingMatch(match)
+        ? match.date // SignalR already provides date in YYYY-MM-DD format
+        : new Date().toISOString().split('T')[0];
+
     const homeTeam = getHomeTeam(match);
     const awayTeam = getAwayTeam(match);
 
@@ -243,9 +252,9 @@ const processMatchData = (match: Match): UpcomingMatch => {
                     over35: 0
                 }
             },
-            date: new Date().toISOString(),
-            time: '',
-            venue: 'TBD',
+            date: normalizedDate,
+            time: normalizedTime,
+            venue: isUpcomingMatch(match) ? match.venue : 'TBD',
             positionGap: 0,
             favorite: null,
             confidenceScore: 0,
@@ -321,7 +330,7 @@ const processMatchData = (match: Match): UpcomingMatch => {
         id: String(match.id),
         homeTeam: homeTeamData as Team,
         awayTeam: awayTeamData as Team,
-        date: isUpcomingMatch(match) ? match.date : new Date().toISOString(),
+        date: normalizedDate,
         time: normalizedTime,
         venue: isUpcomingMatch(match) ? match.venue : 'TBD',
         positionGap: isUpcomingMatch(match) ? safeNumber(match.positionGap) : 0,
