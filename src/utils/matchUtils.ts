@@ -179,12 +179,6 @@ export const transformMarkets = (markets: ClientMatch['markets']) => {
     }));
 };
 
-const getPlayedSeconds = (playedTime: string): number => {
-    if (!playedTime) return 0;
-    const [minutes, seconds = '0'] = playedTime.split(':');
-    return (parseInt(minutes, 10) * 60) + parseInt(seconds, 10);
-};
-
 // Transform a single match
 export const transformMatch = (match: ClientMatch): TransformedMatch => {
     if (!match) {
