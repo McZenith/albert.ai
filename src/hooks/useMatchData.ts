@@ -405,6 +405,13 @@ const processMatchData = (match: Match): UpcomingMatch => {
     };
 };
 
+// Helper function to convert played time string to seconds
+const getPlayedSeconds = (playedTime: string): number => {
+    if (!playedTime) return 0;
+    const [minutes, seconds] = playedTime.split(':').map(Number);
+    return (minutes * 60) + (seconds || 0);
+};
+
 export const useMatchData = () => {
     const [matches, setMatches] = useState<TransformedMatch[]>([]);
     const [allLiveMatches, setAllLiveMatches] = useState<TransformedMatch[]>([]);
@@ -415,12 +422,27 @@ export const useMatchData = () => {
     const latestAllMatchesRef = useRef<Map<string, TransformedMatch>>(new Map());
     const [allMatchesChecked, setAllMatchesChecked] = useState(false);
     const lastPredictionDataLengthRef = useRef<number>(0);
+    const [lastUpdate, setLastUpdate] = useState<number>(Date.now());
 
     // Get store actions
     const setPredictionData = useCartStore((state) => state.setPredictionData);
     const setIsPredictionDataLoaded = useCartStore((state) => state.setIsPredictionDataLoaded);
     const isPredictionDataLoaded = useCartStore((state) => state.isPredictionDataLoaded);
     const predictionData = useCartStore((state) => state.predictionData);
+
+    // Add effect to force re-render when data changes
+    useEffect(() => {
+        const interval = setInterval(() => {
+            if (latestMatchesRef.current.size > 0) {
+                setMatches(Array.from(latestMatchesRef.current.values()));
+            }
+            if (latestAllMatchesRef.current.size > 0) {
+                setAllLiveMatches(Array.from(latestAllMatchesRef.current.values()));
+            }
+        }, 500); // Update more frequently (every 500ms)
+
+        return () => clearInterval(interval);
+    }, []);
 
     // Add a new useEffect to check all existing matches when prediction data first loads or updates
     useEffect(() => {
@@ -480,7 +502,6 @@ export const useMatchData = () => {
 
                 // Handle prediction data
                 connection.on('ReceivePredictionData', (data: PredictionDataResponse) => {
-                    console.log('Received prediction data:', data);
                     if (data?.data?.upcomingMatches) {
                         const processedMatches = data.data.upcomingMatches.map(processMatchData);
                         setPredictionData(processedMatches);
@@ -491,78 +512,60 @@ export const useMatchData = () => {
                 // Handle arbitrage matches
                 connection.on('ReceiveArbitrageLiveMatches', (data: ClientMatch[]) => {
                     if (!isPaused && isMounted) {
-                        console.log('Received arbitrage matches:', data);
-                        const transformedMatches = data.map(match => {
-                            const existingMatch = latestMatchesRef.current.get(match.id);
+                        // Create a new map to store the latest matches
+                        const newMatchesMap = new Map<string, TransformedMatch>();
+
+                        // Process each match from the SignalR data
+                        data.forEach(match => {
+                        // Transform the match data
                             const transformedMatch = transformMatch(match);
 
-                            // Log the transformation for debugging
-                            console.log('Original match:', {
-                                id: match.id,
-                                matchSituation: match.matchSituation,
-                                matchDetails: match.matchDetails
-                            });
-                            console.log('Transformed match:', {
-                                id: transformedMatch.id,
-                                matchSituation: transformedMatch.matchSituation,
-                                matchDetails: transformedMatch.matchDetails
-                            });
+                            // Ensure we're using the latest match time
+                            transformedMatch.matchTime = match.playedTime || '';
+                            transformedMatch.playedSeconds = getPlayedSeconds(match.playedTime || '0:00');
 
-                            if (existingMatch) {
-                                transformedMatch.markets = transformedMatch.markets.map((market, marketIndex) => ({
-                                    ...market,
-                                    outcomes: market.outcomes.map((outcome, outcomeIndex) => ({
-                                        ...outcome,
-                                        isChanged: existingMatch.markets[marketIndex]?.outcomes[outcomeIndex]?.odds !== outcome.odds
-                                    }))
-                                }));
-                            }
-
-                            return transformedMatch;
+                            // Add to the new map
+                            newMatchesMap.set(match.id, transformedMatch);
                         });
 
-                        // Update refs and state
-                        latestMatchesRef.current = new Map(transformedMatches.map(match => [match.id, match]));
-                        setMatches(transformedMatches);
+                        // Update the ref with the new data
+                        latestMatchesRef.current = newMatchesMap;
+
+                        // Update the state with the new data
+                        setMatches(Array.from(newMatchesMap.values()));
+
+                        // Update the last update timestamp
+                        setLastUpdate(Date.now());
                     }
                 });
 
                 // Handle all live matches
                 connection.on('ReceiveAllLiveMatches', (data: ClientMatch[]) => {
                     if (!isPaused && isMounted) {
-                        console.log('Received all live matches:', data);
-                        const transformedMatches = data.map(match => {
-                            const existingMatch = latestAllMatchesRef.current.get(match.id);
+                        // Create a new map to store the latest matches
+                        const newMatchesMap = new Map<string, TransformedMatch>();
+
+                        // Process each match from the SignalR data
+                        data.forEach(match => {
+                        // Transform the match data
                             const transformedMatch = transformMatch(match);
 
-                            // Log the transformation for debugging
-                            console.log('Original match:', {
-                                id: match.id,
-                                matchSituation: match.matchSituation,
-                                matchDetails: match.matchDetails
-                            });
-                            console.log('Transformed match:', {
-                                id: transformedMatch.id,
-                                matchSituation: transformedMatch.matchSituation,
-                                matchDetails: transformedMatch.matchDetails
-                            });
+                            // Ensure we're using the latest match time
+                            transformedMatch.matchTime = match.playedTime || '';
+                            transformedMatch.playedSeconds = getPlayedSeconds(match.playedTime || '0:00');
 
-                            if (existingMatch) {
-                                transformedMatch.markets = transformedMatch.markets.map((market, marketIndex) => ({
-                                    ...market,
-                                    outcomes: market.outcomes.map((outcome, outcomeIndex) => ({
-                                        ...outcome,
-                                        isChanged: existingMatch.markets[marketIndex]?.outcomes[outcomeIndex]?.odds !== outcome.odds
-                                    }))
-                                }));
-                            }
-
-                            return transformedMatch;
+                            // Add to the new map
+                            newMatchesMap.set(match.id, transformedMatch);
                         });
 
-                        // Update refs and state
-                        latestAllMatchesRef.current = new Map(transformedMatches.map(match => [match.id, match]));
-                        setAllLiveMatches(transformedMatches);
+                        // Update the ref with the new data
+                        latestAllMatchesRef.current = newMatchesMap;
+
+                        // Update the state with the new data
+                        setAllLiveMatches(Array.from(newMatchesMap.values()));
+
+                        // Update the last update timestamp
+                        setLastUpdate(Date.now());
                     }
                 });
 
@@ -596,6 +599,7 @@ export const useMatchData = () => {
         allLiveMatches,
         isConnected,
         isPaused,
-        togglePause
+        togglePause,
+        lastUpdate
     };
 };

@@ -3,8 +3,13 @@ import { UpcomingMatch } from '@/types/match';
 
 // Transform server match status and time to UI format
 export const transformMatchStatus = (match: ClientMatch): { status: 'FT' | '1H' | '2H' | 'HT' | 'NS'; playedSeconds: number } => {
+    // Extract minutes and seconds from the playedTime string
     const timeComponents = match.playedTime?.split(':').map(Number) || [0, 0];
-    const playedSeconds = timeComponents.length === 2 ? timeComponents[0] * 60 + timeComponents[1] : 0;
+    const minutes = timeComponents[0] || 0;
+    const seconds = timeComponents[1] || 0;
+
+    // Calculate total played seconds
+    const playedSeconds = minutes * 60 + seconds;
 
     let status: 'FT' | '1H' | '2H' | 'HT' | 'NS';
     const matchStatus = match.matchStatus?.toLowerCase() || '';
@@ -186,16 +191,20 @@ export const transformMatch = (match: ClientMatch): TransformedMatch => {
         throw new Error('Invalid match data');
     }
 
+    // Transform match situation and details if they exist
     const transformedMatchSituation = match.matchSituation ? transformMatchSituation(match.matchSituation) : undefined;
     const transformedMatchDetails = match.matchDetails ? transformMatchDetails(match.matchDetails) : undefined;
-    const { status } = transformMatchStatus(match);
 
+    // Get status and played seconds
+    const { status, playedSeconds } = transformMatchStatus(match);
+
+    // Create transformed match
     const transformed = {
         ...match,
         seasonId: Number(match.seasonId) || 0,
         matchSituation: transformedMatchSituation,
         matchDetails: transformedMatchDetails,
-        playedSeconds: getPlayedSeconds(match.playedTime),
+        playedSeconds,
         matchTime: match.playedTime || '',
         status,
         createdAt: match.lastUpdated || new Date().toISOString()

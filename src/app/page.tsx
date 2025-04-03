@@ -232,8 +232,11 @@ const LoadingTable = () => (
 
 // Format played time utility
 const formatPlayedTime = (seconds: number): string => {
+  if (seconds <= 0) return '0:00';
+
   const minutes = Math.floor(seconds / 60);
   const remainingSeconds = seconds % 60;
+
   return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
 };
 
@@ -558,6 +561,8 @@ const MarketRow = ({
   addItem,
   removeItem,
   disabled = false,
+  isExpanded,
+  onToggleExpand,
 }: {
   match: Match;
   market: Match['markets'][0];
@@ -565,8 +570,9 @@ const MarketRow = ({
   addItem: (item: any) => void;
   removeItem: (matchId: string, marketId: string) => void;
   disabled?: boolean;
+  isExpanded: boolean;
+  onToggleExpand: () => void;
 }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
   const isInCart = cartItems.some(
     (item) => item.matchId === match.id && item.marketId === market.id
   );
@@ -581,14 +587,6 @@ const MarketRow = ({
 
   const [predictionMatch, setPredictionMatch] = useState<any>(null);
   const [hasPrediction, setHasPrediction] = useState(false);
-
-  // Reset expanded state when match changes
-  useEffect(() => {
-    setIsExpanded(false);
-    return () => {
-      setIsExpanded(false);
-    };
-  }, [match.id]);
 
   useEffect(() => {
     if (!isPredictionDataLoaded || !predictionData.length) {
@@ -616,7 +614,7 @@ const MarketRow = ({
     if (hasPrediction) {
       e.preventDefault();
       e.stopPropagation();
-      setIsExpanded((prev) => !prev);
+      onToggleExpand();
     }
   };
 
@@ -1474,6 +1472,7 @@ const MatchesPage = () => {
   });
   const [copiedText, setCopiedText] = useState<string>('');
   const [showCartItems, setShowCartItems] = useState<boolean>(false);
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [sortConfigs, setSortConfigs] = useState<
     Array<{ field: string; direction: SortDirection }>
   >(() => {
@@ -1540,6 +1539,7 @@ const MatchesPage = () => {
   }, [allLiveMatches, isConnected]);
 
   const getSortedAndFilteredMatches = (matches: Match[]): Match[] => {
+    // Create a fresh copy of the matches to ensure we're working with the latest data
     const transformedMatches = matches.map((match) => ({
       ...match,
       matchDetails: match.matchDetails
@@ -1818,6 +1818,20 @@ const MatchesPage = () => {
       .catch((err) => console.error('Failed to copy:', err));
   };
 
+  // Add a function to toggle expanded state
+  const toggleExpandedRow = (matchId: string, marketId: string) => {
+    setExpandedRows((prev) => {
+      const key = `${matchId}-${marketId}`;
+      const newSet = new Set(prev);
+      if (newSet.has(key)) {
+        newSet.delete(key);
+      } else {
+        newSet.add(key);
+      }
+      return newSet;
+    });
+  };
+
   return (
     <div className='min-h-screen bg-gray-50'>
       <div className='py-4'>
@@ -1980,6 +1994,12 @@ const MatchesPage = () => {
                               addItem={addItem}
                               removeItem={removeItem}
                               disabled={isInitialLoading}
+                              isExpanded={expandedRows.has(
+                                `${match.id}-${market.id}`
+                              )}
+                              onToggleExpand={() =>
+                                toggleExpandedRow(match.id, market.id)
+                              }
                             />
                           ))
                       )}
