@@ -628,13 +628,25 @@ const MarketRow = ({
           (match.matchDetails[preferredTeam].ballSafePercentage || 0) >
           (match.matchDetails[opposingTeam].ballSafePercentage || 0),
         dangerousAttacks:
-          (match.matchSituation[preferredTeam].dangerousAttackPercentage || 0) >
-          (match.matchSituation[opposingTeam].dangerousAttackPercentage || 0),
+          (match.matchSituation[preferredTeam].totalDangerousAttacks || 0) >
+          (match.matchSituation[opposingTeam].totalDangerousAttacks || 0),
         shots:
           (match.matchDetails[preferredTeam].shotsOnTarget || 0) >
           (match.matchDetails[opposingTeam].shotsOnTarget || 0),
         score: false,
       };
+
+      // Add debug logging to verify attack calculations
+      console.log('Attack Validation:', {
+        team: preferredTeam,
+        preferredTeamAttacks: match.matchSituation[preferredTeam].totalAttacks,
+        opposingTeamAttacks: match.matchSituation[opposingTeam].totalAttacks,
+        preferredTeamDangerousAttacks:
+          match.matchSituation[preferredTeam].totalDangerousAttacks,
+        opposingTeamDangerousAttacks:
+          match.matchSituation[opposingTeam].totalDangerousAttacks,
+        result: metrics.attacks,
+      });
 
       // Check score if match has started
       if (match.score) {
