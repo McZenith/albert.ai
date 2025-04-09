@@ -587,6 +587,17 @@ const MarketRow = ({
 
   const [predictionMatch, setPredictionMatch] = useState<any>(null);
   const [hasPrediction, setHasPrediction] = useState(false);
+  const [performanceValidation, setPerformanceValidation] = useState<{
+    isValid: boolean;
+    metrics: {
+      attacks: boolean;
+      possession: boolean;
+      dangerousAttacks: boolean;
+      shots: boolean;
+      score: boolean;
+    };
+    score: number;
+  } | null>(null);
 
   useEffect(() => {
     if (!isPredictionDataLoaded || !predictionData.length) {
@@ -602,12 +613,56 @@ const MarketRow = ({
 
     setPredictionMatch(foundMatch);
     setHasPrediction(Boolean(foundMatch));
+
+    // If we have both prediction and live data, validate performance
+    if (foundMatch && match.matchDetails && match.matchSituation) {
+      const preferredTeam = foundMatch.favorite === 'home' ? 'home' : 'away';
+      const opposingTeam = foundMatch.favorite === 'home' ? 'away' : 'home';
+
+      // Calculate validation metrics
+      const metrics = {
+        attacks:
+          (match.matchSituation[preferredTeam].totalAttacks || 0) >
+          (match.matchSituation[opposingTeam].totalAttacks || 0),
+        possession:
+          (match.matchDetails[preferredTeam].ballSafePercentage || 0) >
+          (match.matchDetails[opposingTeam].ballSafePercentage || 0),
+        dangerousAttacks:
+          (match.matchSituation[preferredTeam].dangerousAttackPercentage || 0) >
+          (match.matchSituation[opposingTeam].dangerousAttackPercentage || 0),
+        shots:
+          (match.matchDetails[preferredTeam].shotsOnTarget || 0) >
+          (match.matchDetails[opposingTeam].shotsOnTarget || 0),
+        score: false,
+      };
+
+      // Check score if match has started
+      if (match.score) {
+        const [homeGoals, awayGoals] = match.score.split('-').map(Number);
+        metrics.score =
+          preferredTeam === 'home'
+            ? homeGoals > awayGoals
+            : awayGoals > homeGoals;
+      }
+
+      // Calculate overall validation score (0-5)
+      const validationScore = Object.values(metrics).filter(Boolean).length;
+
+      setPerformanceValidation({
+        isValid: validationScore >= 3, // Consider valid if 3 or more metrics are positive
+        metrics,
+        score: validationScore,
+      });
+    }
   }, [
     match.teams.home.name,
     match.teams.away.name,
     findPredictionForMatch,
     predictionData,
     isPredictionDataLoaded,
+    match.matchDetails,
+    match.matchSituation,
+    match.score,
   ]);
 
   const handleRowClick = (e: React.MouseEvent<HTMLTableRowElement>) => {
@@ -634,7 +689,11 @@ const MarketRow = ({
       <tr
         className={`border-t transition-all duration-200 ease-in-out ${
           hasPrediction
-            ? 'border-l-4 border-l-blue-600 bg-blue-50 hover:bg-blue-100'
+            ? performanceValidation
+              ? performanceValidation.isValid
+                ? 'border-l-4 border-l-green-600 bg-green-50 hover:bg-green-100'
+                : 'border-l-4 border-l-red-600 bg-red-50 hover:bg-red-100'
+              : 'border-l-4 border-l-blue-600 bg-blue-50 hover:bg-blue-100'
             : 'hover:bg-gray-50'
         }`}
         onClick={handleRowClick}
@@ -774,6 +833,36 @@ const MarketRow = ({
           </span>
         </td>
 
+        {/* Add new validation indicator cell */}
+        <td className='px-4 py-3 text-center'>
+          {performanceValidation && (
+            <div className='flex flex-col items-center gap-1'>
+              <span
+                className={`text-sm font-medium ${
+                  performanceValidation.isValid
+                    ? 'text-green-600'
+                    : 'text-red-600'
+                }`}
+              >
+                {performanceValidation.score}/5
+              </span>
+              <div className='flex gap-1'>
+                {Object.entries(performanceValidation.metrics).map(
+                  ([key, value]) => (
+                    <span
+                      key={key}
+                      className={`w-2 h-2 rounded-full ${
+                        value ? 'bg-green-500' : 'bg-red-500'
+                      }`}
+                      title={`${key}: ${value ? 'Pass' : 'Fail'}`}
+                    />
+                  )
+                )}
+              </div>
+            </div>
+          )}
+        </td>
+
         {/* Actions Column */}
         <td className='px-4 py-3 text-center'>
           <button
@@ -808,9 +897,17 @@ const MarketRow = ({
 
       {/* Expanded prediction details */}
       {isExpanded && hasPrediction && predictionMatch && (
-        <tr className='bg-blue-50/50'>
-          <td colSpan={12} className='p-4'>
-            <div className='border border-blue-100 rounded-lg bg-white p-4 shadow-sm space-y-4'>
+        <tr
+          className={`${
+            performanceValidation?.isValid
+              ? 'bg-green-50/50'
+              : performanceValidation
+              ? 'bg-red-50/50'
+              : 'bg-blue-50/50'
+          }`}
+        >
+          <td colSpan={13} className='p-4'>
+            <div className='border border-gray-100 rounded-lg bg-white p-4 shadow-sm space-y-4'>
               {/* Win Probability & Stats */}
               <div className='grid grid-cols-3 gap-4'>
                 <div className='col-span-2 bg-gray-50 rounded-lg p-3'>
@@ -819,8 +916,19 @@ const MarketRow = ({
                   </h4>
                   <div className='flex items-center justify-between'>
                     <div className='text-center'>
-                      <div className='text-2xl font-bold text-blue-600'>
+                      <div
+                        className={`text-2xl font-bold ${
+                          predictionMatch.favorite === 'home'
+                            ? 'text-blue-600 bg-blue-50 px-3 py-1 rounded-lg border-2 border-blue-200'
+                            : 'text-gray-600'
+                        }`}
+                      >
                         {match.teams.home.name}
+                        {predictionMatch.favorite === 'home' && (
+                          <div className='text-xs font-medium text-blue-600 mt-1'>
+                            Preferred Team
+                          </div>
+                        )}
                       </div>
                       <div className='text-2xl font-bold text-blue-600'>
                         {predictionMatch?.homeTeam?.winPercentage?.toFixed(0) ||
@@ -844,8 +952,19 @@ const MarketRow = ({
                       </div>
                     </div>
                     <div className='text-center'>
-                      <div className='text-2xl font-bold text-purple-600'>
+                      <div
+                        className={`text-2xl font-bold ${
+                          predictionMatch.favorite === 'away'
+                            ? 'text-purple-600 bg-purple-50 px-3 py-1 rounded-lg border-2 border-purple-200'
+                            : 'text-gray-600'
+                        }`}
+                      >
                         {match.teams.away.name}
+                        {predictionMatch.favorite === 'away' && (
+                          <div className='text-xs font-medium text-purple-600 mt-1'>
+                            Preferred Team
+                          </div>
+                        )}
                       </div>
                       <div className='text-2xl font-bold text-purple-600'>
                         {predictionMatch?.awayTeam?.winPercentage?.toFixed(0) ||
@@ -862,26 +981,85 @@ const MarketRow = ({
                 {/* Expected Goals Box */}
                 <div className='bg-gray-50 rounded-lg p-3'>
                   <h4 className='text-xs font-medium text-gray-500 mb-2'>
-                    EXPECTED GOALS
+                    PREDICTION SUMMARY
                   </h4>
-                  <div className='text-center'>
-                    <div
-                      className={`text-2xl font-bold ${
-                        predictionMatch?.expectedGoals >= 2.2
-                          ? 'text-green-600'
-                          : predictionMatch?.expectedGoals >= 1.5
-                          ? 'text-yellow-600'
-                          : 'text-red-600'
-                      }`}
-                    >
-                      {predictionMatch?.expectedGoals?.toFixed(1) || '3.9'}
+                  <div className='space-y-2'>
+                    <div className='flex justify-between items-center'>
+                      <span className='text-xs text-gray-500'>
+                        Expected Goals:
+                      </span>
+                      <span
+                        className={`text-sm font-bold ${
+                          predictionMatch?.expectedGoals >= 2.2
+                            ? 'text-green-600'
+                            : predictionMatch?.expectedGoals >= 1.5
+                            ? 'text-yellow-600'
+                            : 'text-red-600'
+                        }`}
+                      >
+                        {predictionMatch?.expectedGoals?.toFixed(1) || '3.9'}
+                      </span>
                     </div>
-                    <div className='text-xs text-gray-600 mt-1'>
-                      Confidence: {predictionMatch?.confidenceScore || '0'}%
+                    <div className='flex justify-between items-center'>
+                      <span className='text-xs text-gray-500'>Confidence:</span>
+                      <span className='text-sm font-bold text-blue-600'>
+                        {predictionMatch?.confidenceScore || '0'}%
+                      </span>
+                    </div>
+                    <div className='flex justify-between items-center'>
+                      <span className='text-xs text-gray-500'>
+                        Preferred Team:
+                      </span>
+                      <span
+                        className={`text-sm font-bold ${
+                          predictionMatch.favorite === 'home'
+                            ? 'text-blue-600'
+                            : 'text-purple-600'
+                        }`}
+                      >
+                        {predictionMatch.favorite === 'home'
+                          ? match.teams.home.name
+                          : match.teams.away.name}
+                      </span>
                     </div>
                   </div>
                 </div>
               </div>
+
+              {/* Performance Validation Section - Move it up for better visibility */}
+              {performanceValidation && (
+                <div className='bg-gray-50 rounded-lg p-3'>
+                  <h4 className='text-xs font-medium text-gray-500 mb-2'>
+                    PREDICTION VALIDATION FOR{' '}
+                    {predictionMatch.favorite === 'home'
+                      ? match.teams.home.name
+                      : match.teams.away.name}
+                  </h4>
+                  <div className='grid grid-cols-5 gap-4'>
+                    {Object.entries(performanceValidation.metrics).map(
+                      ([key, value]) => (
+                        <div
+                          key={key}
+                          className={`p-2 rounded-lg ${
+                            value ? 'bg-green-100' : 'bg-red-100'
+                          }`}
+                        >
+                          <div className='text-xs font-medium text-gray-500'>
+                            {key.toUpperCase()}
+                          </div>
+                          <div
+                            className={`text-sm font-bold ${
+                              value ? 'text-green-600' : 'text-red-600'
+                            }`}
+                          >
+                            {value ? 'PASS' : 'FAIL'}
+                          </div>
+                        </div>
+                      )
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Stats Grid */}
               <div className='grid grid-cols-4 gap-4'>
@@ -1964,6 +2142,12 @@ const MatchesPage = () => {
                         />
                         <HeaderCell
                           title='Favourite'
+                          filterType='none'
+                          align='center'
+                          className='w-[100px] min-w-[100px]'
+                        />
+                        <HeaderCell
+                          title='Validation'
                           filterType='none'
                           align='center'
                           className='w-[100px] min-w-[100px]'

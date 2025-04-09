@@ -165,6 +165,7 @@ interface Filters {
   positionGap: number;
   minExpectedGoals: number;
   showOnlyUpcoming: boolean;
+  showOnlyClearPreferred: boolean; // Add new filter
 }
 
 interface ThresholdValues {
@@ -301,6 +302,7 @@ const MatchPredictor = () => {
     positionGap: 0,
     minExpectedGoals: 0,
     showOnlyUpcoming: false,
+    showOnlyClearPreferred: false, // Add new filter
   });
   const [showScrollTop, setShowScrollTop] = useState<boolean>(false);
   const [showAnalyticsModal, setShowAnalyticsModal] = useState<boolean>(false);
@@ -710,6 +712,11 @@ const MatchPredictor = () => {
         return false;
       }
 
+      // Filter by clear preferred team
+      if (filters.showOnlyClearPreferred && !hasClearPreferredTeam(match)) {
+        return false;
+      }
+
       return true;
     });
 
@@ -959,6 +966,7 @@ const MatchPredictor = () => {
       positionGap: 0,
       minExpectedGoals: 0,
       showOnlyUpcoming: false,
+      showOnlyClearPreferred: false,
     });
     // Also reset the cart filter
     setShowOnlyCart(false);
@@ -1173,6 +1181,68 @@ const MatchPredictor = () => {
     setShowAnalyticsModal(true);
   };
 
+  // Add new function to check if a match has a clear preferred team
+  const hasClearPreferredTeam = (match: Match): boolean => {
+    // Check if all required data is available
+    const requiredData = [
+      match.homeTeam.position,
+      match.awayTeam.position,
+      match.homeTeam.form,
+      match.awayTeam.form,
+      match.homeTeam.scoringFirstWinRate,
+      match.awayTeam.scoringFirstWinRate,
+      match.expectedGoals,
+    ];
+
+    if (!requiredData.every((data) => data !== undefined && data !== null)) {
+      return false;
+    }
+
+    // Calculate form points for both teams
+    const homeFormPoints = calculateFormPoints(match.homeTeam.form || '');
+    const awayFormPoints = calculateFormPoints(match.awayTeam.form || '');
+
+    // Check position gap
+    const positionGap = Math.abs(
+      (match.homeTeam.position || 0) - (match.awayTeam.position || 0)
+    );
+    if (positionGap < 3) return false;
+
+    // Check form difference
+    const formDiff = Math.abs(homeFormPoints - awayFormPoints);
+    if (formDiff < 10) return false;
+
+    // Check scoring first win rates
+    const homeScoringFirst = match.homeTeam.scoringFirstWinRate || 0;
+    const awayScoringFirst = match.awayTeam.scoringFirstWinRate || 0;
+    if (Math.abs(homeScoringFirst - awayScoringFirst) < 10) return false;
+
+    // Check expected goals
+    if (match.expectedGoals < 2.0) return false;
+
+    // Determine which team is preferred based on the metrics
+    const homeAdvantage =
+      Number(homeFormPoints > awayFormPoints) +
+      Number(match.homeTeam.position < match.awayTeam.position) +
+      Number(homeScoringFirst > awayScoringFirst);
+
+    const awayAdvantage =
+      Number(awayFormPoints > homeFormPoints) +
+      Number(match.awayTeam.position < match.homeTeam.position) +
+      Number(awayScoringFirst > homeScoringFirst);
+
+    // Return true if either team has clear advantage (at least 2 out of 3 metrics)
+    return homeAdvantage >= 2 || awayAdvantage >= 2;
+  };
+
+  // Add function to toggle clear preferred filter
+  const toggleClearPreferredFilter = () => {
+    setFilters((prev) => ({
+      ...prev,
+      showOnlyClearPreferred: !prev.showOnlyClearPreferred,
+    }));
+  };
+
   if (isPredictionDataLoading) {
     return (
       <div className='max-w-full mx-auto p-4 bg-white rounded-lg shadow-sm'>
@@ -1256,134 +1326,196 @@ const MatchPredictor = () => {
         {/* Filters */}
         <div className='mt-2 bg-white p-3 rounded-lg border border-gray-200'>
           <div className='flex flex-wrap items-center gap-4'>
-            <div>
-              <label className='text-gray-500 text-xs block mb-1'>
-                Min Confidence
-              </label>
-              <select
-                className='bg-white text-gray-800 rounded px-2 py-1 text-sm border border-gray-300'
-                value={filters.minConfidence}
-                onChange={(e) =>
-                  handleFilterChange('minConfidence', parseInt(e.target.value))
-                }
-              >
-                <option value='0'>All</option>
-                <option value='60'>60%+</option>
-                <option value='70'>70%+</option>
-                <option value='80'>80%+</option>
-                <option value='90'>90%+</option>
-              </select>
+            {/* Basic Filters Group */}
+            <div className='flex flex-col gap-2 border-r border-gray-200 pr-4'>
+              <h4 className='text-xs font-medium text-gray-500'>
+                Basic Filters
+              </h4>
+              <div className='flex gap-2'>
+                <div>
+                  <label className='text-gray-500 text-xs block mb-1'>
+                    Min Confidence
+                  </label>
+                  <select
+                    className='bg-white text-gray-800 rounded px-2 py-1 text-sm border border-gray-300'
+                    value={filters.minConfidence}
+                    onChange={(e) =>
+                      handleFilterChange(
+                        'minConfidence',
+                        parseInt(e.target.value)
+                      )
+                    }
+                  >
+                    <option value='0'>All</option>
+                    <option value='60'>60%+</option>
+                    <option value='70'>70%+</option>
+                    <option value='80'>80%+</option>
+                    <option value='90'>90%+</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className='text-gray-500 text-xs block mb-1'>
+                    Favorite
+                  </label>
+                  <select
+                    className='bg-white text-gray-800 rounded px-2 py-1 text-sm border border-gray-300'
+                    value={filters.favorite}
+                    onChange={(e) =>
+                      handleFilterChange('favorite', e.target.value)
+                    }
+                  >
+                    <option value='all'>All</option>
+                    <option value='home'>Home Teams</option>
+                    <option value='away'>Away Teams</option>
+                  </select>
+                </div>
+              </div>
             </div>
 
-            <div>
-              <label className='text-gray-500 text-xs block mb-1'>
-                Favorite
-              </label>
-              <select
-                className='bg-white text-gray-800 rounded px-2 py-1 text-sm border border-gray-300'
-                value={filters.favorite}
-                onChange={(e) => handleFilterChange('favorite', e.target.value)}
-              >
-                <option value='all'>All</option>
-                <option value='home'>Home Teams</option>
-                <option value='away'>Away Teams</option>
-              </select>
+            {/* Advanced Filters Group */}
+            <div className='flex flex-col gap-2 border-r border-gray-200 pr-4'>
+              <h4 className='text-xs font-medium text-gray-500'>
+                Advanced Filters
+              </h4>
+              <div className='flex gap-2'>
+                <div>
+                  <label className='text-gray-500 text-xs block mb-1'>
+                    Min Position Gap
+                  </label>
+                  <select
+                    className='bg-white text-gray-800 rounded px-2 py-1 text-sm border border-gray-300'
+                    value={filters.positionGap}
+                    onChange={(e) =>
+                      handleFilterChange(
+                        'positionGap',
+                        parseInt(e.target.value)
+                      )
+                    }
+                  >
+                    <option value='0'>All</option>
+                    <option value='5'>5+</option>
+                    <option value='10'>10+</option>
+                    <option value='15'>15+</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className='text-gray-500 text-xs block mb-1'>
+                    Min Expected Goals
+                  </label>
+                  <select
+                    className='bg-white text-gray-800 rounded px-2 py-1 text-sm border border-gray-300'
+                    value={filters.minExpectedGoals}
+                    onChange={(e) =>
+                      handleFilterChange(
+                        'minExpectedGoals',
+                        parseFloat(e.target.value)
+                      )
+                    }
+                  >
+                    <option value='0'>All</option>
+                    <option value='1.5'>1.5+</option>
+                    <option value='2.0'>2.0+</option>
+                    <option value='2.5'>2.5+</option>
+                  </select>
+                </div>
+              </div>
             </div>
 
-            <div>
-              <label className='text-gray-500 text-xs block mb-1'>
-                Min Position Gap
-              </label>
-              <select
-                className='bg-white text-gray-800 rounded px-2 py-1 text-sm border border-gray-300'
-                value={filters.positionGap}
-                onChange={(e) =>
-                  handleFilterChange('positionGap', parseInt(e.target.value))
-                }
-              >
-                <option value='0'>All</option>
-                <option value='5'>5+</option>
-                <option value='10'>10+</option>
-                <option value='15'>15+</option>
-              </select>
+            {/* View Filters Group */}
+            <div className='flex flex-col gap-2 border-r border-gray-200 pr-4'>
+              <h4 className='text-xs font-medium text-gray-500'>
+                View Filters
+              </h4>
+              <div className='flex gap-2'>
+                <div>
+                  <label className='text-gray-500 text-xs block mb-1'>
+                    Time Filter
+                  </label>
+                  <button
+                    className={`px-3 py-1 text-sm rounded border ${
+                      filters.showOnlyUpcoming
+                        ? 'bg-purple-600 text-white border-purple-700'
+                        : 'bg-white text-gray-800 border-gray-300'
+                    }`}
+                    onClick={toggleUpcomingFilter}
+                    title={
+                      filters.showOnlyUpcoming
+                        ? getTimeRangeTooltip()
+                        : 'Prioritizes matches from current hour through next 24 hours'
+                    }
+                  >
+                    {filters.showOnlyUpcoming
+                      ? 'Upcoming Matches'
+                      : 'All Times'}
+                  </button>
+                </div>
+
+                <div>
+                  <label className='text-gray-500 text-xs block mb-1'>
+                    Cart Filter
+                  </label>
+                  <button
+                    className={`px-3 py-1 text-sm rounded border ${
+                      showOnlyCart
+                        ? 'bg-green-600 text-white border-green-700'
+                        : 'bg-white text-gray-800 border-gray-300'
+                    }`}
+                    onClick={toggleCartFilter}
+                    title={
+                      showOnlyCart
+                        ? 'Currently showing only matches in your cart'
+                        : 'Currently showing all matches (click to show only cart items)'
+                    }
+                  >
+                    {showOnlyCart ? 'Cart Items Only' : 'All Matches'}
+                  </button>
+                </div>
+              </div>
             </div>
 
-            <div>
-              <label className='text-gray-500 text-xs block mb-1'>
-                Min Expected Goals
-              </label>
-              <select
-                className='bg-white text-gray-800 rounded px-2 py-1 text-sm border border-gray-300'
-                value={filters.minExpectedGoals}
-                onChange={(e) =>
-                  handleFilterChange(
-                    'minExpectedGoals',
-                    parseFloat(e.target.value)
-                  )
-                }
-              >
-                <option value='0'>All</option>
-                <option value='1.5'>1.5+</option>
-                <option value='2.0'>2.0+</option>
-                <option value='2.5'>2.5+</option>
-              </select>
+            {/* Quality Filters Group */}
+            <div className='flex flex-col gap-2'>
+              <h4 className='text-xs font-medium text-gray-500'>
+                Quality Filters
+              </h4>
+              <div className='flex gap-2'>
+                <div>
+                  <label className='text-gray-500 text-xs block mb-1'>
+                    Clear Preferred
+                  </label>
+                  <button
+                    className={`px-3 py-1 text-sm rounded border ${
+                      filters.showOnlyClearPreferred
+                        ? 'bg-indigo-600 text-white border-indigo-700'
+                        : 'bg-white text-gray-800 border-gray-300'
+                    }`}
+                    onClick={toggleClearPreferredFilter}
+                    title='Show only matches with clear preferred teams and complete data'
+                  >
+                    {filters.showOnlyClearPreferred
+                      ? 'Clear Preferred Only'
+                      : 'All Matches'}
+                  </button>
+                </div>
+
+                <div>
+                  <label className='text-gray-500 text-xs block mb-1'>
+                    Analytics
+                  </label>
+                  <button
+                    className='px-3 py-1 text-sm rounded border bg-blue-500 text-white border-blue-600'
+                    onClick={showMatchesByHour}
+                    title='Show analytics of matches by date and hour'
+                  >
+                    Show Match Analytics
+                  </button>
+                </div>
+              </div>
             </div>
 
-            <div>
-              <label className='text-gray-500 text-xs block mb-1'>
-                Time Filter
-              </label>
-              <button
-                className={`px-3 py-1 text-sm rounded border ${
-                  filters.showOnlyUpcoming
-                    ? 'bg-purple-600 text-white border-purple-700'
-                    : 'bg-white text-gray-800 border-gray-300'
-                }`}
-                onClick={toggleUpcomingFilter}
-                title={
-                  filters.showOnlyUpcoming
-                    ? getTimeRangeTooltip()
-                    : 'Prioritizes matches from current hour through next 24 hours'
-                }
-              >
-                {filters.showOnlyUpcoming ? 'Upcoming Matches' : 'All Times'}
-              </button>
-            </div>
-
-            <div>
-              <label className='text-gray-500 text-xs block mb-1'>
-                Cart Filter
-              </label>
-              <button
-                className={`px-3 py-1 text-sm rounded border ${
-                  showOnlyCart
-                    ? 'bg-green-600 text-white border-green-700'
-                    : 'bg-white text-gray-800 border-gray-300'
-                }`}
-                onClick={toggleCartFilter}
-                title={
-                  showOnlyCart
-                    ? 'Currently showing only matches in your cart'
-                    : 'Currently showing all matches (click to show only cart items)'
-                }
-              >
-                {showOnlyCart ? 'Cart Items Only' : 'All Matches'}
-              </button>
-            </div>
-
-            <div>
-              <label className='text-gray-500 text-xs block mb-1'>
-                Analytics
-              </label>
-              <button
-                className='px-3 py-1 text-sm rounded border bg-blue-500 text-white border-blue-600'
-                onClick={showMatchesByHour}
-                title='Show analytics of matches by date and hour'
-              >
-                Show Match Analytics
-              </button>
-            </div>
-
+            {/* Action Buttons */}
             <div className='ml-auto flex gap-2'>
               <button
                 className='bg-green-600 hover:bg-green-700 text-white rounded-lg px-4 py-1 text-sm'
