@@ -625,8 +625,8 @@ const MarketRow = ({
           (match.matchSituation[preferredTeam].totalAttacks || 0) >
           (match.matchSituation[opposingTeam].totalAttacks || 0),
         possession:
-          (match.matchDetails[preferredTeam].ballSafePercentage || 0) >
-          (match.matchDetails[opposingTeam].ballSafePercentage || 0),
+          (match.matchDetails[preferredTeam].ballSafe || 0) >
+          (match.matchDetails[opposingTeam].ballSafe || 0),
         dangerousAttacks:
           (match.matchSituation[preferredTeam].totalDangerousAttacks || 0) >
           (match.matchSituation[opposingTeam].totalDangerousAttacks || 0),
@@ -636,25 +636,31 @@ const MarketRow = ({
         score: false,
       };
 
-      // Add debug logging to verify attack calculations
-      console.log('Attack Validation:', {
-        team: preferredTeam,
-        preferredTeamAttacks: match.matchSituation[preferredTeam].totalAttacks,
-        opposingTeamAttacks: match.matchSituation[opposingTeam].totalAttacks,
-        preferredTeamDangerousAttacks:
-          match.matchSituation[preferredTeam].totalDangerousAttacks,
-        opposingTeamDangerousAttacks:
-          match.matchSituation[opposingTeam].totalDangerousAttacks,
-        result: metrics.attacks,
-      });
+      // Check score if match has started and has a valid score
+      if (match.score && match.status !== 'NS') {
+        try {
+          // Get the actual score and parse it
+          const [homeGoals, awayGoals] = match.score
+            .replace(':', '-') // normalize separator to '-'
+            .split('-')
+            .map((g) => parseInt(g.trim(), 10));
 
-      // Check score if match has started
-      if (match.score) {
-        const [homeGoals, awayGoals] = match.score.split('-').map(Number);
-        metrics.score =
-          preferredTeam === 'home'
-            ? homeGoals > awayGoals
-            : awayGoals > homeGoals;
+          // Validate score parsing
+          if (!isNaN(homeGoals) && !isNaN(awayGoals)) {
+            // Set score metric based on who is preferred and who is winning
+            if (preferredTeam === 'home') {
+              metrics.score = homeGoals > awayGoals;
+            } else {
+              metrics.score = awayGoals > homeGoals;
+            }
+          } else {
+            metrics.score = false;
+          }
+        } catch {
+          metrics.score = false;
+        }
+      } else {
+        metrics.score = false;
       }
 
       // Calculate overall validation score (0-5)
@@ -675,6 +681,7 @@ const MarketRow = ({
     match.matchDetails,
     match.matchSituation,
     match.score,
+    match.status, // Added match.status to dependency array
   ]);
 
   const handleRowClick = (e: React.MouseEvent<HTMLTableRowElement>) => {
