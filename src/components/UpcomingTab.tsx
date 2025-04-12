@@ -6,9 +6,12 @@ import {
   Check,
   Plus,
   Loader2,
-  ArrowUp
+  ArrowUpCircle,
+  Copy,
 } from 'lucide-react';
 import { useCartStore } from '@/hooks/useStore';
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 interface Team {
   id: string;
@@ -166,6 +169,8 @@ interface Filters {
   minExpectedGoals: number;
   showOnlyUpcoming: boolean;
   showOnlyClearPreferred: boolean; // Add new filter
+  enableGrouping: boolean; // Add grouping toggle
+  groupSize: number; // Add group size configuration
 }
 
 interface ThresholdValues {
@@ -303,6 +308,8 @@ const MatchPredictor = () => {
     minExpectedGoals: 0,
     showOnlyUpcoming: false,
     showOnlyClearPreferred: false, // Add new filter
+    enableGrouping: false, // Add grouping toggle
+    groupSize: 10, // Add group size configuration
   });
   const [showScrollTop, setShowScrollTop] = useState<boolean>(false);
   const [showAnalyticsModal, setShowAnalyticsModal] = useState<boolean>(false);
@@ -967,6 +974,8 @@ const MatchPredictor = () => {
       minExpectedGoals: 0,
       showOnlyUpcoming: false,
       showOnlyClearPreferred: false,
+      enableGrouping: false,
+      groupSize: 10,
     });
     // Also reset the cart filter
     setShowOnlyCart(false);
@@ -1192,6 +1201,7 @@ const MatchPredictor = () => {
       match.homeTeam.scoringFirstWinRate,
       match.awayTeam.scoringFirstWinRate,
       match.expectedGoals,
+      match.headToHead,
     ];
 
     if (!requiredData.every((data) => data !== undefined && data !== null)) {
@@ -1220,19 +1230,26 @@ const MatchPredictor = () => {
     // Check expected goals
     if (match.expectedGoals < 2.0) return false;
 
+    // Check head-to-head data
+    const h2h = match.headToHead;
+    const hasHeadToHeadAdvantage =
+      h2h.matches > 0 && Math.abs(h2h.wins - h2h.losses) > 1;
+
     // Determine which team is preferred based on the metrics
     const homeAdvantage =
       Number(homeFormPoints > awayFormPoints) +
       Number(match.homeTeam.position < match.awayTeam.position) +
-      Number(homeScoringFirst > awayScoringFirst);
+      Number(homeScoringFirst > awayScoringFirst) +
+      Number(hasHeadToHeadAdvantage && h2h.wins > h2h.losses);
 
     const awayAdvantage =
       Number(awayFormPoints > homeFormPoints) +
       Number(match.awayTeam.position < match.homeTeam.position) +
-      Number(awayScoringFirst > homeScoringFirst);
+      Number(awayScoringFirst > homeScoringFirst) +
+      Number(hasHeadToHeadAdvantage && h2h.losses > h2h.wins);
 
-    // Return true if either team has clear advantage (at least 2 out of 3 metrics)
-    return homeAdvantage >= 2 || awayAdvantage >= 2;
+    // Return true if either team has clear advantage (at least 3 out of 4 metrics)
+    return homeAdvantage >= 3 || awayAdvantage >= 3;
   };
 
   // Add function to toggle clear preferred filter
@@ -1241,6 +1258,130 @@ const MatchPredictor = () => {
       ...prev,
       showOnlyClearPreferred: !prev.showOnlyClearPreferred,
     }));
+  };
+
+  // Add function to toggle grouping filter
+  const toggleGroupingFilter = () => {
+    setFilters((prev) => ({
+      ...prev,
+      enableGrouping: !prev.enableGrouping,
+    }));
+  };
+
+  // Add function to handle group size change
+  const handleGroupSizeChange = (size: number) => {
+    setFilters((prev) => ({
+      ...prev,
+      groupSize: size,
+    }));
+  };
+
+  // Function to get the preferred team from a match
+  const getPreferredTeam = (match: Match): Team | null => {
+    if (!hasClearPreferredTeam(match)) return null;
+
+    // Calculate form points for both teams
+    const homeFormPoints = calculateFormPoints(match.homeTeam.form || '');
+    const awayFormPoints = calculateFormPoints(match.awayTeam.form || '');
+
+    // Check head-to-head data
+    const h2h = match.headToHead;
+    const hasHeadToHeadAdvantage =
+      h2h.matches > 0 && Math.abs(h2h.wins - h2h.losses) > 1;
+
+    // Determine which team is preferred based on the metrics
+    const homeAdvantage =
+      Number(homeFormPoints > awayFormPoints) +
+      Number(match.homeTeam.position < match.awayTeam.position) +
+      Number(
+        (match.homeTeam.scoringFirstWinRate || 0) >
+          (match.awayTeam.scoringFirstWinRate || 0)
+      ) +
+      Number(hasHeadToHeadAdvantage && h2h.wins > h2h.losses);
+
+    const awayAdvantage =
+      Number(awayFormPoints > homeFormPoints) +
+      Number(match.awayTeam.position < match.homeTeam.position) +
+      Number(
+        (match.awayTeam.scoringFirstWinRate || 0) >
+          (match.homeTeam.scoringFirstWinRate || 0)
+      ) +
+      Number(hasHeadToHeadAdvantage && h2h.losses > h2h.wins);
+
+    return homeAdvantage >= 3
+      ? match.homeTeam
+      : awayAdvantage >= 3
+      ? match.awayTeam
+      : null;
+  };
+
+  // Function to group matches by start time
+  const groupMatchesByStartTime = (
+    matches: Match[]
+  ): Record<string, Match[]> => {
+    const groups: Record<string, Match[]> = {};
+
+    matches.forEach((match) => {
+      if (!hasClearPreferredTeam(match)) return;
+
+      // Create a key based on the match date and time
+      const startTimeKey = `${match.date} ${match.time}`;
+
+      if (!groups[startTimeKey]) {
+        groups[startTimeKey] = [];
+      }
+
+      groups[startTimeKey].push(match);
+    });
+
+    return groups;
+  };
+
+  // Function to create batches of matches with clear preferred teams
+  const createMatchGroups = (
+    matches: Match[],
+    groupSize: number
+  ): Match[][] => {
+    // Get only matches with clear preferred teams
+    const eligibleMatches = matches.filter(hasClearPreferredTeam);
+
+    // Group by start time first
+    const timeGroups = groupMatchesByStartTime(eligibleMatches);
+
+    // Flatten and ensure we have matches with the same start time grouped together
+    const sortedMatches: Match[] = [];
+    Object.values(timeGroups).forEach((matchGroup) => {
+      sortedMatches.push(...matchGroup);
+    });
+
+    // Create groups of the specified size
+    const groups: Match[][] = [];
+    for (let i = 0; i < sortedMatches.length; i += groupSize) {
+      const group = sortedMatches.slice(i, i + groupSize);
+      if (group.length > 0) {
+        groups.push(group);
+      }
+    }
+
+    return groups;
+  };
+
+  // Function to copy preferred team names from a group
+  const copyPreferredTeamNames = (matches: Match[]) => {
+    const teamNames = matches
+      .map((match) => {
+        const preferredTeam = getPreferredTeam(match);
+        return preferredTeam ? preferredTeam.name : null;
+      })
+      .filter(Boolean)
+      .join('\n');
+
+    if (teamNames) {
+      navigator.clipboard.writeText(teamNames);
+      toast.success('Copied team names to clipboard!');
+    } else {
+      toast.error('No preferred teams found in this group');
+    }
   };
 
   if (isPredictionDataLoading) {
@@ -1283,6 +1424,10 @@ const MatchPredictor = () => {
       </div>
     );
   }
+
+  // Apply filters and sorting
+  const filteredMatches = filterMatches(upcomingMatches);
+  const sortedMatches = sortMatches(filteredMatches);
 
   return (
     <div className='max-w-[2000px] mx-auto p-4 bg-white rounded-lg shadow-sm'>
@@ -1512,6 +1657,48 @@ const MatchPredictor = () => {
                     Show Match Analytics
                   </button>
                 </div>
+
+                <div>
+                  <label className='text-gray-500 text-xs block mb-1'>
+                    Group Matches
+                  </label>
+                  <button
+                    className={`px-3 py-1 text-sm rounded border ${
+                      filters.enableGrouping
+                        ? 'bg-amber-600 text-white border-amber-700'
+                        : 'bg-white text-gray-800 border-gray-300'
+                    }`}
+                    onClick={toggleGroupingFilter}
+                    title='Group matches with clear preferred teams for easy betting'
+                  >
+                    {filters.enableGrouping
+                      ? 'Grouping Enabled'
+                      : 'Enable Grouping'}
+                  </button>
+                </div>
+
+                {filters.enableGrouping && (
+                  <div>
+                    <label className='text-gray-500 text-xs block mb-1'>
+                      Group Size
+                    </label>
+                    <select
+                      className='bg-white text-gray-800 rounded px-2 py-1 text-sm border border-gray-300'
+                      value={filters.groupSize}
+                      onChange={(e) =>
+                        handleGroupSizeChange(parseInt(e.target.value))
+                      }
+                    >
+                      <option value='2'>2 Matches</option>
+                      <option value='3'>3 Matches</option>
+                      <option value='4'>4 Matches</option>
+                      <option value='5'>5 Matches</option>
+                      <option value='6'>6 Matches</option>
+                      <option value='8'>8 Matches</option>
+                      <option value='10'>10 Matches</option>
+                    </select>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1541,6 +1728,113 @@ const MatchPredictor = () => {
           </div>
         </div>
       </div>
+
+      {filters.enableGrouping && (
+        <div className='mb-6 bg-white border border-gray-200 rounded-lg overflow-hidden'>
+          <div className='bg-amber-50 px-4 py-2 border-b border-amber-200'>
+            <h3 className='text-lg font-medium text-amber-800'>
+              Grouped Matches with Clear Preferred Teams
+            </h3>
+            <p className='text-sm text-amber-700'>
+              Matches are grouped by start time in batches of{' '}
+              {filters.groupSize}. Click the copy button to copy the preferred
+              team names.
+            </p>
+          </div>
+          <div className='p-4'>
+            {createMatchGroups(sortedMatches, filters.groupSize).map(
+              (group, groupIndex) => (
+                <div key={groupIndex} className='mb-6 last:mb-0'>
+                  <div className='flex justify-between items-center mb-2'>
+                    <h4 className='text-md font-medium text-gray-700'>
+                      Group {groupIndex + 1} ({group.length} matches)
+                    </h4>
+                    <button
+                      className='flex items-center gap-1 px-3 py-1 text-sm rounded bg-amber-100 text-amber-800 hover:bg-amber-200 border border-amber-200'
+                      onClick={() => copyPreferredTeamNames(group)}
+                    >
+                      <Copy size={14} />
+                      Copy Team Names
+                    </button>
+                  </div>
+                  <div className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3'>
+                    {group.map((match) => {
+                      const preferredTeam = getPreferredTeam(match);
+                      return (
+                        <div
+                          key={match.id}
+                          className='bg-gray-50 rounded-lg p-3 border border-gray-200 hover:shadow-md transition-shadow'
+                        >
+                          <div className='flex justify-between items-start mb-2'>
+                            <div className='text-xs text-gray-500'>
+                              {formatMatchDate(match.date, match.time)}
+                            </div>
+                            <div
+                              className={`text-xs px-2 py-0.5 rounded-full ${
+                                match.favorite === 'home'
+                                  ? 'bg-blue-100 text-blue-800'
+                                  : 'bg-purple-100 text-purple-800'
+                              }`}
+                            >
+                              {match.favorite === 'home' ? 'Home' : 'Away'}{' '}
+                              Favorite
+                            </div>
+                          </div>
+                          <div className='flex items-center gap-2 mb-1'>
+                            <div className='w-5 h-5 relative'>
+                              {renderTeamLogo(match.homeTeam.logo, 'sm')}
+                            </div>
+                            <div
+                              className={`text-sm ${
+                                preferredTeam?.id === match.homeTeam.id
+                                  ? 'font-bold text-blue-700'
+                                  : ''
+                              }`}
+                            >
+                              {match.homeTeam.name}
+                            </div>
+                          </div>
+                          <div className='flex items-center gap-2'>
+                            <div className='w-5 h-5 relative'>
+                              {renderTeamLogo(match.awayTeam.logo, 'sm')}
+                            </div>
+                            <div
+                              className={`text-sm ${
+                                preferredTeam?.id === match.awayTeam.id
+                                  ? 'font-bold text-purple-700'
+                                  : ''
+                              }`}
+                            >
+                              {match.awayTeam.name}
+                            </div>
+                          </div>
+                          <div className='mt-2 text-xs text-gray-500'>
+                            Position Gap:{' '}
+                            <span className='font-medium'>
+                              {match.positionGap}
+                            </span>{' '}
+                            • Exp. Goals:{' '}
+                            <span className='font-medium'>
+                              {match.expectedGoals.toFixed(1)}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )
+            )}
+            {createMatchGroups(sortedMatches, filters.groupSize).length ===
+              0 && (
+              <div className='bg-gray-50 p-4 rounded-lg text-center text-gray-600'>
+                No matches with clear preferred teams found. Try adjusting your
+                filters.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className='overflow-x-auto min-w-0'>
         <table className='w-full bg-white rounded-lg overflow-hidden border border-gray-200 min-w-[1500px] table-fixed'>
@@ -1702,7 +1996,7 @@ const MatchPredictor = () => {
             </tr>
           </thead>
           <tbody>
-            {filterMatches(sortMatches(upcomingMatches)).map((match, index) => {
+            {filteredMatches.map((match, index) => {
               const selectedFavoriteColor =
                 match.favorite === 'home'
                   ? 'bg-blue-50 text-blue-800 border border-blue-200'
@@ -2615,12 +2909,13 @@ const MatchPredictor = () => {
       {showScrollTop && (
         <button
           onClick={scrollToTop}
-          className='fixed bottom-6 right-6 bg-purple-600 hover:bg-purple-700 text-white p-3 rounded-full shadow-lg transition-opacity duration-300'
-          aria-label='Scroll to top'
+          className='fixed bottom-6 right-6 bg-blue-600 text-white p-3 rounded-full shadow-lg hover:bg-blue-700 transition-colors'
         >
-          <ArrowUp size={20} />
+          <ArrowUpCircle size={24} />
         </button>
       )}
+
+      <ToastContainer position='bottom-right' autoClose={3000} />
     </div>
   );
 };

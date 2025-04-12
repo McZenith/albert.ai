@@ -4,8 +4,16 @@
 import React, { useState, useEffect } from 'react';
 import { useMatchData } from '../hooks/useMatchData';
 import { useCartStore } from '@/hooks/useStore';
-import { ChevronUp, ChevronDown, Filter, ShoppingCart } from 'lucide-react';
+import {
+  ChevronUp,
+  ChevronDown,
+  Filter,
+  ShoppingCart,
+  Copy,
+} from 'lucide-react';
 import MatchPredictor from '@/components/UpcomingTab';
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 // Enhanced Types
 interface Match {
@@ -594,7 +602,7 @@ const MarketRow = ({
       possession: boolean;
       dangerousAttacks: boolean;
       shots: boolean;
-      score: boolean;
+      score?: boolean;
     };
     score: number;
   } | null>(null);
@@ -620,20 +628,32 @@ const MarketRow = ({
       const opposingTeam = foundMatch.favorite === 'home' ? 'away' : 'home';
 
       // Calculate validation metrics
-      const metrics = {
+      const metrics: {
+        attacks: boolean;
+        possession: boolean;
+        dangerousAttacks: boolean;
+        shots: boolean;
+        score?: boolean;
+      } = {
+        // Preferred team has more attacks
         attacks:
           (match.matchSituation[preferredTeam].totalAttacks || 0) >
           (match.matchSituation[opposingTeam].totalAttacks || 0),
+
+        // Preferred team has more possession
         possession:
-          (match.matchDetails[preferredTeam].ballSafe || 0) >
-          (match.matchDetails[opposingTeam].ballSafe || 0),
+          (match.matchDetails[preferredTeam].ballSafePercentage || 0) >
+          (match.matchDetails[opposingTeam].ballSafePercentage || 0),
+
+        // Preferred team has more dangerous attacks
         dangerousAttacks:
           (match.matchSituation[preferredTeam].totalDangerousAttacks || 0) >
           (match.matchSituation[opposingTeam].totalDangerousAttacks || 0),
+
+        // Preferred team has more shots on target
         shots:
           (match.matchDetails[preferredTeam].shotsOnTarget || 0) >
           (match.matchDetails[opposingTeam].shotsOnTarget || 0),
-        score: false,
       };
 
       // Check score if match has started and has a valid score
@@ -1670,6 +1690,8 @@ const MatchesPage = () => {
   const [copiedText, setCopiedText] = useState<string>('');
   const [showCartItems, setShowCartItems] = useState<boolean>(false);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [enableGrouping, setEnableGrouping] = useState<boolean>(false);
+  const [groupSize, setGroupSize] = useState<number>(4);
   const [sortConfigs, setSortConfigs] = useState<
     Array<{ field: string; direction: SortDirection }>
   >(() => {
@@ -2029,6 +2051,394 @@ const MatchesPage = () => {
     });
   };
 
+  // Function to check if a match has a clear preferred team
+  const hasClearPreferredTeam = (match: Match): boolean => {
+    // Get prediction data for this match
+    const { findPredictionForMatch } = useCartStore.getState();
+    const predictionMatch = findPredictionForMatch(
+      match.teams.home.name,
+      match.teams.away.name
+    );
+
+    // First determine if we have a preferred team based on prediction data
+    let hasPreferredTeam = false;
+    let preferredTeamIsHome = false;
+
+    // If we have prediction data, use it to determine if there's a clear preferred team
+    if (predictionMatch) {
+      // If prediction data has a favorite, consider this a clear preferred team
+      if (
+        predictionMatch.favorite === 'home' ||
+        predictionMatch.favorite === 'away'
+      ) {
+        hasPreferredTeam = true;
+        preferredTeamIsHome = predictionMatch.favorite === 'home';
+      } else if (
+        predictionMatch.homeTeam?.position !== undefined &&
+        predictionMatch.awayTeam?.position !== undefined
+      ) {
+        // Check position gap from prediction data
+        const positionGap = Math.abs(
+          predictionMatch.homeTeam.position - predictionMatch.awayTeam.position
+        );
+        if (positionGap >= 3) {
+          hasPreferredTeam = true;
+          preferredTeamIsHome =
+            predictionMatch.homeTeam.position <
+            predictionMatch.awayTeam.position;
+        }
+      }
+    }
+
+    // If we don't have prediction data or couldn't determine a preferred team, check live data
+    if (!hasPreferredTeam) {
+      if (!match.teams?.home?.position || !match.teams?.away?.position) {
+        return false;
+      }
+
+      const positionGap = Math.abs(
+        match.teams.home.position - match.teams.away.position
+      );
+
+      if (positionGap >= 5) {
+        hasPreferredTeam = true;
+        preferredTeamIsHome =
+          match.teams.home.position < match.teams.away.position;
+      } else {
+        return false; // No clear preferred team based on positions
+      }
+    }
+
+    // Only proceed if we have a clear preferred team
+    if (!hasPreferredTeam) return false;
+
+    // Now check if preferred team is actually performing well in the match
+    if (match.matchSituation && match.matchDetails) {
+      const preferredTeamKey = preferredTeamIsHome ? 'home' : 'away';
+      const opposingTeamKey = preferredTeamIsHome ? 'away' : 'home';
+
+      // Calculate performance metrics
+      const metrics: {
+        attacks: boolean;
+        possession: boolean;
+        dangerousAttacks: boolean;
+        shots: boolean;
+        score?: boolean;
+      } = {
+        // Preferred team has more attacks
+        attacks:
+          (match.matchSituation[preferredTeamKey].totalAttacks || 0) >
+          (match.matchSituation[opposingTeamKey].totalAttacks || 0),
+
+        // Preferred team has more possession
+        possession:
+          (match.matchDetails[preferredTeamKey].ballSafePercentage || 0) >
+          (match.matchDetails[opposingTeamKey].ballSafePercentage || 0),
+
+        // Preferred team has more dangerous attacks
+        dangerousAttacks:
+          (match.matchSituation[preferredTeamKey].totalDangerousAttacks || 0) >
+          (match.matchSituation[opposingTeamKey].totalDangerousAttacks || 0),
+
+        // Preferred team has more shots on target
+        shots:
+          (match.matchDetails[preferredTeamKey].shotsOnTarget || 0) >
+          (match.matchDetails[opposingTeamKey].shotsOnTarget || 0),
+      };
+
+      // Check score if match has started and has a valid score
+      if (match.score && match.status !== 'NS') {
+        try {
+          // Parse the score
+          const [homeGoals, awayGoals] = match.score
+            .replace(':', '-') // normalize separator to '-'
+            .split('-')
+            .map((g) => parseInt(g.trim(), 10));
+
+          if (!isNaN(homeGoals) && !isNaN(awayGoals)) {
+            // Add score metric - preferred team is winning
+            metrics.score = preferredTeamIsHome
+              ? homeGoals > awayGoals
+              : awayGoals > homeGoals;
+          }
+        } catch {
+          // If parsing fails, don't add score metric
+        }
+      }
+
+      // Calculate total performance score (0-5)
+      const performanceScore = Object.values(metrics).filter(Boolean).length;
+
+      // Only include matches where preferred team is performing well (at least 2/4 metrics)
+      return performanceScore >= 2;
+    }
+
+    // If we don't have match details, just use the preferred team determination
+    return true;
+  };
+
+  // Function to get the preferred team from a match
+  const getPreferredTeam = (
+    match: Match
+  ): { id: string; name: string } | null => {
+    if (!hasClearPreferredTeam(match)) return null;
+
+    // Get prediction data for this match
+    const { findPredictionForMatch } = useCartStore.getState();
+    const predictionMatch = findPredictionForMatch(
+      match.teams.home.name,
+      match.teams.away.name
+    );
+
+    // If we have prediction data with a favorite specified, use that
+    if (predictionMatch && predictionMatch.favorite) {
+      return predictionMatch.favorite === 'home'
+        ? match.teams.home
+        : match.teams.away;
+    }
+
+    // Fall back to position comparison for matches without prediction data
+    return match.teams.home.position < match.teams.away.position
+      ? match.teams.home
+      : match.teams.away;
+  };
+
+  // Function to group matches by start time - currently unused but kept for reference
+  /* 
+  const groupMatchesByStartTime = (
+    matches: Match[]
+  ): Record<string, Match[]> => {
+    const groups: Record<string, Match[]> = {};
+
+    matches.forEach((match) => {
+      if (!hasClearPreferredTeam(match)) return;
+
+      // Create a key based on the match date and time
+      const startTimeKey = match.matchTime || match.createdAt;
+
+      if (!groups[startTimeKey]) {
+        groups[startTimeKey] = [];
+      }
+
+      groups[startTimeKey].push(match);
+    });
+
+    return groups;
+  };
+  */
+
+  // Function to create batches of matches with clear preferred teams
+  const createMatchGroups = (
+    matches: Match[],
+    groupSize: number
+  ): { prime: Match[][]; regular: Match[][] } => {
+    // Get only matches with clear preferred teams
+    const eligibleMatches = matches.filter(hasClearPreferredTeam);
+
+    // Score and sort matches based on favorable metrics
+    const scoredMatches = eligibleMatches.map((match) => ({
+      match,
+      score: scoreMatch(match),
+      startTime: match.matchTime || match.createdAt,
+    }));
+
+    // Group matches by start time first
+    const timeGroups: Record<string, typeof scoredMatches> = {};
+
+    scoredMatches.forEach((scoredMatch) => {
+      const key = scoredMatch.startTime;
+      if (!timeGroups[key]) {
+        timeGroups[key] = [];
+      }
+      timeGroups[key].push(scoredMatch);
+    });
+
+    // Sort scored matches by score (descending) while maintaining time grouping
+    const sortedScoredMatches: typeof scoredMatches = [];
+
+    Object.values(timeGroups).forEach((group) => {
+      // Sort this time group by score
+      const sortedGroup = [...group].sort((a, b) => b.score - a.score);
+      sortedScoredMatches.push(...sortedGroup);
+    });
+
+    // Separate prime matches (score >= 6) from regular matches
+    const primeMatches = sortedScoredMatches
+      .filter((m) => m.score >= 6)
+      .map((m) => m.match);
+    const regularMatches = sortedScoredMatches
+      .filter((m) => m.score < 6)
+      .map((m) => m.match);
+
+    // Create groups of the specified size
+    const primeGroups: Match[][] = [];
+    for (let i = 0; i < primeMatches.length; i += groupSize) {
+      const group = primeMatches.slice(i, i + groupSize);
+      if (group.length > 0) {
+        primeGroups.push(group);
+      }
+    }
+
+    const regularGroups: Match[][] = [];
+    for (let i = 0; i < regularMatches.length; i += groupSize) {
+      const group = regularMatches.slice(i, i + groupSize);
+      if (group.length > 0) {
+        regularGroups.push(group);
+      }
+    }
+
+    return { prime: primeGroups, regular: regularGroups };
+  };
+
+  // Function to copy preferred team names from a group
+  const copyPreferredTeamNames = (matches: Match[]) => {
+    const teamNames = matches
+      .map((match) => {
+        const preferredTeam = getPreferredTeam(match);
+        return preferredTeam ? preferredTeam.name : null;
+      })
+      .filter(Boolean)
+      .join('\n');
+
+    if (teamNames) {
+      navigator.clipboard.writeText(teamNames);
+      toast.success('Copied team names to clipboard!');
+    } else {
+      toast.error('No preferred teams found in this group');
+    }
+  };
+
+  // Score a match based on how many favorable metrics it has
+  const scoreMatch = (match: Match): number => {
+    // Get prediction data for this match
+    const { findPredictionForMatch } = useCartStore.getState();
+    const predictionMatch = findPredictionForMatch(
+      match.teams.home.name,
+      match.teams.away.name
+    );
+
+    let score = 0;
+    let preferredTeamIsHome = false;
+
+    // Determine preferred team
+    if (predictionMatch?.favorite) {
+      preferredTeamIsHome = predictionMatch.favorite === 'home';
+      score += 1; // Has a favorite from prediction data
+    } else if (
+      match.teams?.home?.position !== undefined &&
+      match.teams?.away?.position !== undefined
+    ) {
+      preferredTeamIsHome =
+        match.teams.home.position < match.teams.away.position;
+    }
+
+    const preferredTeamKey = preferredTeamIsHome ? 'home' : 'away';
+    const opposingTeamKey = preferredTeamIsHome ? 'away' : 'home';
+
+    // Check prediction data metrics
+    if (predictionMatch) {
+      // Position gap
+      if (
+        predictionMatch.homeTeam?.position !== undefined &&
+        predictionMatch.awayTeam?.position !== undefined
+      ) {
+        const positionGap = Math.abs(
+          predictionMatch.homeTeam.position - predictionMatch.awayTeam.position
+        );
+        if (positionGap >= 5) score += 2;
+        else if (positionGap >= 3) score += 1;
+      }
+
+      // Form
+      if (predictionMatch.homeTeam?.form && predictionMatch.awayTeam?.form) {
+        const homeFormPoints = calculateFormPoints(
+          predictionMatch.homeTeam.form
+        );
+        const awayFormPoints = calculateFormPoints(
+          predictionMatch.awayTeam.form
+        );
+        const formDiff = Math.abs(homeFormPoints - awayFormPoints);
+
+        if (
+          formDiff >= 10 &&
+          ((preferredTeamIsHome && homeFormPoints > awayFormPoints) ||
+            (!preferredTeamIsHome && awayFormPoints > homeFormPoints))
+        ) {
+          score += 2;
+        }
+      }
+
+      // H2H advantage
+      if (predictionMatch.headToHead) {
+        const h2h = predictionMatch.headToHead;
+        if (h2h.matches > 0 && Math.abs(h2h.wins - h2h.losses) > 1) {
+          const h2hFavorsPreferred = preferredTeamIsHome
+            ? h2h.wins > h2h.losses
+            : h2h.losses > h2h.wins;
+
+          if (h2hFavorsPreferred) score += 2;
+        }
+      }
+    }
+
+    // Check live match metrics
+    if (match.matchSituation && match.matchDetails) {
+      // Attacks
+      if (
+        (match.matchSituation[preferredTeamKey].totalAttacks || 0) >
+        (match.matchSituation[opposingTeamKey].totalAttacks || 0)
+      ) {
+        score += 1;
+      }
+
+      // Possession
+      if (
+        (match.matchDetails[preferredTeamKey].ballSafePercentage || 0) >
+        (match.matchDetails[opposingTeamKey].ballSafePercentage || 0)
+      ) {
+        score += 1;
+      }
+
+      // Dangerous attacks
+      if (
+        (match.matchSituation[preferredTeamKey].totalDangerousAttacks || 0) >
+        (match.matchSituation[opposingTeamKey].totalDangerousAttacks || 0)
+      ) {
+        score += 1;
+      }
+
+      // Shots on target
+      if (
+        (match.matchDetails[preferredTeamKey].shotsOnTarget || 0) >
+        (match.matchDetails[opposingTeamKey].shotsOnTarget || 0)
+      ) {
+        score += 1;
+      }
+
+      // Score
+      if (match.score && match.status !== 'NS') {
+        try {
+          const [homeGoals, awayGoals] = match.score
+            .replace(':', '-')
+            .split('-')
+            .map((g) => parseInt(g.trim(), 10));
+
+          if (!isNaN(homeGoals) && !isNaN(awayGoals)) {
+            const isLeading = preferredTeamIsHome
+              ? homeGoals > awayGoals
+              : awayGoals > homeGoals;
+
+            if (isLeading) score += 2;
+          }
+        } catch {
+          // If parsing fails, don't add score points
+        }
+      }
+    }
+
+    return score;
+  };
+
   return (
     <div className='min-h-screen bg-gray-50'>
       <div className='py-4'>
@@ -2055,11 +2465,570 @@ const MatchesPage = () => {
         />
         {activeTab === 'live' || activeTab === 'all-live' ? (
           <div className='max-w-[2000px] mx-auto px-4'>
-            <SearchBar
-              value={searchQuery}
-              onChange={setSearchQuery}
-              disabled={isInitialLoading}
-            />
+            <div className='flex items-center justify-between mb-4'>
+              <SearchBar
+                value={searchQuery}
+                onChange={setSearchQuery}
+                disabled={isInitialLoading}
+              />
+
+              <div className='flex items-center gap-3'>
+                <div className='flex items-center gap-2'>
+                  <label className='text-sm text-gray-600'>
+                    Group Matches:
+                  </label>
+                  <div className='flex items-center'>
+                    <button
+                      className={`px-3 py-1 text-sm rounded border ${
+                        enableGrouping
+                          ? 'bg-amber-600 text-white border-amber-700'
+                          : 'bg-white text-gray-800 border-gray-300'
+                      }`}
+                      onClick={() => setEnableGrouping(!enableGrouping)}
+                      disabled={isInitialLoading}
+                    >
+                      {enableGrouping ? 'On' : 'Off'}
+                    </button>
+                  </div>
+                </div>
+                {enableGrouping && (
+                  <div className='flex items-center gap-2'>
+                    <label className='text-sm text-gray-600'>Group Size:</label>
+                    <select
+                      className='bg-white text-gray-800 rounded px-2 py-1 text-sm border border-gray-300'
+                      value={groupSize}
+                      onChange={(e) => setGroupSize(parseInt(e.target.value))}
+                      disabled={isInitialLoading}
+                    >
+                      <option value='2'>2</option>
+                      <option value='3'>3</option>
+                      <option value='4'>4</option>
+                      <option value='5'>5</option>
+                      <option value='6'>6</option>
+                      <option value='8'>8</option>
+                      <option value='10'>10</option>
+                    </select>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Add group display */}
+            {enableGrouping && (
+              <div className='mb-6 bg-white border border-gray-200 rounded-lg overflow-hidden'>
+                <div className='bg-amber-50 px-4 py-2 border-b border-amber-200'>
+                  <h3 className='text-lg font-medium text-amber-800'>
+                    Grouped Matches with Clear Preferred Teams
+                  </h3>
+                  <p className='text-sm text-amber-700'>
+                    Matches are grouped by start time in batches of {groupSize}.
+                    Click the copy button to copy the preferred team names.
+                  </p>
+                </div>
+                <div className='p-4'>
+                  {/* Prime Matches Section */}
+                  {createMatchGroups(filteredMatches, groupSize).prime.length >
+                    0 && (
+                    <div className='mb-6'>
+                      <div className='flex items-center mb-4'>
+                        <div className='bg-green-500 h-3 w-3 rounded-full mr-2'></div>
+                        <h3 className='text-lg font-medium text-gray-800'>
+                          Prime Matches
+                        </h3>
+                        <span className='ml-2 text-sm text-gray-500'>
+                          (Multiple favorable factors aligned)
+                        </span>
+                      </div>
+
+                      {createMatchGroups(filteredMatches, groupSize).prime.map(
+                        (group, groupIndex) => (
+                          <div
+                            key={groupIndex}
+                            className='mb-6 last:mb-0 border-l-4 border-green-500 pl-3'
+                          >
+                            <div className='flex justify-between items-center mb-2'>
+                              <h4 className='text-md font-medium text-gray-700'>
+                                Prime Group {groupIndex + 1} ({group.length}{' '}
+                                matches)
+                              </h4>
+                              <button
+                                className='flex items-center gap-1 px-3 py-1 text-sm rounded bg-green-100 text-green-800 hover:bg-green-200 border border-green-200'
+                                onClick={() => copyPreferredTeamNames(group)}
+                              >
+                                <Copy size={14} />
+                                Copy Team Names
+                              </button>
+                            </div>
+                            <div className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3'>
+                              {group.map((match) => {
+                                const preferredTeam = getPreferredTeam(match);
+                                const matchScore = scoreMatch(match);
+                                return (
+                                  <div
+                                    key={match.id}
+                                    className='bg-gray-50 rounded-lg p-3 border border-green-200 hover:shadow-md transition-shadow'
+                                  >
+                                    <div className='flex justify-between items-start mb-2'>
+                                      <div className='text-xs text-gray-500'>
+                                        {match.status} -{' '}
+                                        {formatPlayedTime(match.playedSeconds)}
+                                      </div>
+                                      <div className='flex items-center'>
+                                        <div className='text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-800 mr-1'>
+                                          Score: {matchScore}
+                                        </div>
+                                        <div className='text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-800'>
+                                          Gap:{' '}
+                                          {(() => {
+                                            // Get prediction data for this match
+                                            const { findPredictionForMatch } =
+                                              useCartStore.getState();
+                                            const predictionMatch =
+                                              findPredictionForMatch(
+                                                match.teams.home.name,
+                                                match.teams.away.name
+                                              );
+
+                                            // First try to use position from prediction data
+                                            if (
+                                              predictionMatch?.homeTeam
+                                                ?.position !== undefined &&
+                                              predictionMatch?.awayTeam
+                                                ?.position !== undefined
+                                            ) {
+                                              return Math.abs(
+                                                predictionMatch.homeTeam
+                                                  .position -
+                                                  predictionMatch.awayTeam
+                                                    .position
+                                              );
+                                            }
+
+                                            // Fall back to live match data
+                                            if (
+                                              match.teams?.home?.position !==
+                                                undefined &&
+                                              match.teams?.away?.position !==
+                                                undefined
+                                            ) {
+                                              return Math.abs(
+                                                match.teams.home.position -
+                                                  match.teams.away.position
+                                              );
+                                            }
+
+                                            // If no position data available
+                                            return 'Unknown';
+                                          })()}
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    {/* Rest of match card content */}
+                                    <div className='flex items-center gap-2 mb-1'>
+                                      <div
+                                        className={`text-sm ${
+                                          preferredTeam?.id ===
+                                          match.teams.home.id
+                                            ? 'font-bold text-blue-700'
+                                            : ''
+                                        }`}
+                                      >
+                                        {match.teams.home.name}
+                                      </div>
+                                    </div>
+                                    <div className='flex items-center gap-2'>
+                                      <div
+                                        className={`text-sm ${
+                                          preferredTeam?.id ===
+                                          match.teams.away.id
+                                            ? 'font-bold text-purple-700'
+                                            : ''
+                                        }`}
+                                      >
+                                        {match.teams.away.name}
+                                      </div>
+                                    </div>
+
+                                    {/* Performance metrics */}
+                                    {match.matchSituation &&
+                                      match.matchDetails && (
+                                        <div className='mt-2 grid grid-cols-2 gap-1 text-xs text-gray-600'>
+                                          {(() => {
+                                            // Determine the preferred team and opposing team
+                                            const isHomePreferred =
+                                              preferredTeam?.id ===
+                                              match.teams.home.id;
+                                            const preferredTeamKey =
+                                              isHomePreferred ? 'home' : 'away';
+                                            const opposingTeamKey =
+                                              isHomePreferred ? 'away' : 'home';
+
+                                            // Calculate performance metrics
+                                            const metrics = {
+                                              ATK:
+                                                (match.matchSituation[
+                                                  preferredTeamKey
+                                                ].totalAttacks || 0) >
+                                                (match.matchSituation[
+                                                  opposingTeamKey
+                                                ].totalAttacks || 0),
+                                              POS:
+                                                (match.matchDetails[
+                                                  preferredTeamKey
+                                                ].ballSafePercentage || 0) >
+                                                (match.matchDetails[
+                                                  opposingTeamKey
+                                                ].ballSafePercentage || 0),
+                                              DNG:
+                                                (match.matchSituation[
+                                                  preferredTeamKey
+                                                ].totalDangerousAttacks || 0) >
+                                                (match.matchSituation[
+                                                  opposingTeamKey
+                                                ].totalDangerousAttacks || 0),
+                                              SHT:
+                                                (match.matchDetails[
+                                                  preferredTeamKey
+                                                ].shotsOnTarget || 0) >
+                                                (match.matchDetails[
+                                                  opposingTeamKey
+                                                ].shotsOnTarget || 0),
+                                            };
+
+                                            // Check score
+                                            let scoreMetric = null;
+                                            if (
+                                              match.score &&
+                                              match.status !== 'NS'
+                                            ) {
+                                              try {
+                                                const [homeGoals, awayGoals] =
+                                                  match.score
+                                                    .replace(':', '-')
+                                                    .split('-')
+                                                    .map((g) =>
+                                                      parseInt(g.trim(), 10)
+                                                    );
+
+                                                if (
+                                                  !isNaN(homeGoals) &&
+                                                  !isNaN(awayGoals)
+                                                ) {
+                                                  scoreMetric = {
+                                                    SCR: isHomePreferred
+                                                      ? homeGoals > awayGoals
+                                                      : awayGoals > homeGoals,
+                                                  };
+                                                }
+                                              } catch {
+                                                // If parsing fails, don't add score metric
+                                              }
+                                            }
+
+                                            const allMetrics = scoreMetric
+                                              ? { ...metrics, ...scoreMetric }
+                                              : metrics;
+
+                                            return (
+                                              <>
+                                                {Object.entries(allMetrics).map(
+                                                  ([key, value]) => (
+                                                    <div
+                                                      key={key}
+                                                      className='flex items-center gap-1'
+                                                    >
+                                                      <span
+                                                        className={`w-2 h-2 rounded-full ${
+                                                          value
+                                                            ? 'bg-green-500'
+                                                            : 'bg-red-500'
+                                                        }`}
+                                                      ></span>
+                                                      <span>{key}</span>
+                                                    </div>
+                                                  )
+                                                )}
+                                              </>
+                                            );
+                                          })()}
+                                        </div>
+                                      )}
+
+                                    <div className='mt-2 text-xs text-gray-500'>
+                                      Tournament:{' '}
+                                      <span className='font-medium'>
+                                        {match.tournamentName}
+                                      </span>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )
+                      )}
+                    </div>
+                  )}
+
+                  {/* Regular Matches Section */}
+                  {createMatchGroups(filteredMatches, groupSize).regular
+                    .length > 0 && (
+                    <div className='mt-8'>
+                      <div className='flex items-center mb-4'>
+                        <div className='bg-blue-500 h-3 w-3 rounded-full mr-2'></div>
+                        <h3 className='text-lg font-medium text-gray-800'>
+                          Regular Matches
+                        </h3>
+                        <span className='ml-2 text-sm text-gray-500'>
+                          (Some favorable factors)
+                        </span>
+                      </div>
+
+                      {createMatchGroups(
+                        filteredMatches,
+                        groupSize
+                      ).regular.map((group, groupIndex) => (
+                        <div
+                          key={groupIndex}
+                          className='mb-6 last:mb-0 border-l-4 border-blue-300 pl-3'
+                        >
+                          <div className='flex justify-between items-center mb-2'>
+                            <h4 className='text-md font-medium text-gray-700'>
+                              Regular Group {groupIndex + 1} ({group.length}{' '}
+                              matches)
+                            </h4>
+                            <button
+                              className='flex items-center gap-1 px-3 py-1 text-sm rounded bg-blue-100 text-blue-800 hover:bg-blue-200 border border-blue-200'
+                              onClick={() => copyPreferredTeamNames(group)}
+                            >
+                              <Copy size={14} />
+                              Copy Team Names
+                            </button>
+                          </div>
+                          <div className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3'>
+                            {group.map((match) => {
+                              const preferredTeam = getPreferredTeam(match);
+                              const matchScore = scoreMatch(match);
+                              return (
+                                <div
+                                  key={match.id}
+                                  className='bg-gray-50 rounded-lg p-3 border border-blue-200 hover:shadow-md transition-shadow'
+                                >
+                                  <div className='flex justify-between items-start mb-2'>
+                                    <div className='text-xs text-gray-500'>
+                                      {match.status} -{' '}
+                                      {formatPlayedTime(match.playedSeconds)}
+                                    </div>
+                                    <div className='flex items-center'>
+                                      <div className='text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 mr-1'>
+                                        Score: {matchScore}
+                                      </div>
+                                      <div className='text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-800'>
+                                        Gap:{' '}
+                                        {(() => {
+                                          // Get prediction data for this match
+                                          const { findPredictionForMatch } =
+                                            useCartStore.getState();
+                                          const predictionMatch =
+                                            findPredictionForMatch(
+                                              match.teams.home.name,
+                                              match.teams.away.name
+                                            );
+
+                                          // First try to use position from prediction data
+                                          if (
+                                            predictionMatch?.homeTeam
+                                              ?.position !== undefined &&
+                                            predictionMatch?.awayTeam
+                                              ?.position !== undefined
+                                          ) {
+                                            return Math.abs(
+                                              predictionMatch.homeTeam
+                                                .position -
+                                                predictionMatch.awayTeam
+                                                  .position
+                                            );
+                                          }
+
+                                          // Fall back to live match data
+                                          if (
+                                            match.teams?.home?.position !==
+                                              undefined &&
+                                            match.teams?.away?.position !==
+                                              undefined
+                                          ) {
+                                            return Math.abs(
+                                              match.teams.home.position -
+                                                match.teams.away.position
+                                            );
+                                          }
+
+                                          // If no position data available
+                                          return 'Unknown';
+                                        })()}
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* Rest of match card content */}
+                                  <div className='flex items-center gap-2 mb-1'>
+                                    <div
+                                      className={`text-sm ${
+                                        preferredTeam?.id ===
+                                        match.teams.home.id
+                                          ? 'font-bold text-blue-700'
+                                          : ''
+                                      }`}
+                                    >
+                                      {match.teams.home.name}
+                                    </div>
+                                  </div>
+                                  <div className='flex items-center gap-2'>
+                                    <div
+                                      className={`text-sm ${
+                                        preferredTeam?.id ===
+                                        match.teams.away.id
+                                          ? 'font-bold text-purple-700'
+                                          : ''
+                                      }`}
+                                    >
+                                      {match.teams.away.name}
+                                    </div>
+                                  </div>
+
+                                  {/* Performance metrics */}
+                                  {match.matchSituation &&
+                                    match.matchDetails && (
+                                      <div className='mt-2 grid grid-cols-2 gap-1 text-xs text-gray-600'>
+                                        {(() => {
+                                          // Determine the preferred team and opposing team
+                                          const isHomePreferred =
+                                            preferredTeam?.id ===
+                                            match.teams.home.id;
+                                          const preferredTeamKey =
+                                            isHomePreferred ? 'home' : 'away';
+                                          const opposingTeamKey =
+                                            isHomePreferred ? 'away' : 'home';
+
+                                          // Calculate performance metrics
+                                          const metrics = {
+                                            ATK:
+                                              (match.matchSituation[
+                                                preferredTeamKey
+                                              ].totalAttacks || 0) >
+                                              (match.matchSituation[
+                                                opposingTeamKey
+                                              ].totalAttacks || 0),
+                                            POS:
+                                              (match.matchDetails[
+                                                preferredTeamKey
+                                              ].ballSafePercentage || 0) >
+                                              (match.matchDetails[
+                                                opposingTeamKey
+                                              ].ballSafePercentage || 0),
+                                            DNG:
+                                              (match.matchSituation[
+                                                preferredTeamKey
+                                              ].totalDangerousAttacks || 0) >
+                                              (match.matchSituation[
+                                                opposingTeamKey
+                                              ].totalDangerousAttacks || 0),
+                                            SHT:
+                                              (match.matchDetails[
+                                                preferredTeamKey
+                                              ].shotsOnTarget || 0) >
+                                              (match.matchDetails[
+                                                opposingTeamKey
+                                              ].shotsOnTarget || 0),
+                                          };
+
+                                          // Check score
+                                          let scoreMetric = null;
+                                          if (
+                                            match.score &&
+                                            match.status !== 'NS'
+                                          ) {
+                                            try {
+                                              const [homeGoals, awayGoals] =
+                                                match.score
+                                                  .replace(':', '-')
+                                                  .split('-')
+                                                  .map((g) =>
+                                                    parseInt(g.trim(), 10)
+                                                  );
+
+                                              if (
+                                                !isNaN(homeGoals) &&
+                                                !isNaN(awayGoals)
+                                              ) {
+                                                scoreMetric = {
+                                                  SCR: isHomePreferred
+                                                    ? homeGoals > awayGoals
+                                                    : awayGoals > homeGoals,
+                                                };
+                                              }
+                                            } catch {
+                                              // If parsing fails, don't add score metric
+                                            }
+                                          }
+
+                                          const allMetrics = scoreMetric
+                                            ? { ...metrics, ...scoreMetric }
+                                            : metrics;
+
+                                          return (
+                                            <>
+                                              {Object.entries(allMetrics).map(
+                                                ([key, value]) => (
+                                                  <div
+                                                    key={key}
+                                                    className='flex items-center gap-1'
+                                                  >
+                                                    <span
+                                                      className={`w-2 h-2 rounded-full ${
+                                                        value
+                                                          ? 'bg-green-500'
+                                                          : 'bg-red-500'
+                                                      }`}
+                                                    ></span>
+                                                    <span>{key}</span>
+                                                  </div>
+                                                )
+                                              )}
+                                            </>
+                                          );
+                                        })()}
+                                      </div>
+                                    )}
+
+                                  <div className='mt-2 text-xs text-gray-500'>
+                                    Tournament:{' '}
+                                    <span className='font-medium'>
+                                      {match.tournamentName}
+                                    </span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {createMatchGroups(filteredMatches, groupSize).prime
+                    .length === 0 &&
+                    createMatchGroups(filteredMatches, groupSize).regular
+                      .length === 0 && (
+                      <div className='bg-gray-50 p-4 rounded-lg text-center text-gray-600'>
+                        No matches with clear preferred teams found. Try
+                        adjusting your filters.
+                      </div>
+                    )}
+                </div>
+              </div>
+            )}
 
             {isInitialLoading ? (
               <LoadingTable />
@@ -2216,6 +3185,7 @@ const MatchesPage = () => {
           <MatchPredictor />
         )}
       </div>
+      <ToastContainer />
     </div>
   );
 };
