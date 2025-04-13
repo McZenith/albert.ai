@@ -1750,6 +1750,7 @@ const MatchesPage = () => {
     clearCart,
     clearUpcomingMatches,
     getUpcomingMatchesCount,
+    addUpcomingMatch,
   } = useCartStore();
 
   // Update isInitialLoading based on allLiveMatches
@@ -2025,13 +2026,73 @@ const MatchesPage = () => {
 
     const allTeams = [...cartTeamNames, ...upcomingTeamNames].join('\n');
 
+    // For live tab: add matched from the filtered matches to cart
+    filteredMatches.forEach((match) => {
+      const preferredTeam = getPreferredTeam(match);
+      if (preferredTeam && match.markets && match.markets.length > 0) {
+        const market = match.markets[0];
+        // Check if this match/market is already in cart
+        const isInCart = cartItems.some(
+          (item) => item.matchId === match.id && item.marketId === market.id
+        );
+
+        if (!isInCart) {
+          addItem({
+            matchId: match.id,
+            marketId: market.id,
+            teams: match.teams,
+            market: {
+              ...market,
+              outcomes: market.outcomes,
+            },
+            addedAt: new Date().toISOString(),
+          });
+        }
+      }
+    });
+
+    // For upcoming tab: make sure all matches with preferred teams are in cart
+    if (activeTab === 'upcoming') {
+      const { predictionData } = useCartStore.getState();
+      predictionData.forEach((match) => {
+        if (match.favorite === 'home' || match.favorite === 'away') {
+          const isInCart = useCartStore
+            .getState()
+            .isUpcomingMatchInCart(match.id);
+          if (!isInCart) {
+            // Create new team objects with required id properties
+            const homeTeamWithId = {
+              ...match.homeTeam,
+              id: String(
+                match.homeTeam.name.replace(/\s+/g, '_').toLowerCase()
+              ),
+            };
+
+            const awayTeamWithId = {
+              ...match.awayTeam,
+              id: String(
+                match.awayTeam.name.replace(/\s+/g, '_').toLowerCase()
+              ),
+            };
+
+            addUpcomingMatch({
+              ...match,
+              id: String(match.id),
+              homeTeam: homeTeamWithId,
+              awayTeam: awayTeamWithId,
+            });
+          }
+        }
+      });
+    }
+
     navigator.clipboard
       .writeText(allTeams)
       .then(() =>
         setCopiedText(
           `${
             cartTeamNames.length + upcomingTeamNames.length
-          } team names copied!`
+          } team names copied and added to cart!`
         )
       )
       .catch((err) => console.error('Failed to copy:', err));
@@ -2300,9 +2361,37 @@ const MatchesPage = () => {
       .filter(Boolean)
       .join('\n');
 
+    // Also add matches to cart
+    matches.forEach((match) => {
+      const preferredTeam = getPreferredTeam(match);
+      if (preferredTeam) {
+        // Find the first market to add (if available)
+        if (match.markets && match.markets.length > 0) {
+          const market = match.markets[0];
+          // Check if this match/market is already in cart
+          const isInCart = cartItems.some(
+            (item) => item.matchId === match.id && item.marketId === market.id
+          );
+
+          if (!isInCart) {
+            addItem({
+              matchId: match.id,
+              marketId: market.id,
+              teams: match.teams,
+              market: {
+                ...market,
+                outcomes: market.outcomes,
+              },
+              addedAt: new Date().toISOString(),
+            });
+          }
+        }
+      }
+    });
+
     if (teamNames) {
       navigator.clipboard.writeText(teamNames);
-      toast.success('Copied team names to clipboard!');
+      toast.success('Copied team names to clipboard and added to cart!');
     } else {
       toast.error('No preferred teams found in this group');
     }

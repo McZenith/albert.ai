@@ -1376,9 +1376,39 @@ const MatchPredictor = () => {
       .filter(Boolean)
       .join('\n');
 
+    // Also add matches to cart
+    matches.forEach((match) => {
+      const preferredTeam = getPreferredTeam(match);
+      if (preferredTeam) {
+        // Check if this match is already in cart
+        const isInCart = isUpcomingMatchInCart(String(match.id));
+
+        if (!isInCart) {
+          // Create new team objects with required id properties
+          const homeTeamWithId = {
+            ...match.homeTeam,
+            id: String(match.homeTeam.name.replace(/\s+/g, '_').toLowerCase()),
+          };
+
+          const awayTeamWithId = {
+            ...match.awayTeam,
+            id: String(match.awayTeam.name.replace(/\s+/g, '_').toLowerCase()),
+          };
+
+          // Add to cart with proper structure
+          addUpcomingMatch({
+            ...match,
+            id: String(match.id),
+            homeTeam: homeTeamWithId,
+            awayTeam: awayTeamWithId,
+          });
+        }
+      }
+    });
+
     if (teamNames) {
       navigator.clipboard.writeText(teamNames);
-      toast.success('Copied team names to clipboard!');
+      toast.success('Copied team names to clipboard and added to cart!');
     } else {
       toast.error('No preferred teams found in this group');
     }
