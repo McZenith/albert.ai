@@ -2711,6 +2711,15 @@ const MatchesPage = () => {
                                       </div>
                                     </div>
 
+                                    {/* Add Live Score Display */}
+                                    {match.score && match.score !== '-' && (
+                                      <div className='mb-2 flex justify-center'>
+                                        <div className='font-bold text-base px-3 py-1 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-gray-200'>
+                                          {match.score}
+                                        </div>
+                                      </div>
+                                    )}
+
                                     {/* Rest of match card content */}
                                     <div className='flex items-center gap-2 mb-1'>
                                       <div
@@ -2957,6 +2966,15 @@ const MatchesPage = () => {
                                       </div>
                                     </div>
                                   </div>
+
+                                  {/* Add Live Score Display */}
+                                  {match.score && match.score !== '-' && (
+                                    <div className='mb-2 flex justify-center'>
+                                      <div className='font-bold text-base px-3 py-1 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-gray-200'>
+                                        {match.score}
+                                      </div>
+                                    </div>
+                                  )}
 
                                   {/* Rest of match card content */}
                                   <div className='flex items-center gap-2 mb-1'>
