@@ -1315,28 +1315,6 @@ const MatchPredictor = () => {
       : null;
   };
 
-  // Function to group matches by start time
-  const groupMatchesByStartTime = (
-    matches: Match[]
-  ): Record<string, Match[]> => {
-    const groups: Record<string, Match[]> = {};
-
-    matches.forEach((match) => {
-      if (!hasClearPreferredTeam(match)) return;
-
-      // Create a key based on the match date and time
-      const startTimeKey = `${match.date} ${match.time}`;
-
-      if (!groups[startTimeKey]) {
-        groups[startTimeKey] = [];
-      }
-
-      groups[startTimeKey].push(match);
-    });
-
-    return groups;
-  };
-
   // Function to create batches of matches with clear preferred teams
   const createMatchGroups = (
     matches: Match[],
@@ -1345,13 +1323,79 @@ const MatchPredictor = () => {
     // Get only matches with clear preferred teams
     const eligibleMatches = matches.filter(hasClearPreferredTeam);
 
-    // Group by start time first
-    const timeGroups = groupMatchesByStartTime(eligibleMatches);
+    // Score each match based on factors that increase winning probability
+    const scoredMatches = eligibleMatches.map((match) => {
+      // Calculate a winning probability score (0-100)
+      let score = 0;
 
-    // Flatten and ensure we have matches with the same start time grouped together
+      // Start with the confidence score (0-100)
+      score += match.confidenceScore;
+
+      // Add points for larger position gaps (max +15)
+      const positionGapPoints = Math.min(match.positionGap, 15);
+      score += positionGapPoints;
+
+      // Add points for form advantage (max +10)
+      const homeFormPoints = calculateFormPoints(match.homeTeam.form || '');
+      const awayFormPoints = calculateFormPoints(match.awayTeam.form || '');
+      let formAdvantage = 0;
+      if (match.favorite === 'home') {
+        formAdvantage = homeFormPoints - awayFormPoints;
+      } else if (match.favorite === 'away') {
+        formAdvantage = awayFormPoints - homeFormPoints;
+      }
+      score += Math.min(Math.max(formAdvantage, 0), 10);
+
+      // Add points for strong head-to-head advantage (max +10)
+      const h2h = match.headToHead;
+      if (h2h && h2h.matches > 0) {
+        const h2hWinRate = h2h.wins / h2h.matches;
+        if (h2hWinRate > 0.6) {
+          score += Math.round(h2hWinRate * 10);
+        }
+      }
+
+      // Add points for higher expected goals (max +10)
+      if (match.expectedGoals > 2.5) {
+        score += 10;
+      } else if (match.expectedGoals > 2.0) {
+        score += 5;
+      } else if (match.expectedGoals > 1.5) {
+        score += 3;
+      }
+
+      return {
+        match,
+        score,
+        startTime: `${match.date} ${match.time}`,
+      };
+    });
+
+    // Group by start time first to maintain time grouping
+    const timeGroups: Record<string, typeof scoredMatches> = {};
+    scoredMatches.forEach((scoredMatch) => {
+      const key = scoredMatch.startTime;
+      if (!timeGroups[key]) {
+        timeGroups[key] = [];
+      }
+      timeGroups[key].push(scoredMatch);
+    });
+
+    // For each time group, sort by score (descending)
+    Object.values(timeGroups).forEach((group) => {
+      group.sort((a, b) => b.score - a.score);
+    });
+
+    // Flatten the time groups while maintaining time order
     const sortedMatches: Match[] = [];
-    Object.values(timeGroups).forEach((matchGroup) => {
-      sortedMatches.push(...matchGroup);
+
+    // Sort time groups by start time
+    const sortedTimeKeys = Object.keys(timeGroups).sort();
+
+    // For each time slot, add the top-scoring matches first
+    sortedTimeKeys.forEach((timeKey) => {
+      const matchesInTimeSlot = timeGroups[timeKey].map((m) => m.match);
+      sortedMatches.push(...matchesInTimeSlot);
     });
 
     // Create groups of the specified size
@@ -1412,6 +1456,58 @@ const MatchPredictor = () => {
     } else {
       toast.error('No preferred teams found in this group');
     }
+  };
+
+  // Helper function to calculate betting score for display purposes
+  const calculateBettingScore = (match: Match): number => {
+    // Calculate a winning probability score (0-100)
+    let score = 0;
+
+    // Start with the confidence score (0-100)
+    score += match.confidenceScore;
+
+    // Add points for larger position gaps (max +15)
+    const positionGapPoints = Math.min(match.positionGap, 15);
+    score += positionGapPoints;
+
+    // Add points for form advantage (max +10)
+    const homeFormPoints = calculateFormPoints(match.homeTeam.form || '');
+    const awayFormPoints = calculateFormPoints(match.awayTeam.form || '');
+    let formAdvantage = 0;
+    if (match.favorite === 'home') {
+      formAdvantage = homeFormPoints - awayFormPoints;
+    } else if (match.favorite === 'away') {
+      formAdvantage = awayFormPoints - homeFormPoints;
+    }
+    score += Math.min(Math.max(formAdvantage, 0), 10);
+
+    // Add points for strong head-to-head advantage (max +10)
+    const h2h = match.headToHead;
+    if (h2h && h2h.matches > 0) {
+      const h2hWinRate = h2h.wins / h2h.matches;
+      if (h2hWinRate > 0.6) {
+        score += Math.round(h2hWinRate * 10);
+      }
+    }
+
+    // Add points for higher expected goals (max +10)
+    if (match.expectedGoals > 2.5) {
+      score += 10;
+    } else if (match.expectedGoals > 2.0) {
+      score += 5;
+    } else if (match.expectedGoals > 1.5) {
+      score += 3;
+    }
+
+    return Math.min(score, 100);
+  };
+
+  // Get betting score class based on the score
+  const getBettingScoreClass = (score: number): string => {
+    if (score >= 80) return 'bg-green-100 text-green-800 border-green-200';
+    if (score >= 65) return 'bg-blue-100 text-blue-800 border-blue-200';
+    if (score >= 50) return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+    return 'bg-red-100 text-red-800 border-red-200';
   };
 
   if (isPredictionDataLoading) {
@@ -1790,6 +1886,9 @@ const MatchPredictor = () => {
                   <div className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3'>
                     {group.map((match) => {
                       const preferredTeam = getPreferredTeam(match);
+                      const bettingScore = calculateBettingScore(match);
+                      const scoreClass = getBettingScoreClass(bettingScore);
+
                       return (
                         <div
                           key={match.id}
@@ -1799,15 +1898,22 @@ const MatchPredictor = () => {
                             <div className='text-xs text-gray-500'>
                               {formatMatchDate(match.date, match.time)}
                             </div>
-                            <div
-                              className={`text-xs px-2 py-0.5 rounded-full ${
-                                match.favorite === 'home'
-                                  ? 'bg-blue-100 text-blue-800'
-                                  : 'bg-purple-100 text-purple-800'
-                              }`}
-                            >
-                              {match.favorite === 'home' ? 'Home' : 'Away'}{' '}
-                              Favorite
+                            <div className='flex items-center gap-1'>
+                              <div
+                                className={`text-xs px-2 py-0.5 rounded-full ${
+                                  match.favorite === 'home'
+                                    ? 'bg-blue-100 text-blue-800'
+                                    : 'bg-purple-100 text-purple-800'
+                                }`}
+                              >
+                                {match.favorite === 'home' ? 'Home' : 'Away'}{' '}
+                                Favorite
+                              </div>
+                              <div
+                                className={`text-xs font-medium px-2 py-0.5 rounded-full border ${scoreClass}`}
+                              >
+                                {bettingScore}%
+                              </div>
                             </div>
                           </div>
                           <div className='flex items-center gap-2 mb-1'>
@@ -1839,14 +1945,20 @@ const MatchPredictor = () => {
                             </div>
                           </div>
                           <div className='mt-2 text-xs text-gray-500'>
-                            Position Gap:{' '}
-                            <span className='font-medium'>
-                              {match.positionGap}
-                            </span>{' '}
-                            • Exp. Goals:{' '}
-                            <span className='font-medium'>
-                              {match.expectedGoals.toFixed(1)}
-                            </span>
+                            <div className='flex justify-between'>
+                              <span>
+                                Pos Gap:{' '}
+                                <span className='font-medium'>
+                                  {match.positionGap}
+                                </span>
+                              </span>
+                              <span>
+                                xGoals:{' '}
+                                <span className='font-medium'>
+                                  {match.expectedGoals.toFixed(1)}
+                                </span>
+                              </span>
+                            </div>
                           </div>
                         </div>
                       );

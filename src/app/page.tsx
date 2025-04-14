@@ -1511,13 +1511,11 @@ const MarketRow = ({
                       <>
                         <div className='text-gray-600 flex items-start'>
                           <span className='text-blue-600 mr-1'>•</span>
-                          High-scoring potential: {match.teams.home.name} (2.14
-                          home) vs {match.teams.away.name} (3.12 away)
+                          High-scoring potential based on team analysis
                         </div>
                         <div className='text-gray-600 flex items-start'>
                           <span className='text-blue-600 mr-1'>•</span>
-                          H2H: High-scoring fixtures averaging 3.1 goals per
-                          game
+                          Historical head-to-head performance analysis
                         </div>
                       </>
                     )}
@@ -1602,7 +1600,7 @@ const MarketRow = ({
                               m.outcomes.some((o) => o.description === '1')
                             )
                             ?.outcomes.find((o) => o.description === '1')
-                            ?.odds.toFixed(2) || '2.91'}
+                            ?.odds.toFixed(2) || '0.00'}
                         </span>
                       </div>
                       <div className='flex justify-between items-center'>
@@ -1613,7 +1611,7 @@ const MarketRow = ({
                               m.outcomes.some((o) => o.description === 'X')
                             )
                             ?.outcomes.find((o) => o.description === 'X')
-                            ?.odds.toFixed(2) || '3.73'}
+                            ?.odds.toFixed(2) || '0.00'}
                         </span>
                       </div>
                       <div className='flex justify-between items-center'>
@@ -1624,7 +1622,7 @@ const MarketRow = ({
                               m.outcomes.some((o) => o.description === '2')
                             )
                             ?.outcomes.find((o) => o.description === '2')
-                            ?.odds.toFixed(2) || '2.39'}
+                            ?.odds.toFixed(2) || '0.00'}
                         </span>
                       </div>
                     </div>
@@ -1646,7 +1644,7 @@ const MarketRow = ({
                             ?.outcomes.find((o) =>
                               o.description.includes('Over 1.5')
                             )
-                            ?.odds.toFixed(2) || '1.18'}
+                            ?.odds.toFixed(2) || '0.00'}
                         </span>
                       </div>
                       <div className='flex justify-between items-center'>
