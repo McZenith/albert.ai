@@ -1200,7 +1200,7 @@ const MarketRow = ({
                       <span className='text-sm font-medium'>
                         {predictionMatch?.homeTeam?.homeWinPercentage?.toFixed(
                           0
-                        ) || '71'}
+                        ) || '0'}
                         % (home)
                       </span>
                     </div>
@@ -1209,7 +1209,7 @@ const MarketRow = ({
                       <span className='text-sm font-medium'>
                         {predictionMatch?.awayTeam?.awayWinPercentage?.toFixed(
                           0
-                        ) || '75'}
+                        ) || '0'}
                         % (away)
                       </span>
                     </div>
