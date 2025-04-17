@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useMatchData } from '../hooks/useMatchData';
 import { useCartStore } from '@/hooks/useStore';
 import {
@@ -10,10 +10,12 @@ import {
   Filter,
   ShoppingCart,
   Copy,
+  Database,
 } from 'lucide-react';
 import MatchPredictor from '@/components/UpcomingTab';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { getSavedMatches } from './actions';
 
 // Enhanced Types
 interface Match {
@@ -571,6 +573,7 @@ const MarketRow = ({
   disabled = false,
   isExpanded,
   onToggleExpand,
+  isMatchSaved,
 }: {
   match: Match;
   market: Match['markets'][0];
@@ -580,6 +583,7 @@ const MarketRow = ({
   disabled?: boolean;
   isExpanded: boolean;
   onToggleExpand: () => void;
+  isMatchSaved?: (matchId: string) => boolean;
 }) => {
   const isInCart = cartItems.some(
     (item) => item.matchId === match.id && item.marketId === market.id
@@ -723,6 +727,9 @@ const MarketRow = ({
     return 'text-sm font-medium text-right bg-yellow-100 transition-colors duration-500';
   };
 
+  // Check if match is saved
+  const isSaved = isMatchSaved ? isMatchSaved(match.id) : false;
+
   return (
     <>
       <tr
@@ -748,6 +755,15 @@ const MarketRow = ({
               {hasPrediction && (
                 <span className='inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800'>
                   Prediction
+                </span>
+              )}
+              {isSaved && (
+                <span
+                  className='ml-1 text-xs bg-blue-100 text-blue-800 rounded px-1.5 py-0.5 font-semibold flex items-center'
+                  title='This match was saved from Upcoming Tab'
+                >
+                  <Database className='w-3 h-3 mr-0.5' />
+                  Saved
                 </span>
               )}
             </div>
@@ -1724,6 +1740,7 @@ const MatchesPage = () => {
     return {};
   });
   const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [savedMatchIds, setSavedMatchIds] = useState<Set<string>>(new Set());
 
   // Update localStorage whenever activeTab changes
   useEffect(() => {
@@ -2526,6 +2543,47 @@ const MatchesPage = () => {
     return score;
   };
 
+  // Fetch saved matches from database
+  const fetchSavedMatches = async () => {
+    try {
+      const result = await getSavedMatches();
+
+      if (result.success && result.matches) {
+        const savedIds = new Set<string>();
+        result.matches.forEach((match) => {
+          // Ensure ID is stored as a string
+          savedIds.add(String(match.id));
+        });
+        setSavedMatchIds(savedIds);
+      }
+    } catch (error) {
+      console.error('Error fetching saved matches:', error);
+    }
+  };
+
+  // Fetch saved matches when component mounts
+  useEffect(() => {
+    fetchSavedMatches();
+
+    // Refresh saved matches every 5 minutes
+    const intervalId = setInterval(fetchSavedMatches, 5 * 60 * 1000);
+
+    return () => clearInterval(intervalId);
+  }, []);
+
+  // Check if a match is saved
+  const isMatchSaved = useCallback(
+    (matchId: string) => {
+      // Convert both to string to ensure type consistency
+      const matchIdStr = String(matchId);
+      const isSaved = Array.from(savedMatchIds).some(
+        (id) => String(id) === matchIdStr
+      );
+      return isSaved;
+    },
+    [savedMatchIds]
+  );
+
   return (
     <div className='min-h-screen bg-gray-50'>
       <div className='py-4'>
@@ -3254,8 +3312,8 @@ const MatchesPage = () => {
                       </tr>
                     </thead>
                     <tbody className='divide-y divide-gray-200'>
-                      {filteredMatches.flatMap((match, matchIndex) =>
-                        match.markets
+                      {filteredMatches.flatMap((match, matchIndex) => {
+                        return match.markets
                           .filter((market) =>
                             activeTab === 'live'
                               ? market.description !==
@@ -3277,9 +3335,10 @@ const MatchesPage = () => {
                               onToggleExpand={() =>
                                 toggleExpandedRow(match.id, market.id)
                               }
+                              isMatchSaved={isMatchSaved}
                             />
-                          ))
-                      )}
+                          ));
+                      })}
                     </tbody>
                   </table>
                 </div>

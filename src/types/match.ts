@@ -263,6 +263,7 @@ export interface Team extends TeamBase {
         over25: number;
         over35: number;
     };
+    [key: string]: unknown;
 }
 
 export interface TransformedMatch {
@@ -390,6 +391,7 @@ export interface UpcomingMatch {
     cornerStats?: CornerStats;
     scoringPatterns?: ScoringPatterns;
     reasonsForPrediction?: string[];
+    [key: string]: unknown;
 }
 
 export interface MatchDetails {

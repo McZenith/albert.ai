@@ -8,10 +8,12 @@ import {
   Loader2,
   ArrowUpCircle,
   Copy,
+  Database,
 } from 'lucide-react';
 import { useCartStore } from '@/hooks/useStore';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { saveMatchesToDatabase } from '@/app/actions';
 
 interface Team {
   id: string;
@@ -335,6 +337,10 @@ const MatchPredictor = () => {
     useState<boolean>(true);
   const [predictionDataError, setPredictionDataError] = useState<string | null>(
     null
+  );
+  const [isSavingToDb, setIsSavingToDb] = useState<boolean>(false);
+  const [savedMatchIds, setSavedMatchIds] = useState<Set<string | number>>(
+    new Set()
   );
 
   // Get cart functions from the global store
@@ -1627,6 +1633,40 @@ const MatchPredictor = () => {
     return 'bg-red-100 text-red-800 border-red-200';
   };
 
+  // Add a function to save cart items to database
+  const saveToDatabase = async () => {
+    const cartItems = useCartStore.getState().upcomingMatches;
+
+    if (cartItems.length === 0) {
+      toast.warning('No matches in cart to save!');
+      return;
+    }
+
+    setIsSavingToDb(true);
+
+    try {
+      const result = await saveMatchesToDatabase(cartItems);
+
+      if (result.success) {
+        // Update the saved matches state
+        const newSavedMatches = new Set(savedMatchIds);
+        cartItems.forEach((match) => newSavedMatches.add(match.id));
+        setSavedMatchIds(newSavedMatches);
+
+        toast.success(
+          `Successfully saved ${result.count} matches to database!`
+        );
+      } else {
+        toast.error(`Failed to save matches: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('Error saving matches:', error);
+      toast.error('An error occurred while saving matches');
+    } finally {
+      setIsSavingToDb(false);
+    }
+  };
+
   if (isPredictionDataLoading) {
     return (
       <div className='max-w-full mx-auto p-4 bg-white rounded-lg shadow-sm'>
@@ -1701,6 +1741,28 @@ const MatchPredictor = () => {
               }
             </span>
           </div>
+          <button
+            onClick={saveToDatabase}
+            disabled={isSavingToDb}
+            className={`flex items-center px-4 py-2 rounded-lg ${
+              isSavingToDb
+                ? 'bg-gray-400 text-white cursor-not-allowed'
+                : 'bg-blue-600 text-white hover:bg-blue-700'
+            } transition-colors`}
+            title='Save selected matches to database'
+          >
+            {isSavingToDb ? (
+              <>
+                <Loader2 className='w-4 h-4 mr-2 animate-spin' />
+                Saving...
+              </>
+            ) : (
+              <>
+                <Database className='w-4 h-4 mr-2' />
+                Save to Database
+              </>
+            )}
+          </button>
         </div>
       </div>
 
