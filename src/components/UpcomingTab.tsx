@@ -171,6 +171,11 @@ interface Filters {
   showOnlyClearPreferred: boolean; // Add new filter
   enableGrouping: boolean; // Add grouping toggle
   groupSize: number; // Add group size configuration
+  minBttsRate: number; // Minimum BTTS rate
+  minHomeGoals: number; // Minimum average home goals
+  minAwayGoals: number; // Minimum average away goals
+  minH2hMatchCount: number; // Minimum number of H2H matches
+  minH2hWinGap: number; // Minimum H2H win-loss difference
 }
 
 interface ThresholdValues {
@@ -310,6 +315,11 @@ const MatchPredictor = () => {
     showOnlyClearPreferred: false, // Add new filter
     enableGrouping: false, // Add grouping toggle
     groupSize: 10, // Add group size configuration
+    minBttsRate: 0, // Minimum BTTS rate
+    minHomeGoals: 0, // Minimum average home goals
+    minAwayGoals: 0, // Minimum average away goals
+    minH2hMatchCount: 0, // Minimum number of H2H matches
+    minH2hWinGap: 0, // Minimum H2H win-loss difference
   });
   const [showScrollTop, setShowScrollTop] = useState<boolean>(false);
   const [showAnalyticsModal, setShowAnalyticsModal] = useState<boolean>(false);
@@ -633,20 +643,6 @@ const MatchPredictor = () => {
             : b.favorite === 'away'
             ? getWins(b.awayTeam.form)
             : 0;
-      } else if (sortField === 'homeAwayForm') {
-        // Sort by home/away form based on favorite
-        aValue =
-          a.favorite === 'home'
-            ? calculateFormPoints(a.homeTeam.homeForm)
-            : a.favorite === 'away'
-            ? calculateFormPoints(a.awayTeam.awayForm)
-            : 0;
-        bValue =
-          b.favorite === 'home'
-            ? calculateFormPoints(b.homeTeam.homeForm)
-            : b.favorite === 'away'
-            ? calculateFormPoints(b.awayTeam.awayForm)
-            : 0;
       } else if (sortField === 'formPoints') {
         // Sort by form points percentage
         aValue =
@@ -665,35 +661,47 @@ const MatchPredictor = () => {
         aValue = a.headToHead.wins / Math.max(1, a.headToHead.matches);
         bValue = b.headToHead.wins / Math.max(1, b.headToHead.matches);
       } else if (sortField === 'bttsRate') {
-        // Use the favorite team's BTTS rate
+        // Use BTTS rate from favorite team
         aValue =
           a.favorite === 'home'
-            ? a.homeTeam.bttsRate
+            ? a.homeTeam.bttsRate || 0
             : a.favorite === 'away'
-            ? a.awayTeam.bttsRate
-            : a.homeTeam.bttsRate;
+            ? a.awayTeam.bttsRate || 0
+            : 0;
         bValue =
           b.favorite === 'home'
-            ? b.homeTeam.bttsRate
+            ? b.homeTeam.bttsRate || 0
             : b.favorite === 'away'
-            ? b.awayTeam.bttsRate
-            : b.homeTeam.bttsRate;
-      } else if (sortField.includes('.')) {
-        // Handle nested properties like 'odds.over15Goals'
-        const [parent, child] = sortField.split('.');
-        
-        // Get parent property
-        const aParent = a[parent as keyof Match];
-        const bParent = b[parent as keyof Match];
-        
-        if (aParent && bParent && typeof aParent === 'object' && typeof bParent === 'object') {
-          // Handle nested property access by first casting to unknown
-          aValue = ((aParent as unknown) as Record<string, number>)[child] || 0;
-          bValue = ((bParent as unknown) as Record<string, number>)[child] || 0;
-        } else {
-          aValue = 0;
-          bValue = 0;
-        }
+            ? b.awayTeam.bttsRate || 0
+            : 0;
+      } else if (sortField === 'homeAwayForm') {
+        // Sort by home or away form based on favorite
+        aValue =
+          a.favorite === 'home'
+            ? calculateFormPoints(a.homeTeam.homeForm || '')
+            : a.favorite === 'away'
+            ? calculateFormPoints(a.awayTeam.awayForm || '')
+            : 0;
+        bValue =
+          b.favorite === 'home'
+            ? calculateFormPoints(b.homeTeam.homeForm || '')
+            : b.favorite === 'away'
+            ? calculateFormPoints(b.awayTeam.awayForm || '')
+            : 0;
+      } else if (sortField === 'homeAwayPosition') {
+        // Sort by home or away position
+        aValue =
+          a.favorite === 'home'
+            ? a.homeTeam.position || 0
+            : a.favorite === 'away'
+            ? a.awayTeam.position || 0
+            : 0;
+        bValue =
+          b.favorite === 'home'
+            ? b.homeTeam.position || 0
+            : b.favorite === 'away'
+            ? b.awayTeam.position || 0
+            : 0;
       } else if (sortField === 'matchTime') {
         // For server rendering, use string comparison of ISO dates first
         if (typeof window === 'undefined') {
@@ -718,6 +726,18 @@ const MatchPredictor = () => {
         } else {
           return bDate.getTime() - aDate.getTime();
         }
+      } else if (sortField.includes('.')) {
+        // Handle nested fields like odds.over15Goals
+        const [field, subfield] = sortField.split('.');
+        const aObj = a[field as keyof Match] as unknown as {
+          [key: string]: number;
+        };
+        const bObj = b[field as keyof Match] as unknown as {
+          [key: string]: number;
+        };
+
+        aValue = aObj && typeof aObj === 'object' ? aObj[subfield] || 0 : 0;
+        bValue = bObj && typeof bObj === 'object' ? bObj[subfield] || 0 : 0;
       } else {
         // Convert to unknown first, then to Record<string, number>
         aValue = (a as unknown as Record<string, number>)[sortField] || 0;
@@ -766,6 +786,54 @@ const MatchPredictor = () => {
       // Filter by clear preferred team
       if (filters.showOnlyClearPreferred && !hasClearPreferredTeam(match)) {
         return false;
+      }
+
+      // Filter by BTTS rate
+      if (filters.minBttsRate > 0) {
+        const bttsRate =
+          match.favorite === 'home'
+            ? match.homeTeam.bttsRate
+            : match.favorite === 'away'
+            ? match.awayTeam.bttsRate
+            : 0;
+
+        if (bttsRate < filters.minBttsRate) {
+          return false;
+        }
+      }
+
+      // Filter by home goals
+      if (
+        filters.minHomeGoals > 0 &&
+        match.homeTeam.homeAverageGoalsScored < filters.minHomeGoals
+      ) {
+        return false;
+      }
+
+      // Filter by away goals
+      if (
+        filters.minAwayGoals > 0 &&
+        match.awayTeam.awayAverageGoalsScored < filters.minAwayGoals
+      ) {
+        return false;
+      }
+
+      // Filter by H2H match count
+      if (
+        filters.minH2hMatchCount > 0 &&
+        match.headToHead.matches < filters.minH2hMatchCount
+      ) {
+        return false;
+      }
+
+      // Filter by H2H win gap
+      if (filters.minH2hWinGap > 0) {
+        const winGap = Math.abs(
+          match.headToHead.wins - match.headToHead.losses
+        );
+        if (winGap < filters.minH2hWinGap) {
+          return false;
+        }
       }
 
       return true;
@@ -966,7 +1034,7 @@ const MatchPredictor = () => {
   // Add a function to select all visible matches
   const selectAllVisibleMatches = () => {
     console.log('Selecting all visible matches');
-    const visibleMatches = filterMatches(sortMatches(upcomingMatches));
+    const visibleMatches = sortedMatches; // Use sorted matches instead of filtering again
     console.log(`Found ${visibleMatches.length} visible matches to select`);
 
     let addedCount = 0;
@@ -1020,6 +1088,11 @@ const MatchPredictor = () => {
       showOnlyClearPreferred: false,
       enableGrouping: false,
       groupSize: 10,
+      minBttsRate: 0, // Minimum BTTS rate
+      minHomeGoals: 0, // Minimum average home goals
+      minAwayGoals: 0, // Minimum average away goals
+      minH2hMatchCount: 0, // Minimum number of H2H matches
+      minH2hWinGap: 0, // Minimum H2H win-loss difference
     });
     // Also reset the cart filter
     setShowOnlyCart(false);
@@ -1616,6 +1689,10 @@ const MatchPredictor = () => {
             <span className='text-gray-800'>{upcomingMatches.length}</span>
           </div>
           <div className='bg-gray-50 px-3 py-1 rounded-lg border border-gray-200'>
+            <span className='text-gray-500 mr-2'>Filtered:</span>
+            <span className='text-gray-800'>{sortedMatches.length}</span>
+          </div>
+          <div className='bg-gray-50 px-3 py-1 rounded-lg border border-gray-200'>
             <span className='text-gray-500 mr-2'>Selected:</span>
             <span className='text-gray-800'>
               {
@@ -1693,7 +1770,7 @@ const MatchPredictor = () => {
               <h4 className='text-xs font-medium text-gray-500'>
                 Advanced Filters
               </h4>
-              <div className='flex gap-2'>
+              <div className='flex flex-wrap gap-2'>
                 <div>
                   <label className='text-gray-500 text-xs block mb-1'>
                     Min Position Gap
@@ -1733,6 +1810,112 @@ const MatchPredictor = () => {
                     <option value='1.5'>1.5+</option>
                     <option value='2.0'>2.0+</option>
                     <option value='2.5'>2.5+</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className='text-gray-500 text-xs block mb-1'>
+                    Min BTTS Rate
+                  </label>
+                  <select
+                    className='bg-white text-gray-800 rounded px-2 py-1 text-sm border border-gray-300'
+                    value={filters.minBttsRate}
+                    onChange={(e) =>
+                      handleFilterChange(
+                        'minBttsRate',
+                        parseInt(e.target.value)
+                      )
+                    }
+                  >
+                    <option value='0'>All</option>
+                    <option value='40'>40%+</option>
+                    <option value='50'>50%+</option>
+                    <option value='60'>60%+</option>
+                    <option value='70'>70%+</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className='text-gray-500 text-xs block mb-1'>
+                    Min Home Goals
+                  </label>
+                  <select
+                    className='bg-white text-gray-800 rounded px-2 py-1 text-sm border border-gray-300'
+                    value={filters.minHomeGoals}
+                    onChange={(e) =>
+                      handleFilterChange(
+                        'minHomeGoals',
+                        parseFloat(e.target.value)
+                      )
+                    }
+                  >
+                    <option value='0'>All</option>
+                    <option value='1.0'>1.0+</option>
+                    <option value='1.5'>1.5+</option>
+                    <option value='2.0'>2.0+</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className='text-gray-500 text-xs block mb-1'>
+                    Min Away Goals
+                  </label>
+                  <select
+                    className='bg-white text-gray-800 rounded px-2 py-1 text-sm border border-gray-300'
+                    value={filters.minAwayGoals}
+                    onChange={(e) =>
+                      handleFilterChange(
+                        'minAwayGoals',
+                        parseFloat(e.target.value)
+                      )
+                    }
+                  >
+                    <option value='0'>All</option>
+                    <option value='0.8'>0.8+</option>
+                    <option value='1.0'>1.0+</option>
+                    <option value='1.5'>1.5+</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className='text-gray-500 text-xs block mb-1'>
+                    Min H2H Matches
+                  </label>
+                  <select
+                    className='bg-white text-gray-800 rounded px-2 py-1 text-sm border border-gray-300'
+                    value={filters.minH2hMatchCount}
+                    onChange={(e) =>
+                      handleFilterChange(
+                        'minH2hMatchCount',
+                        parseInt(e.target.value)
+                      )
+                    }
+                  >
+                    <option value='0'>All</option>
+                    <option value='2'>2+</option>
+                    <option value='5'>5+</option>
+                    <option value='10'>10+</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className='text-gray-500 text-xs block mb-1'>
+                    Min H2H Win Gap
+                  </label>
+                  <select
+                    className='bg-white text-gray-800 rounded px-2 py-1 text-sm border border-gray-300'
+                    value={filters.minH2hWinGap}
+                    onChange={(e) =>
+                      handleFilterChange(
+                        'minH2hWinGap',
+                        parseInt(e.target.value)
+                      )
+                    }
+                  >
+                    <option value='0'>All</option>
+                    <option value='1'>1+</option>
+                    <option value='2'>2+</option>
+                    <option value='3'>3+</option>
                   </select>
                 </div>
               </div>
@@ -2074,8 +2257,16 @@ const MatchPredictor = () => {
                   </span>
                 )}
               </th>
-              <th className='p-2 text-center whitespace-nowrap cursor-pointer hover:bg-gray-100 text-sm font-medium text-gray-500 w-[70px]'>
+              <th
+                className='p-2 text-center whitespace-nowrap cursor-pointer hover:bg-gray-100 text-sm font-medium text-gray-500 w-[70px]'
+                onClick={() => handleSort('homeAwayPosition')}
+              >
                 H/A Pos
+                {sortField === 'homeAwayPosition' && (
+                  <span className='ml-1'>
+                    {sortDirection === 'asc' ? '↑' : '↓'}
+                  </span>
+                )}
               </th>
               <th
                 className='p-2 text-center whitespace-nowrap cursor-pointer hover:bg-gray-100 text-sm font-medium text-gray-500 w-[70px]'
@@ -2182,7 +2373,7 @@ const MatchPredictor = () => {
             </tr>
           </thead>
           <tbody>
-            {filteredMatches.map((match, index) => {
+            {sortedMatches.map((match, index) => {
               const selectedFavoriteColor =
                 match.favorite === 'home'
                   ? 'bg-blue-50 text-blue-800 border border-blue-200'
@@ -2456,11 +2647,22 @@ const MatchPredictor = () => {
                               </h4>
                               <div className='flex items-center justify-between'>
                                 <div className='text-center'>
-                                  <div className='text-2xl font-bold text-blue-600'>
+                                  <div
+                                    className={`text-2xl font-bold ${
+                                      match.favorite === 'home'
+                                        ? 'text-blue-600 bg-blue-100 px-2 py-1 rounded-lg border border-blue-200'
+                                        : 'text-blue-600'
+                                    }`}
+                                  >
                                     {(
                                       match.homeTeam.winPercentage || 0
                                     ).toFixed(0)}
                                     %
+                                    {match.favorite === 'home' && (
+                                      <div className='text-xs text-blue-800 mt-1'>
+                                        Preferred
+                                      </div>
+                                    )}
                                   </div>
                                   <div className='text-xs text-gray-600'>
                                     {match.homeTeam.name}
@@ -2480,11 +2682,22 @@ const MatchPredictor = () => {
                                   </div>
                                 </div>
                                 <div className='text-center'>
-                                  <div className='text-2xl font-bold text-purple-600'>
+                                  <div
+                                    className={`text-2xl font-bold ${
+                                      match.favorite === 'away'
+                                        ? 'text-purple-600 bg-purple-100 px-2 py-1 rounded-lg border border-purple-200'
+                                        : 'text-purple-600'
+                                    }`}
+                                  >
                                     {(
                                       match.awayTeam.winPercentage || 0
                                     ).toFixed(0)}
                                     %
+                                    {match.favorite === 'away' && (
+                                      <div className='text-xs text-purple-800 mt-1'>
+                                        Preferred
+                                      </div>
+                                    )}
                                   </div>
                                   <div className='text-xs text-gray-600'>
                                     {match.awayTeam.name}
@@ -2495,6 +2708,20 @@ const MatchPredictor = () => {
                             <div className='bg-gray-50 rounded-lg p-3'>
                               <h4 className='text-xs font-medium text-gray-500 mb-2'>
                                 HEAD TO HEAD
+                                {match.favorite && (
+                                  <span
+                                    className={`ml-2 text-xs font-bold px-2 py-0.5 rounded-full ${
+                                      match.favorite === 'home'
+                                        ? 'bg-blue-100 text-blue-800'
+                                        : 'bg-purple-100 text-purple-800'
+                                    }`}
+                                  >
+                                    {match.favorite === 'home'
+                                      ? match.homeTeam.name
+                                      : match.awayTeam.name}{' '}
+                                    Preferred
+                                  </span>
+                                )}
                               </h4>
                               <div className='flex justify-between items-center'>
                                 <div className='text-center'>
