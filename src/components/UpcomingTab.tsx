@@ -633,6 +633,20 @@ const MatchPredictor = () => {
             : b.favorite === 'away'
             ? getWins(b.awayTeam.form)
             : 0;
+      } else if (sortField === 'homeAwayForm') {
+        // Sort by home/away form based on favorite
+        aValue =
+          a.favorite === 'home'
+            ? calculateFormPoints(a.homeTeam.homeForm)
+            : a.favorite === 'away'
+            ? calculateFormPoints(a.awayTeam.awayForm)
+            : 0;
+        bValue =
+          b.favorite === 'home'
+            ? calculateFormPoints(b.homeTeam.homeForm)
+            : b.favorite === 'away'
+            ? calculateFormPoints(b.awayTeam.awayForm)
+            : 0;
       } else if (sortField === 'formPoints') {
         // Sort by form points percentage
         aValue =
@@ -650,6 +664,36 @@ const MatchPredictor = () => {
       } else if (sortField === 'h2h') {
         aValue = a.headToHead.wins / Math.max(1, a.headToHead.matches);
         bValue = b.headToHead.wins / Math.max(1, b.headToHead.matches);
+      } else if (sortField === 'bttsRate') {
+        // Use the favorite team's BTTS rate
+        aValue =
+          a.favorite === 'home'
+            ? a.homeTeam.bttsRate
+            : a.favorite === 'away'
+            ? a.awayTeam.bttsRate
+            : a.homeTeam.bttsRate;
+        bValue =
+          b.favorite === 'home'
+            ? b.homeTeam.bttsRate
+            : b.favorite === 'away'
+            ? b.awayTeam.bttsRate
+            : b.homeTeam.bttsRate;
+      } else if (sortField.includes('.')) {
+        // Handle nested properties like 'odds.over15Goals'
+        const [parent, child] = sortField.split('.');
+        
+        // Get parent property
+        const aParent = a[parent as keyof Match];
+        const bParent = b[parent as keyof Match];
+        
+        if (aParent && bParent && typeof aParent === 'object' && typeof bParent === 'object') {
+          // Handle nested property access by first casting to unknown
+          aValue = ((aParent as unknown) as Record<string, number>)[child] || 0;
+          bValue = ((bParent as unknown) as Record<string, number>)[child] || 0;
+        } else {
+          aValue = 0;
+          bValue = 0;
+        }
       } else if (sortField === 'matchTime') {
         // For server rendering, use string comparison of ISO dates first
         if (typeof window === 'undefined') {
