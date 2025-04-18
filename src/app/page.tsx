@@ -11,6 +11,7 @@ import {
   ShoppingCart,
   Copy,
   Database,
+  ArrowUp,
 } from 'lucide-react';
 import MatchPredictor from '@/components/UpcomingTab';
 import { toast, ToastContainer } from 'react-toastify';
@@ -585,13 +586,12 @@ const MarketRow = ({
   onToggleExpand: () => void;
   isMatchSaved?: (matchId: string) => boolean;
 }) => {
-  const isInCart = useMemo(
-    () =>
-      cartItems.some(
-        (item) => item.matchId === match.id && item.marketId === market.id
-      ),
-    [cartItems, match.id, market.id]
-  );
+  // Use a more robust check that won't be affected by frequent data updates
+  const isInCart = useMemo(() => {
+    return cartItems.some(
+      (item) => item.matchId === match.id && item.marketId === market.id
+    );
+  }, [cartItems, match.id, market.id]);
 
   const findPredictionForMatch = useCartStore(
     (state) => state.findPredictionForMatch
@@ -1718,6 +1718,19 @@ const MarketRow = ({
 
 // Memoize the MarketRow to prevent unnecessary re-renders
 const MemoizedMarketRow = React.memo(MarketRow, (prevProps, nextProps) => {
+  // Check if this item is in the cart - this is crucial for the Add/Remove button
+  const prevIsInCart = prevProps.cartItems.some(
+    (item) =>
+      item.matchId === prevProps.match.id &&
+      item.marketId === prevProps.market.id
+  );
+
+  const nextIsInCart = nextProps.cartItems.some(
+    (item) =>
+      item.matchId === nextProps.match.id &&
+      item.marketId === nextProps.market.id
+  );
+
   // Only re-render if these specific props change
   return (
     prevProps.match.id === nextProps.match.id &&
@@ -1727,7 +1740,8 @@ const MemoizedMarketRow = React.memo(MarketRow, (prevProps, nextProps) => {
     JSON.stringify(prevProps.market.outcomes) ===
       JSON.stringify(nextProps.market.outcomes) &&
     prevProps.isMatchSaved?.(prevProps.match.id) ===
-      nextProps.isMatchSaved?.(nextProps.match.id)
+      nextProps.isMatchSaved?.(nextProps.match.id) &&
+    prevIsInCart === nextIsInCart // Add this condition to check cart state
   );
 });
 
@@ -1784,6 +1798,7 @@ const MatchesPage = () => {
   });
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [savedMatchIds, setSavedMatchIds] = useState<Set<string>>(new Set());
+  const [showScrollButton, setShowScrollButton] = useState(false);
 
   // Update localStorage whenever activeTab changes
   useEffect(() => {
@@ -2662,6 +2677,24 @@ const MatchesPage = () => {
     setShowOnlySavedMatches((prev) => !prev);
   }, []);
 
+  // Add scroll button visibility handler
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowScrollButton(window.scrollY > 300);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Function to scroll to top
+  const scrollToTop = () => {
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth',
+    });
+  };
+
   return (
     <div className='min-h-screen bg-gray-50 overflow-x-hidden'>
       <style jsx global>{`
@@ -2776,6 +2809,18 @@ const MatchesPage = () => {
           onClearCart={clearAllCarts}
           disabled={isInitialLoading}
         />
+
+        {/* Scroll to top button */}
+        {showScrollButton && (
+          <button
+            onClick={scrollToTop}
+            className='fixed bottom-6 right-6 p-3 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition-all duration-300 z-50'
+            aria-label='Scroll to top'
+          >
+            <ArrowUp size={24} />
+          </button>
+        )}
+
         {activeTab === 'live' || activeTab === 'all-live' ? (
           <div className='max-w-[2000px] mx-auto px-4'>
             <div className='flex items-center justify-between mb-4'>

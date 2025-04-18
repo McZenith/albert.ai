@@ -155,9 +155,24 @@ export const useCartStore = create<CartStore>((set, get) => ({
   },
 
   addItem: (item) =>
-    set((state) => ({
-      items: [...state.items, { ...item, addedAt: new Date().toISOString() }],
-    })),
+    set((state) => {
+      // Check if this item already exists in the cart
+      const exists = state.items.some(
+        (existingItem) =>
+          existingItem.matchId === item.matchId &&
+          existingItem.marketId === item.marketId
+      );
+
+      // If it already exists, don't add it again
+      if (exists) {
+        return state;
+      }
+
+      // Otherwise, add the new item
+      return {
+        items: [...state.items, { ...item, addedAt: new Date().toISOString() }],
+      };
+    }),
   removeItem: (matchId, marketId) =>
     set((state) => ({
       items: state.items.filter(
