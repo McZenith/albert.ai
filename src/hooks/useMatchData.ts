@@ -423,6 +423,21 @@ export const useMatchData = () => {
     const lastPredictionDataLengthRef = useRef<number>(0);
     const [lastUpdate, setLastUpdate] = useState<number>(Date.now());
 
+    // Add a buffer for pending updates to ensure complete batches
+    const pendingUpdatesRef = useRef<{
+        arbitrage: Map<string, TransformedMatch>;
+        all: Map<string, TransformedMatch>;
+        lastArbitrageSize: number;
+        lastAllSize: number;
+        processingTimeout: NodeJS.Timeout | null;
+    }>({
+        arbitrage: new Map(),
+        all: new Map(),
+        lastArbitrageSize: 0,
+        lastAllSize: 0,
+        processingTimeout: null
+    });
+
     // Track latest match lists
     const previousMatchesRef = useRef<TransformedMatch[]>([]);
     const previousAllLiveMatchesRef = useRef<TransformedMatch[]>([]);
@@ -436,13 +451,63 @@ export const useMatchData = () => {
     const isPredictionDataLoaded = useCartStore((state) => state.isPredictionDataLoaded);
     const predictionData = useCartStore((state) => state.predictionData);
 
-    // Stability-optimized state updater
+    // Process buffered updates to ensure we get complete match sets
+    const processBufferedUpdates = useCallback(() => {
+        const buffer = pendingUpdatesRef.current;
+
+        // Only process if buffers have stabilized (no new data for at least 200ms)
+        // This helps prevent partial updates that cause flickering
+        if (buffer.arbitrage.size > 0 && buffer.arbitrage.size === buffer.lastArbitrageSize) {
+            latestMatchesRef.current = new Map(buffer.arbitrage);
+            buffer.arbitrage.clear();
+        }
+
+        if (buffer.all.size > 0 && buffer.all.size === buffer.lastAllSize) {
+            latestAllMatchesRef.current = new Map(buffer.all);
+            buffer.all.clear();
+        }
+
+        buffer.processingTimeout = null;
+    }, []);
+
+    // Schedule buffer processing
+    const scheduleBufferProcessing = useCallback(() => {
+        const buffer = pendingUpdatesRef.current;
+
+        // Update size tracking for stability detection
+        buffer.lastArbitrageSize = buffer.arbitrage.size;
+        buffer.lastAllSize = buffer.all.size;
+
+        // Clear any existing timeout
+        if (buffer.processingTimeout) {
+            clearTimeout(buffer.processingTimeout);
+        }
+
+        // Schedule processing after a delay to collect more data
+        buffer.processingTimeout = setTimeout(processBufferedUpdates, 200);
+    }, [processBufferedUpdates]);
+
+    // Stability-optimized state updater with improved reference preservation
     const stableUpdateMatches = useCallback((newMatches: Map<string, TransformedMatch>, setter: React.Dispatch<React.SetStateAction<TransformedMatch[]>>, previousRef: React.MutableRefObject<TransformedMatch[]>) => {
+        // Bail out if we have no data or are in the middle of a previous update
+        if (newMatches.size === 0) return;
+
         if (updateTimeoutRef.current) {
             clearTimeout(updateTimeoutRef.current);
         }
 
         updateTimeoutRef.current = setTimeout(() => {
+            // First, check if we have too few matches - this could indicate a partial update
+            // If we previously had more than 5 matches and now have drastically fewer, delay the update
+            if (previousRef.current.length > 5 && newMatches.size < previousRef.current.length / 2) {
+                console.log(`Delaying update due to match count drop: ${previousRef.current.length} -> ${newMatches.size}`);
+                // Try again in 300ms to see if we get more matches
+                updateTimeoutRef.current = setTimeout(() => {
+                    stableUpdateMatches(newMatches, setter, previousRef);
+                }, 300);
+                return;
+            }
+
             const currentValues = Array.from(newMatches.values());
 
             // Preserve existing structure as much as possible
@@ -459,53 +524,100 @@ export const useMatchData = () => {
                 previousRef.current.forEach(prevMatch => {
                     const updatedMatch = newMatches.get(prevMatch.id);
                     if (updatedMatch) {
-                        // Preserve component state using a stable reference
-                        stableMatches.push({
-                            ...updatedMatch,
-                            // Inherit these properties (internal UI properties) from previous match
-                            // to keep UI stable when updating
-                            playedSeconds: updatedMatch.playedSeconds, // Use new time value
-                            score: updatedMatch.score, // Use new score
-                            // Let React see this as the "same" object for UI stability
+                        // Create a merged match that preserves references for React reconciliation
+                        const mergedMatch = {
+                            ...prevMatch,  // Start with previous match to maintain reference stability
+                            // Update critical data that should change
+                            status: updatedMatch.status,
+                            playedSeconds: updatedMatch.playedSeconds,
+                            score: updatedMatch.score,
+                            matchDetails: updatedMatch.matchDetails,
+                            matchSituation: updatedMatch.matchSituation,
+                        // Deep merge teams to maintain reference stability for team objects
                             teams: {
-                                ...updatedMatch.teams,
                                 home: {
-                                    ...updatedMatch.teams.home,
-                                    // name stabilization (only relevant for React keys)
-                                    name: prevMatch.teams.home.name === updatedMatch.teams.home.name
-                                        ? prevMatch.teams.home.name
-                                        : updatedMatch.teams.home.name,
+                                    ...prevMatch.teams.home,
+                                    // Only update position if it has changed
+                                    position: updatedMatch.teams.home.position !== prevMatch.teams.home.position
+                                        ? updatedMatch.teams.home.position
+                                        : prevMatch.teams.home.position,
                                 },
                                 away: {
-                                    ...updatedMatch.teams.away,
-                                    // name stabilization (only relevant for React keys)
-                                    name: prevMatch.teams.away.name === updatedMatch.teams.away.name
-                                        ? prevMatch.teams.away.name
-                                        : updatedMatch.teams.away.name,
+                                    ...prevMatch.teams.away,
+                                    // Only update position if it has changed
+                                    position: updatedMatch.teams.away.position !== prevMatch.teams.away.position
+                                        ? updatedMatch.teams.away.position
+                                        : prevMatch.teams.away.position,
                                 }
-                            }
-                        });
+                            },
+                            // Deep merge markets to maintain stability while updating odds
+                            markets: updatedMatch.markets.map(newMarket => {
+                                const prevMarket = prevMatch.markets.find(m => m.id === newMarket.id);
+                                if (prevMarket) {
+                                    return {
+                                        ...prevMarket,
+                                        profitPercentage: newMarket.profitPercentage,
+                                        margin: newMarket.margin,
+                                        favourite: newMarket.favourite,
+                                        outcomes: newMarket.outcomes.map(newOutcome => {
+                                            const prevOutcome = prevMarket.outcomes.find(o => o.id === newOutcome.id);
+                                            if (prevOutcome) {
+                                                // Mark as changed if odds are different
+                                                const isChanged = prevOutcome.odds !== newOutcome.odds;
+                                                return {
+                                                    ...prevOutcome,
+                                                    odds: newOutcome.odds,
+                                                    stakePercentage: newOutcome.stakePercentage,
+                                                    isChanged,
+                                                };
+                                            }
+                                            return newOutcome;
+                                        })
+                                    };
+                                }
+                                return newMarket;
+                            })
+                        };
+
+                        stableMatches.push(mergedMatch as TransformedMatch);
                         // Remove from map to track which ones are new
                         newMatches.delete(prevMatch.id);
+                    } else if (previousRef.current.length > newMatches.size && previousMap.has(prevMatch.id)) {
+                        // If we're getting fewer matches than before, preserve missing matches
+                        // to prevent the "disappearing matches" problem
+                        stableMatches.push(prevMatch);
                     }
                 });
 
                 // Add any new matches that weren't in the previous state
-                currentValues.forEach(match => {
-                    if (!previousMap.has(match.id)) {
-                        stableMatches.push(match);
-                    }
+                Array.from(newMatches.values()).forEach(match => {
+                    stableMatches.push(match);
                 });
 
-                // Update with the stable array that preserves object references
-                previousRef.current = stableMatches;
-                setter(stableMatches);
+                // Only update if we have a reasonable number of matches
+                // This prevents flickering from temporary partial data
+                if (stableMatches.length > 0) {
+                    const originalCount = previousRef.current.length;
+                    const newCount = stableMatches.length;
+
+                    // Don't update if matches suddenly dropped dramatically (likely a temporary glitch)
+                    if (originalCount < 3 || newCount >= originalCount / 2) {
+                        // Update with the stable array that preserves object references
+                        previousRef.current = stableMatches;
+                        setter(stableMatches);
+                    } else {
+                        console.log(`Skipping update due to match count drop: ${originalCount} -> ${newCount}`);
+                    }
+                }
             } else {
                 // First load, just use the current values
-                previousRef.current = currentValues;
-                setter(currentValues);
+                // But only if we have a reasonable number of matches
+                if (currentValues.length > 0) {
+                    previousRef.current = currentValues;
+                    setter(currentValues);
+                }
             }
-        }, 50);  // Small debounce to batch multiple rapid updates
+        }, 150);  // Increase debounce time to batch multiple rapid updates better
     }, []);
 
     // Add effect to smoothly update the UI when data changes
@@ -526,7 +638,7 @@ export const useMatchData = () => {
                     previousAllLiveMatchesRef
                 );
             }
-        }, 500); // Update every 500ms
+        }, 1000); // Increase update interval to 1000ms for more stability
 
         return () => {
             clearInterval(interval);
@@ -536,41 +648,7 @@ export const useMatchData = () => {
         };
     }, [stableUpdateMatches]);
 
-    // Add a new useEffect to check all existing matches when prediction data first loads or updates
-    useEffect(() => {
-        const hasPredictionDataChanged = predictionData.length !== lastPredictionDataLengthRef.current;
-
-        if (isPredictionDataLoaded && predictionData.length > 0 &&
-            (!allMatchesChecked || hasPredictionDataChanged) &&
-            matches.length > 0) {
-
-            const checkAllExistingMatches = () => {
-                let matchesWithPredictions = 0;
-
-                matches.forEach(match => {
-                    const prediction = findPredictionForMatch(
-                        match.teams.home.name,
-                        match.teams.away.name,
-                        match.id,
-                        predictionData
-                    );
-
-                    if (prediction) {
-                        matchesWithPredictions++;
-                    }
-                });
-
-                lastPredictionDataLengthRef.current = predictionData.length;
-
-                if (matchesWithPredictions === matches.length || allMatchesChecked) {
-                    setAllMatchesChecked(true);
-                }
-            };
-
-            setTimeout(checkAllExistingMatches, 100);
-        }
-    }, [isPredictionDataLoaded, predictionData, matches, allMatchesChecked]);
-
+    // Update the SignalR connection handlers to use the buffer
     useEffect(() => {
         let isMounted = true;
         if (typeof window === 'undefined') return;
@@ -601,11 +679,11 @@ export const useMatchData = () => {
                     }
                 });
 
-                // Handle arbitrage matches
+                // Handle arbitrage matches with buffering
                 connection.on('ReceiveArbitrageLiveMatches', (data: ClientMatch[]) => {
                     if (!isPaused && isMounted) {
-                        // Create a new map to store the latest matches
-                        const newMatchesMap = new Map<string, TransformedMatch>();
+                        // Add to the pending updates buffer instead of immediately processing
+                        const buffer = pendingUpdatesRef.current;
 
                         // Process each match from the SignalR data
                         data.forEach(match => {
@@ -616,26 +694,23 @@ export const useMatchData = () => {
                             transformedMatch.matchTime = match.playedTime || '';
                             transformedMatch.playedSeconds = getPlayedSeconds(match.playedTime || '0:00');
 
-                            // Add to the new map
-                            newMatchesMap.set(match.id, transformedMatch);
+                            // Add to the buffer
+                            buffer.arbitrage.set(match.id, transformedMatch);
                         });
 
-                        // Update the ref with the new data
-                        latestMatchesRef.current = newMatchesMap;
-
-                        // Let the interval handle the update for smoother UI
-                        // This prevents mid-render updates that can cause UI jacking
+                        // Schedule processing after collecting more data
+                        scheduleBufferProcessing();
 
                         // Update the last update timestamp
                         setLastUpdate(Date.now());
                     }
                 });
 
-                // Handle all live matches
+                // Handle all live matches with buffering
                 connection.on('ReceiveAllLiveMatches', (data: ClientMatch[]) => {
                     if (!isPaused && isMounted) {
-                        // Create a new map to store the latest matches
-                        const newMatchesMap = new Map<string, TransformedMatch>();
+                        // Add to the pending updates buffer instead of immediately processing
+                        const buffer = pendingUpdatesRef.current;
 
                         // Process each match from the SignalR data
                         data.forEach(match => {
@@ -646,15 +721,12 @@ export const useMatchData = () => {
                             transformedMatch.matchTime = match.playedTime || '';
                             transformedMatch.playedSeconds = getPlayedSeconds(match.playedTime || '0:00');
 
-                            // Add to the new map
-                            newMatchesMap.set(match.id, transformedMatch);
+                            // Add to the buffer
+                            buffer.all.set(match.id, transformedMatch);
                         });
 
-                        // Update the ref with the new data
-                        latestAllMatchesRef.current = newMatchesMap;
-
-                        // Let the interval handle the update for smoother UI
-                        // This prevents mid-render updates that can cause UI jacking
+                        // Schedule processing after collecting more data
+                        scheduleBufferProcessing();
 
                         // Update the last update timestamp
                         setLastUpdate(Date.now());
@@ -684,8 +756,11 @@ export const useMatchData = () => {
             if (updateTimeoutRef.current) {
                 clearTimeout(updateTimeoutRef.current);
             }
+            if (pendingUpdatesRef.current.processingTimeout) {
+                clearTimeout(pendingUpdatesRef.current.processingTimeout);
+            }
         };
-    }, [isPaused, setPredictionData, setIsPredictionDataLoaded, isPredictionDataLoaded, predictionData]);
+    }, [isPaused, setPredictionData, setIsPredictionDataLoaded, isPredictionDataLoaded, predictionData, scheduleBufferProcessing]);
 
     const togglePause = () => setIsPaused(prev => !prev);
 

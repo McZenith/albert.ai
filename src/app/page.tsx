@@ -1,7 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+} from 'react';
 import { useMatchData } from '../hooks/useMatchData';
 import { useCartStore } from '@/hooks/useStore';
 import {
@@ -1716,8 +1722,21 @@ const MarketRow = ({
   );
 };
 
-// Memoize the MarketRow to prevent unnecessary re-renders
+// Find the MemoizedMarketRow component and update its memo comparison function
 const MemoizedMarketRow = React.memo(MarketRow, (prevProps, nextProps) => {
+  // Generate stable keys for market and team objects to enhance React reconciliation
+  const getStableId = (match: Match, market: Match['markets'][0]) => {
+    return `${match.id}-${market.id}`;
+  };
+
+  const prevStableId = getStableId(prevProps.match, prevProps.market);
+  const nextStableId = getStableId(nextProps.match, nextProps.market);
+
+  // If the ids changed completely, it's a different match/market
+  if (prevStableId !== nextStableId) {
+    return false;
+  }
+
   // Check if this item is in the cart - this is crucial for the Add/Remove button
   const prevIsInCart = prevProps.cartItems.some(
     (item) =>
@@ -1731,18 +1750,38 @@ const MemoizedMarketRow = React.memo(MarketRow, (prevProps, nextProps) => {
       item.marketId === nextProps.market.id
   );
 
-  // Only re-render if these specific props change
-  return (
-    prevProps.match.id === nextProps.match.id &&
-    prevProps.market.id === nextProps.market.id &&
-    prevProps.isExpanded === nextProps.isExpanded &&
-    prevProps.disabled === nextProps.disabled &&
-    JSON.stringify(prevProps.market.outcomes) ===
-      JSON.stringify(nextProps.market.outcomes) &&
-    prevProps.isMatchSaved?.(prevProps.match.id) ===
-      nextProps.isMatchSaved?.(nextProps.match.id) &&
-    prevIsInCart === nextIsInCart // Add this condition to check cart state
-  );
+  // Track critical visual changes that should trigger re-renders
+  const scoreChanged = prevProps.match.score !== nextProps.match.score;
+  const statusChanged = prevProps.match.status !== nextProps.match.status;
+  const playedTimeChanged =
+    prevProps.match.playedSeconds !== nextProps.match.playedSeconds;
+
+  // If expanded state, cart state, score, status or played time changes, re-render
+  if (
+    prevProps.isExpanded !== nextProps.isExpanded ||
+    prevIsInCart !== nextIsInCart ||
+    scoreChanged ||
+    statusChanged ||
+    playedTimeChanged
+  ) {
+    return false; // Don't skip render
+  }
+
+  // Only re-render market outcomes if they've actually changed
+  const prevOutcomes = JSON.stringify(prevProps.market.outcomes);
+  const nextOutcomes = JSON.stringify(nextProps.market.outcomes);
+
+  // If saved status changed, re-render
+  const savedStatusChanged =
+    prevProps.isMatchSaved?.(prevProps.match.id) !==
+    nextProps.isMatchSaved?.(nextProps.match.id);
+
+  if (prevOutcomes !== nextOutcomes || savedStatusChanged) {
+    return false; // Don't skip render
+  }
+
+  // Skip render for less important data changes to reduce flickering
+  return true;
 });
 
 // Main Component
@@ -1799,6 +1838,11 @@ const MatchesPage = () => {
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [savedMatchIds, setSavedMatchIds] = useState<Set<string>>(new Set());
   const [showScrollButton, setShowScrollButton] = useState(false);
+
+  // Add a ref to store the previous filtered matches for stable rendering
+  const previousMatchesRef = useRef<Match[]>([]);
+  const dataUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [dataUpdating, setDataUpdating] = useState(false);
 
   // Update localStorage whenever activeTab changes
   useEffect(() => {
@@ -1928,9 +1972,12 @@ const MatchesPage = () => {
       );
     });
 
-    // Apply multiple sorts
+    // Apply multiple sorts with stable sorting to prevent jumping
     if (sortConfigs.length > 0) {
       filtered.sort((a, b) => {
+        // First check if IDs match to maintain stable order for the same item
+        if (a.id === b.id) return 0;
+
         for (const sortConfig of sortConfigs) {
           let comparison = 0;
           let aValue: number | undefined;
@@ -1940,7 +1987,10 @@ const MatchesPage = () => {
             case 'status':
               aValue = getStatusSortValue(a.status);
               bValue = getStatusSortValue(b.status);
+              if (aValue < bValue) comparison = -1;
+              if (aValue > bValue) comparison = 1;
               break;
+
             case 'playedSeconds':
               // For matches that haven't started yet
               if (a.status === 'NS' && b.status === 'NS') {
@@ -1970,18 +2020,21 @@ const MatchesPage = () => {
                 if (aValue > bValue) comparison = 1;
               }
               break;
+
             case 'profit':
               aValue = Math.max(...a.markets.map((m) => m.profitPercentage));
               bValue = Math.max(...b.markets.map((m) => m.profitPercentage));
               if (aValue < bValue) comparison = -1;
               if (aValue > bValue) comparison = 1;
               break;
+
             case 'margin':
               aValue = Math.max(...a.markets.map((m) => m.margin));
               bValue = Math.max(...b.markets.map((m) => m.margin));
               if (aValue < bValue) comparison = -1;
               if (aValue > bValue) comparison = 1;
               break;
+
             case 'odds':
               aValue = Math.max(
                 ...a.markets.flatMap((m) => m.outcomes.map((o) => o.odds))
@@ -1992,6 +2045,7 @@ const MatchesPage = () => {
               if (aValue < bValue) comparison = -1;
               if (aValue > bValue) comparison = 1;
               break;
+
             default:
               continue;
           }
@@ -2000,7 +2054,10 @@ const MatchesPage = () => {
             return sortConfig.direction === 'asc' ? comparison : -comparison;
           }
         }
-        return 0;
+
+        // If all other sorting criteria are identical, sort by ID for stability
+        // Convert IDs to strings to ensure localeCompare works properly
+        return String(a.id).localeCompare(String(b.id));
       });
     }
 
@@ -2016,9 +2073,126 @@ const MatchesPage = () => {
     return filtered;
   };
 
-  const filteredMatches = getSortedAndFilteredMatches(
-    activeTab === 'live' ? liveMatches : allLiveMatches
+  // Function to stabilize data updates and prevent flickering
+  const getStabilizedMatches = useCallback(
+    (currentMatches: Match[]): Match[] => {
+      // If we have no matches at all but had them before, this is likely a temporary flicker
+      // Use previous data until we get at least 3 matches to prevent the "one row" issue
+      if (currentMatches.length < 3 && previousMatchesRef.current.length > 5) {
+        return previousMatchesRef.current;
+      }
+
+      // Always use previous data for a brief moment to prevent flickering
+      if (dataUpdating) {
+        return previousMatchesRef.current;
+      }
+
+      // If we have no previous data, use current matches
+      if (previousMatchesRef.current.length === 0) {
+        // Only initialize if we have a reasonable number of matches
+        if (currentMatches.length >= 3) {
+          previousMatchesRef.current = currentMatches;
+        }
+        return currentMatches;
+      }
+
+      // Create a map of previous matches by ID for quick lookup
+      const prevMatchMap = new Map(
+        previousMatchesRef.current.map((match) => [String(match.id), match])
+      );
+
+      // Create a map of current matches by ID
+      const curMatchMap = new Map(
+        currentMatches.map((match) => [String(match.id), match])
+      );
+
+      // Start with the previous order of matches to maintain stability
+      const stableMatches = [...previousMatchesRef.current];
+
+      // Add new matches that weren't in the previous dataset
+      const newMatchIds = currentMatches
+        .map((match) => String(match.id))
+        .filter((id) => !prevMatchMap.has(id));
+
+      // Add new matches at the end to maintain order stability
+      newMatchIds.forEach((id) => {
+        const newMatch = curMatchMap.get(id);
+        if (newMatch) {
+          stableMatches.push(newMatch);
+        }
+      });
+
+      // Remove matches that are no longer in the current dataset, but be careful
+      // If too many matches would be removed, suspect a temporary data issue
+      const stableMatchesCandidates = stableMatches.filter((match) =>
+        curMatchMap.has(String(match.id))
+      );
+
+      // Only remove matches if we're not losing too many at once
+      // This helps prevent flickering when data temporarily glitches
+      const finalStableMatches =
+        stableMatchesCandidates.length <
+          previousMatchesRef.current.length / 2 &&
+        previousMatchesRef.current.length > 5
+          ? previousMatchesRef.current // Use previous if too many would be removed
+          : stableMatchesCandidates;
+
+      // Update match data while preserving order
+      const result = finalStableMatches.map((match) => {
+        const id = String(match.id);
+        return curMatchMap.has(id) ? curMatchMap.get(id)! : match;
+      });
+
+      // Trigger a small delay before updating the UI to debounce rapid updates
+      if (!dataUpdating) {
+        setDataUpdating(true);
+        if (dataUpdateTimeoutRef.current) {
+          clearTimeout(dataUpdateTimeoutRef.current);
+        }
+        dataUpdateTimeoutRef.current = setTimeout(() => {
+          setDataUpdating(false);
+          // Only update reference if we have multiple matches and the new data looks good
+          if (currentMatches.length >= 3) {
+            previousMatchesRef.current = [...result];
+          }
+        }, 600); // Increased to 600ms for more stability
+      }
+
+      return result;
+    },
+    [dataUpdating]
   );
+
+  // Clean up the timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (dataUpdateTimeoutRef.current) {
+        clearTimeout(dataUpdateTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // In the existing useMemo for memoizedFilteredMatches, apply the stabilization
+  const memoizedFilteredMatches = useMemo(() => {
+    const rawFilteredMatches = getSortedAndFilteredMatches(
+      activeTab === 'live' ? liveMatches : allLiveMatches
+    );
+
+    // Apply our stabilization function to prevent flickering
+    return getStabilizedMatches(rawFilteredMatches);
+  }, [
+    activeTab,
+    liveMatches,
+    allLiveMatches,
+    sortConfigs,
+    filters,
+    searchQuery,
+    showCartItems,
+    cartItems,
+    showOnlySavedMatches,
+    savedMatchIds,
+    getStabilizedMatches,
+  ]);
 
   // Handle initial loading state
   useEffect(() => {
@@ -2133,7 +2307,7 @@ const MatchesPage = () => {
     const allTeams = [...cartTeamNames, ...upcomingTeamNames].join('\n');
 
     // For live tab: add matched from the filtered matches to cart
-    filteredMatches.forEach((match) => {
+    memoizedFilteredMatches.forEach((match) => {
       const preferredTeam = getPreferredTeam(match);
       if (preferredTeam && match.markets && match.markets.length > 0) {
         const market = match.markets[0];
@@ -2217,26 +2391,6 @@ const MatchesPage = () => {
       return newSet;
     });
   };
-
-  // Memoize the filtered matches to prevent unnecessary re-renders
-  const memoizedFilteredMatches = useMemo(
-    () =>
-      getSortedAndFilteredMatches(
-        activeTab === 'live' ? liveMatches : allLiveMatches
-      ),
-    [
-      activeTab,
-      liveMatches,
-      allLiveMatches,
-      sortConfigs,
-      filters,
-      searchQuery,
-      showCartItems,
-      cartItems,
-      showOnlySavedMatches,
-      savedMatchIds,
-    ]
-  );
 
   // Function to check if a match has a clear preferred team
   const hasClearPreferredTeam = (match: Match): boolean => {
@@ -2695,6 +2849,32 @@ const MatchesPage = () => {
     });
   };
 
+  // Add refs to track table dimensions and prevent layout shifts
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+  const tableHeightRef = useRef<number>(0);
+  const rowCountRef = useRef<number>(0);
+
+  // Add mechanism to preserve table height during updates
+  useEffect(() => {
+    // Update height reference whenever filtered matches change
+    if (tableContainerRef.current && memoizedFilteredMatches.length > 0) {
+      const currentHeight = tableContainerRef.current.offsetHeight;
+      // Only update height if the new height is larger or initial
+      if (
+        currentHeight > tableHeightRef.current ||
+        tableHeightRef.current === 0
+      ) {
+        tableHeightRef.current = currentHeight;
+      }
+
+      // Track row count
+      rowCountRef.current = Math.max(
+        rowCountRef.current,
+        memoizedFilteredMatches.length
+      );
+    }
+  }, [memoizedFilteredMatches]);
+
   return (
     <div className='min-h-screen bg-gray-50 overflow-x-hidden'>
       <style jsx global>{`
@@ -2786,6 +2966,140 @@ const MatchesPage = () => {
           opacity: 0;
           transition: max-height 300ms ease-in-out, opacity 300ms ease-in-out;
         }
+
+        /* Improve stability during live updates */
+        .match-table tbody {
+          position: relative;
+          transition: all 0.3s ease-in-out;
+        }
+
+        /* Prevent flashing and sudden disappearance */
+        .match-row {
+          opacity: 1;
+          transition: opacity 0.3s ease-in-out,
+            background-color 0.3s ease-in-out, transform 0.3s ease-in-out;
+          transform: translateZ(0);
+          will-change: transform;
+        }
+
+        /* Smooth expansion/collapse transitions */
+        .expanded-row {
+          transition: all 0.3s ease-in-out;
+          overflow: hidden;
+        }
+
+        /* Enhance stability of table cells */
+        .match-table td {
+          transition: background-color 0.3s ease-in-out;
+          position: relative;
+        }
+
+        /* Data update transition */
+        .data-update {
+          animation: highlightUpdate 1s ease-in-out;
+        }
+
+        @keyframes highlightUpdate {
+          0% {
+            background-color: transparent;
+          }
+          50% {
+            background-color: rgba(59, 130, 246, 0.1);
+          }
+          100% {
+            background-color: transparent;
+          }
+        }
+
+        /* Additional anti-flicker measures */
+        .match-table {
+          contain: layout style;
+          content-visibility: auto;
+        }
+
+        .match-table table {
+          table-layout: fixed;
+          width: 100%;
+          contain: layout style;
+        }
+
+        /* Enhanced row stability */
+        .match-row {
+          opacity: 1;
+          transition: opacity 0.5s ease-in-out,
+            background-color 0.5s ease-in-out, transform 0.3s ease-in-out;
+          transform: translateZ(0);
+          will-change: transform;
+          contain: layout style;
+          transform-style: preserve-3d;
+          backface-visibility: hidden;
+        }
+
+        /* Force hardware acceleration */
+        .match-table tbody {
+          transform: translateZ(0);
+          backface-visibility: hidden;
+          perspective: 1000px;
+          contain: layout style;
+        }
+
+        /* Create a fixed position for rows */
+        .fixed-height-row {
+          min-height: 80px;
+          transition: min-height 0.5s ease;
+          contain: layout style;
+        }
+
+        /* Slower transitions for content changes */
+        .expanded-row {
+          transition: all 0.5s ease-in-out;
+          transform: translateZ(0);
+          will-change: transform;
+          contain: layout style;
+        }
+
+        /* Add additional transition properties for super-smooth updates */
+        .match-row {
+          opacity: 1;
+          transition: opacity 0.8s ease-in-out,
+            background-color 0.8s ease-in-out, transform 0.5s ease-in-out;
+          transform: translateZ(0);
+          will-change: transform, opacity;
+          contain: layout style;
+          backface-visibility: hidden;
+          perspective: 1000px;
+        }
+
+        /* Content stability */
+        .match-table table {
+          contain: strict;
+          content-visibility: auto;
+        }
+
+        /* Prevent content from jumping during updates */
+        .match-table td {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          contain: content;
+        }
+
+        /* Make sure height doesn't change during data updates */
+        .fixed-height-row > td {
+          height: 90px;
+        }
+
+        /* Smooth expansion transitions */
+        .expanded-content {
+          transition: max-height 0.8s cubic-bezier(0, 1, 0, 1),
+            opacity 0.8s ease-in-out;
+          contain: content;
+        }
+
+        /* Prevent layout shifting on load */
+        .match-table {
+          min-height: 400px; /* Ensure table doesn't collapse while loading */
+        }
       `}</style>
       <div className='p-4'>
         <div className='relative'>
@@ -2796,7 +3110,7 @@ const MatchesPage = () => {
           )}
         </div>
         <Stats
-          matchCount={filteredMatches.length}
+          matchCount={memoizedFilteredMatches.length}
           isPaused={isPaused}
           togglePause={togglePause}
           onCopyNames={copyAllNames}
@@ -2902,8 +3216,8 @@ const MatchesPage = () => {
                 </div>
                 <div className='p-4'>
                   {/* Prime Matches Section */}
-                  {createMatchGroups(filteredMatches, groupSize).prime.length >
-                    0 && (
+                  {createMatchGroups(memoizedFilteredMatches, groupSize).prime
+                    .length > 0 && (
                     <div className='mb-6'>
                       <div className='flex items-center mb-4'>
                         <div className='bg-green-500 h-3 w-3 rounded-full mr-2'></div>
@@ -2915,248 +3229,249 @@ const MatchesPage = () => {
                         </span>
                       </div>
 
-                      {createMatchGroups(filteredMatches, groupSize).prime.map(
-                        (group, groupIndex) => (
-                          <div
-                            key={groupIndex}
-                            className='mb-6 last:mb-0 border-l-4 border-green-500 pl-3'
-                          >
-                            <div className='flex justify-between items-center mb-2'>
-                              <h4 className='text-md font-medium text-gray-700'>
-                                Prime Group {groupIndex + 1} ({group.length}{' '}
-                                matches)
-                              </h4>
-                              <button
-                                className='flex items-center gap-1 px-3 py-1 text-sm rounded bg-green-100 text-green-800 hover:bg-green-200 border border-green-200'
-                                onClick={() => copyPreferredTeamNames(group)}
-                              >
-                                <Copy size={14} />
-                                Copy Team Names
-                              </button>
-                            </div>
-                            <div className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3'>
-                              {group.map((match) => {
-                                const preferredTeam = getPreferredTeam(match);
-                                const matchScore = scoreMatch(match);
-                                return (
-                                  <div
-                                    key={match.id}
-                                    className='bg-gray-50 rounded-lg p-3 border border-green-200 hover:shadow-md transition-shadow'
-                                  >
-                                    <div className='flex justify-between items-start mb-2'>
-                                      <div className='text-xs text-gray-500'>
-                                        {match.status} -{' '}
-                                        {formatPlayedTime(match.playedSeconds)}
+                      {createMatchGroups(
+                        memoizedFilteredMatches,
+                        groupSize
+                      ).prime.map((group, groupIndex) => (
+                        <div
+                          key={groupIndex}
+                          className='mb-6 last:mb-0 border-l-4 border-green-500 pl-3'
+                        >
+                          <div className='flex justify-between items-center mb-2'>
+                            <h4 className='text-md font-medium text-gray-700'>
+                              Prime Group {groupIndex + 1} ({group.length}{' '}
+                              matches)
+                            </h4>
+                            <button
+                              className='flex items-center gap-1 px-3 py-1 text-sm rounded bg-green-100 text-green-800 hover:bg-green-200 border border-green-200'
+                              onClick={() => copyPreferredTeamNames(group)}
+                            >
+                              <Copy size={14} />
+                              Copy Team Names
+                            </button>
+                          </div>
+                          <div className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3'>
+                            {group.map((match) => {
+                              const preferredTeam = getPreferredTeam(match);
+                              const matchScore = scoreMatch(match);
+                              return (
+                                <div
+                                  key={match.id}
+                                  className='bg-gray-50 rounded-lg p-3 border border-green-200 hover:shadow-md transition-shadow'
+                                >
+                                  <div className='flex justify-between items-start mb-2'>
+                                    <div className='text-xs text-gray-500'>
+                                      {match.status} -{' '}
+                                      {formatPlayedTime(match.playedSeconds)}
+                                    </div>
+                                    <div className='flex items-center'>
+                                      <div className='text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-800 mr-1'>
+                                        Score: {matchScore}
                                       </div>
-                                      <div className='flex items-center'>
-                                        <div className='text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-800 mr-1'>
-                                          Score: {matchScore}
-                                        </div>
-                                        <div className='text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-800'>
-                                          Gap:{' '}
-                                          {(() => {
-                                            // Get prediction data for this match
-                                            const { findPredictionForMatch } =
-                                              useCartStore.getState();
-                                            const predictionMatch =
-                                              findPredictionForMatch(
-                                                match.teams.home.name,
-                                                match.teams.away.name
-                                              );
+                                      <div className='text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-800'>
+                                        Gap:{' '}
+                                        {(() => {
+                                          // Get prediction data for this match
+                                          const { findPredictionForMatch } =
+                                            useCartStore.getState();
+                                          const predictionMatch =
+                                            findPredictionForMatch(
+                                              match.teams.home.name,
+                                              match.teams.away.name
+                                            );
 
-                                            // First try to use position from prediction data
-                                            if (
-                                              predictionMatch?.homeTeam
-                                                ?.position !== undefined &&
-                                              predictionMatch?.awayTeam
-                                                ?.position !== undefined
-                                            ) {
-                                              return Math.abs(
-                                                predictionMatch.homeTeam
-                                                  .position -
-                                                  predictionMatch.awayTeam
-                                                    .position
-                                              );
-                                            }
+                                          // First try to use position from prediction data
+                                          if (
+                                            predictionMatch?.homeTeam
+                                              ?.position !== undefined &&
+                                            predictionMatch?.awayTeam
+                                              ?.position !== undefined
+                                          ) {
+                                            return Math.abs(
+                                              predictionMatch.homeTeam
+                                                .position -
+                                                predictionMatch.awayTeam
+                                                  .position
+                                            );
+                                          }
 
-                                            // Fall back to live match data
-                                            if (
-                                              match.teams?.home?.position !==
-                                                undefined &&
-                                              match.teams?.away?.position !==
-                                                undefined
-                                            ) {
-                                              return Math.abs(
-                                                match.teams.home.position -
-                                                  match.teams.away.position
-                                              );
-                                            }
+                                          // Fall back to live match data
+                                          if (
+                                            match.teams?.home?.position !==
+                                              undefined &&
+                                            match.teams?.away?.position !==
+                                              undefined
+                                          ) {
+                                            return Math.abs(
+                                              match.teams.home.position -
+                                                match.teams.away.position
+                                            );
+                                          }
 
-                                            // If no position data available
-                                            return 'Unknown';
-                                          })()}
-                                        </div>
+                                          // If no position data available
+                                          return 'Unknown';
+                                        })()}
                                       </div>
                                     </div>
+                                  </div>
 
-                                    {/* Add Live Score Display */}
-                                    {match.score && match.score !== '-' && (
-                                      <div className='mb-2 flex justify-center'>
-                                        <div className='font-bold text-base px-3 py-1 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-gray-200'>
-                                          {match.score}
-                                        </div>
+                                  {/* Add Live Score Display */}
+                                  {match.score && match.score !== '-' && (
+                                    <div className='mb-2 flex justify-center'>
+                                      <div className='font-bold text-base px-3 py-1 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-gray-200'>
+                                        {match.score}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* Rest of match card content */}
+                                  <div className='flex items-center gap-2 mb-1'>
+                                    <div
+                                      className={`text-sm ${
+                                        preferredTeam?.id ===
+                                        match.teams.home.id
+                                          ? 'font-bold text-blue-700'
+                                          : ''
+                                      }`}
+                                    >
+                                      {match.teams.home.name}
+                                    </div>
+                                  </div>
+                                  <div className='flex items-center gap-2'>
+                                    <div
+                                      className={`text-sm ${
+                                        preferredTeam?.id ===
+                                        match.teams.away.id
+                                          ? 'font-bold text-purple-700'
+                                          : ''
+                                      }`}
+                                    >
+                                      {match.teams.away.name}
+                                    </div>
+                                  </div>
+
+                                  {/* Performance metrics */}
+                                  {match.matchSituation &&
+                                    match.matchDetails && (
+                                      <div className='mt-2 grid grid-cols-2 gap-1 text-xs text-gray-600'>
+                                        {(() => {
+                                          // Determine the preferred team and opposing team
+                                          const isHomePreferred =
+                                            preferredTeam?.id ===
+                                            match.teams.home.id;
+                                          const preferredTeamKey =
+                                            isHomePreferred ? 'home' : 'away';
+                                          const opposingTeamKey =
+                                            isHomePreferred ? 'away' : 'home';
+
+                                          // Calculate performance metrics
+                                          const metrics = {
+                                            ATK:
+                                              (match.matchSituation[
+                                                preferredTeamKey
+                                              ].totalAttacks || 0) >
+                                              (match.matchSituation[
+                                                opposingTeamKey
+                                              ].totalAttacks || 0),
+                                            POS:
+                                              (match.matchDetails[
+                                                preferredTeamKey
+                                              ].ballSafePercentage || 0) >
+                                              (match.matchDetails[
+                                                opposingTeamKey
+                                              ].ballSafePercentage || 0),
+                                            DNG:
+                                              (match.matchSituation[
+                                                preferredTeamKey
+                                              ].totalDangerousAttacks || 0) >
+                                              (match.matchSituation[
+                                                opposingTeamKey
+                                              ].totalDangerousAttacks || 0),
+                                            SHT:
+                                              (match.matchDetails[
+                                                preferredTeamKey
+                                              ].shotsOnTarget || 0) >
+                                              (match.matchDetails[
+                                                opposingTeamKey
+                                              ].shotsOnTarget || 0),
+                                          };
+
+                                          // Check score
+                                          let scoreMetric = null;
+                                          if (
+                                            match.score &&
+                                            match.status !== 'NS'
+                                          ) {
+                                            try {
+                                              const [homeGoals, awayGoals] =
+                                                match.score
+                                                  .replace(':', '-')
+                                                  .split('-')
+                                                  .map((g) =>
+                                                    parseInt(g.trim(), 10)
+                                                  );
+
+                                              if (
+                                                !isNaN(homeGoals) &&
+                                                !isNaN(awayGoals)
+                                              ) {
+                                                scoreMetric = {
+                                                  SCR: isHomePreferred
+                                                    ? homeGoals > awayGoals
+                                                    : awayGoals > homeGoals,
+                                                };
+                                              }
+                                            } catch {
+                                              // If parsing fails, don't add score metric
+                                            }
+                                          }
+
+                                          const allMetrics = scoreMetric
+                                            ? { ...metrics, ...scoreMetric }
+                                            : metrics;
+
+                                          return (
+                                            <>
+                                              {Object.entries(allMetrics).map(
+                                                ([key, value]) => (
+                                                  <div
+                                                    key={key}
+                                                    className='flex items-center gap-1'
+                                                  >
+                                                    <span
+                                                      className={`w-2 h-2 rounded-full ${
+                                                        value
+                                                          ? 'bg-green-500'
+                                                          : 'bg-red-500'
+                                                      }`}
+                                                    ></span>
+                                                    <span>{key}</span>
+                                                  </div>
+                                                )
+                                              )}
+                                            </>
+                                          );
+                                        })()}
                                       </div>
                                     )}
 
-                                    {/* Rest of match card content */}
-                                    <div className='flex items-center gap-2 mb-1'>
-                                      <div
-                                        className={`text-sm ${
-                                          preferredTeam?.id ===
-                                          match.teams.home.id
-                                            ? 'font-bold text-blue-700'
-                                            : ''
-                                        }`}
-                                      >
-                                        {match.teams.home.name}
-                                      </div>
-                                    </div>
-                                    <div className='flex items-center gap-2'>
-                                      <div
-                                        className={`text-sm ${
-                                          preferredTeam?.id ===
-                                          match.teams.away.id
-                                            ? 'font-bold text-purple-700'
-                                            : ''
-                                        }`}
-                                      >
-                                        {match.teams.away.name}
-                                      </div>
-                                    </div>
-
-                                    {/* Performance metrics */}
-                                    {match.matchSituation &&
-                                      match.matchDetails && (
-                                        <div className='mt-2 grid grid-cols-2 gap-1 text-xs text-gray-600'>
-                                          {(() => {
-                                            // Determine the preferred team and opposing team
-                                            const isHomePreferred =
-                                              preferredTeam?.id ===
-                                              match.teams.home.id;
-                                            const preferredTeamKey =
-                                              isHomePreferred ? 'home' : 'away';
-                                            const opposingTeamKey =
-                                              isHomePreferred ? 'away' : 'home';
-
-                                            // Calculate performance metrics
-                                            const metrics = {
-                                              ATK:
-                                                (match.matchSituation[
-                                                  preferredTeamKey
-                                                ].totalAttacks || 0) >
-                                                (match.matchSituation[
-                                                  opposingTeamKey
-                                                ].totalAttacks || 0),
-                                              POS:
-                                                (match.matchDetails[
-                                                  preferredTeamKey
-                                                ].ballSafePercentage || 0) >
-                                                (match.matchDetails[
-                                                  opposingTeamKey
-                                                ].ballSafePercentage || 0),
-                                              DNG:
-                                                (match.matchSituation[
-                                                  preferredTeamKey
-                                                ].totalDangerousAttacks || 0) >
-                                                (match.matchSituation[
-                                                  opposingTeamKey
-                                                ].totalDangerousAttacks || 0),
-                                              SHT:
-                                                (match.matchDetails[
-                                                  preferredTeamKey
-                                                ].shotsOnTarget || 0) >
-                                                (match.matchDetails[
-                                                  opposingTeamKey
-                                                ].shotsOnTarget || 0),
-                                            };
-
-                                            // Check score
-                                            let scoreMetric = null;
-                                            if (
-                                              match.score &&
-                                              match.status !== 'NS'
-                                            ) {
-                                              try {
-                                                const [homeGoals, awayGoals] =
-                                                  match.score
-                                                    .replace(':', '-')
-                                                    .split('-')
-                                                    .map((g) =>
-                                                      parseInt(g.trim(), 10)
-                                                    );
-
-                                                if (
-                                                  !isNaN(homeGoals) &&
-                                                  !isNaN(awayGoals)
-                                                ) {
-                                                  scoreMetric = {
-                                                    SCR: isHomePreferred
-                                                      ? homeGoals > awayGoals
-                                                      : awayGoals > homeGoals,
-                                                  };
-                                                }
-                                              } catch {
-                                                // If parsing fails, don't add score metric
-                                              }
-                                            }
-
-                                            const allMetrics = scoreMetric
-                                              ? { ...metrics, ...scoreMetric }
-                                              : metrics;
-
-                                            return (
-                                              <>
-                                                {Object.entries(allMetrics).map(
-                                                  ([key, value]) => (
-                                                    <div
-                                                      key={key}
-                                                      className='flex items-center gap-1'
-                                                    >
-                                                      <span
-                                                        className={`w-2 h-2 rounded-full ${
-                                                          value
-                                                            ? 'bg-green-500'
-                                                            : 'bg-red-500'
-                                                        }`}
-                                                      ></span>
-                                                      <span>{key}</span>
-                                                    </div>
-                                                  )
-                                                )}
-                                              </>
-                                            );
-                                          })()}
-                                        </div>
-                                      )}
-
-                                    <div className='mt-2 text-xs text-gray-500'>
-                                      Tournament:{' '}
-                                      <span className='font-medium'>
-                                        {match.tournamentName}
-                                      </span>
-                                    </div>
+                                  <div className='mt-2 text-xs text-gray-500'>
+                                    Tournament:{' '}
+                                    <span className='font-medium'>
+                                      {match.tournamentName}
+                                    </span>
                                   </div>
-                                );
-                              })}
-                            </div>
+                                </div>
+                              );
+                            })}
                           </div>
-                        )
-                      )}
+                        </div>
+                      ))}
                     </div>
                   )}
 
                   {/* Regular Matches Section */}
-                  {createMatchGroups(filteredMatches, groupSize).regular
+                  {createMatchGroups(memoizedFilteredMatches, groupSize).regular
                     .length > 0 && (
                     <div className='mt-8'>
                       <div className='flex items-center mb-4'>
@@ -3170,7 +3485,7 @@ const MatchesPage = () => {
                       </div>
 
                       {createMatchGroups(
-                        filteredMatches,
+                        memoizedFilteredMatches,
                         groupSize
                       ).regular.map((group, groupIndex) => (
                         <div
@@ -3410,10 +3725,10 @@ const MatchesPage = () => {
                     </div>
                   )}
 
-                  {createMatchGroups(filteredMatches, groupSize).prime
+                  {createMatchGroups(memoizedFilteredMatches, groupSize).prime
                     .length === 0 &&
-                    createMatchGroups(filteredMatches, groupSize).regular
-                      .length === 0 && (
+                    createMatchGroups(memoizedFilteredMatches, groupSize)
+                      .regular.length === 0 && (
                       <div className='bg-gray-50 p-4 rounded-lg text-center text-gray-600'>
                         No matches with clear preferred teams found. Try
                         adjusting your filters.
@@ -3426,7 +3741,15 @@ const MatchesPage = () => {
             {isInitialLoading ? (
               <LoadingTable />
             ) : (
-              <div className='mt-4 bg-white rounded-lg shadow-sm'>
+              <div
+                className='mt-4 bg-white rounded-lg shadow-sm'
+                ref={tableContainerRef}
+                style={{
+                  minHeight: `${Math.max(500, tableHeightRef.current)}px`,
+                  transition: 'min-height 0.5s ease-in-out',
+                  overflow: 'hidden',
+                }}
+              >
                 <div className='w-full overflow-x-auto min-w-0 match-table'>
                   <table className='w-full divide-y divide-gray-200 table-fixed min-w-[1400px]'>
                     <thead>
@@ -3542,44 +3865,79 @@ const MatchesPage = () => {
                       </tr>
                     </thead>
                     <tbody className='divide-y divide-gray-200'>
-                      {memoizedFilteredMatches.flatMap((match) => {
-                        return match.markets
-                          .filter((market) =>
-                            activeTab === 'live'
-                              ? market.description !==
-                                '1st Half - Correct Score'
-                              : true
-                          )
-                          .map(
-                            (
-                              market: Match['markets'][0],
-                              marketIndex: number
-                            ) => {
-                              const marketKey = `${match.id}-${market.id}`;
-                              const isRowExpanded = expandedRows.has(marketKey);
+                      {memoizedFilteredMatches.length > 0 ? (
+                        memoizedFilteredMatches.flatMap((match) => {
+                          return match.markets
+                            .filter((market) =>
+                              activeTab === 'live'
+                                ? market.description !==
+                                  '1st Half - Correct Score'
+                                : true
+                            )
+                            .map(
+                              (
+                                market: Match['markets'][0],
+                                marketIndex: number
+                              ) => {
+                                // Create a stable key for the market that won't change with data updates
+                                const marketKey = `${match.id}-${market.id}`;
+                                const isRowExpanded =
+                                  expandedRows.has(marketKey);
 
-                              // Create a stable key for the market that won't change when data updates
-                              const stableMarketKey = `${marketKey}-${marketIndex}`;
+                                // Create an even more stable key for React's reconciliation
+                                const stableMarketKey =
+                                  `${marketKey}-${marketIndex}-${match.teams.home.name}-${match.teams.away.name}`.replace(
+                                    /\s+/g,
+                                    ''
+                                  );
 
-                              return (
-                                <MemoizedMarketRow
-                                  key={stableMarketKey}
-                                  match={match}
-                                  market={market}
-                                  cartItems={cartItems}
-                                  addItem={addItem}
-                                  removeItem={removeItem}
-                                  disabled={isInitialLoading}
-                                  isExpanded={isRowExpanded}
-                                  onToggleExpand={() =>
-                                    toggleExpandedRow(match.id, market.id)
-                                  }
-                                  isMatchSaved={isMatchSaved}
-                                />
-                              );
-                            }
-                          );
-                      })}
+                                return (
+                                  <React.Fragment key={stableMarketKey}>
+                                    <MemoizedMarketRow
+                                      match={match}
+                                      market={market}
+                                      cartItems={cartItems}
+                                      addItem={addItem}
+                                      removeItem={removeItem}
+                                      disabled={isInitialLoading}
+                                      isExpanded={isRowExpanded}
+                                      onToggleExpand={() =>
+                                        toggleExpandedRow(match.id, market.id)
+                                      }
+                                      isMatchSaved={isMatchSaved}
+                                    />
+                                  </React.Fragment>
+                                );
+                              }
+                            );
+                        })
+                      ) : (
+                        // Add empty state with consistent height to prevent layout shifts
+                        <tr>
+                          <td
+                            colSpan={13}
+                            className='py-16 text-center text-gray-500'
+                          >
+                            <div
+                              style={{
+                                minHeight: '300px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                flexDirection: 'column',
+                              }}
+                            >
+                              <div className='animate-pulse flex space-x-4 mb-4'>
+                                <div className='h-12 w-12 rounded-full bg-gray-200'></div>
+                              </div>
+                              <p>
+                                Loading matches or no matches found with current
+                                filters
+                              </p>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
