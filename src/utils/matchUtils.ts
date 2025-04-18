@@ -51,13 +51,7 @@ export const transformMatchSituation = (matchSituation: ClientMatch['matchSituat
     }
 
     // Log incoming data
-    console.log('Transforming match situation:', {
-        totalTime: matchSituation.totalTime,
-        dominantTeam: matchSituation.dominantTeam,
-        matchMomentum: matchSituation.matchMomentum,
-        home: matchSituation.home,
-        away: matchSituation.away
-    });
+
 
     const transformed = {
         totalTime: Number(matchSituation.totalTime) || 0,
@@ -88,7 +82,6 @@ export const transformMatchSituation = (matchSituation: ClientMatch['matchSituat
     };
 
     // Log transformed data
-    console.log('Transformed match situation:', transformed);
 
     return transformed;
 };
@@ -100,11 +93,7 @@ export const transformMatchDetails = (matchDetails: ClientMatch['matchDetails'])
     }
 
     // Log incoming data
-    console.log('Transforming match details:', {
-        home: matchDetails.home,
-        away: matchDetails.away,
-        types: matchDetails.types
-    });
+
 
     const transformed = {
         home: {
@@ -153,7 +142,6 @@ export const transformMatchDetails = (matchDetails: ClientMatch['matchDetails'])
     };
 
     // Log transformed data
-    console.log('Transformed match details:', transformed);
 
     return transformed;
 };

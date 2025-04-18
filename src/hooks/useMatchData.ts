@@ -73,7 +73,6 @@ const processMatchData = (match: Match): UpcomingMatch => {
     const awayTeam = getAwayTeam(match);
 
     if (!homeTeam || !awayTeam) {
-        console.warn('Missing team data for match:', match.id);
         return {
             id: String(match.id),
             homeTeam: {
