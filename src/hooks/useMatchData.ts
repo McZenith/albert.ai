@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { HubConnection, HubConnectionBuilder } from '@microsoft/signalr';
 import { useCartStore } from './useStore';
 import { ClientMatch, TransformedMatch, Match, UpcomingMatch, Team } from '@/types/match';
@@ -423,25 +423,118 @@ export const useMatchData = () => {
     const lastPredictionDataLengthRef = useRef<number>(0);
     const [lastUpdate, setLastUpdate] = useState<number>(Date.now());
 
+    // Track latest match lists
+    const previousMatchesRef = useRef<TransformedMatch[]>([]);
+    const previousAllLiveMatchesRef = useRef<TransformedMatch[]>([]);
+
+    // Add debounce for UI updates
+    const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
     // Get store actions
     const setPredictionData = useCartStore((state) => state.setPredictionData);
     const setIsPredictionDataLoaded = useCartStore((state) => state.setIsPredictionDataLoaded);
     const isPredictionDataLoaded = useCartStore((state) => state.isPredictionDataLoaded);
     const predictionData = useCartStore((state) => state.predictionData);
 
-    // Add effect to force re-render when data changes
+    // Stability-optimized state updater
+    const stableUpdateMatches = useCallback((newMatches: Map<string, TransformedMatch>, setter: React.Dispatch<React.SetStateAction<TransformedMatch[]>>, previousRef: React.MutableRefObject<TransformedMatch[]>) => {
+        if (updateTimeoutRef.current) {
+            clearTimeout(updateTimeoutRef.current);
+        }
+
+        updateTimeoutRef.current = setTimeout(() => {
+            const currentValues = Array.from(newMatches.values());
+
+            // Preserve existing structure as much as possible
+            if (previousRef.current.length > 0) {
+                // Create a map of the previous state for quick lookups
+                const previousMap = new Map(
+                    previousRef.current.map(match => [match.id, match])
+                );
+
+                // Create new array maintaining order of previous matches where possible
+                const stableMatches: TransformedMatch[] = [];
+
+                // First add all matches that existed before (preserving their order)
+                previousRef.current.forEach(prevMatch => {
+                    const updatedMatch = newMatches.get(prevMatch.id);
+                    if (updatedMatch) {
+                        // Preserve component state using a stable reference
+                        stableMatches.push({
+                            ...updatedMatch,
+                            // Inherit these properties (internal UI properties) from previous match
+                            // to keep UI stable when updating
+                            playedSeconds: updatedMatch.playedSeconds, // Use new time value
+                            score: updatedMatch.score, // Use new score
+                            // Let React see this as the "same" object for UI stability
+                            teams: {
+                                ...updatedMatch.teams,
+                                home: {
+                                    ...updatedMatch.teams.home,
+                                    // name stabilization (only relevant for React keys)
+                                    name: prevMatch.teams.home.name === updatedMatch.teams.home.name
+                                        ? prevMatch.teams.home.name
+                                        : updatedMatch.teams.home.name,
+                                },
+                                away: {
+                                    ...updatedMatch.teams.away,
+                                    // name stabilization (only relevant for React keys)
+                                    name: prevMatch.teams.away.name === updatedMatch.teams.away.name
+                                        ? prevMatch.teams.away.name
+                                        : updatedMatch.teams.away.name,
+                                }
+                            }
+                        });
+                        // Remove from map to track which ones are new
+                        newMatches.delete(prevMatch.id);
+                    }
+                });
+
+                // Add any new matches that weren't in the previous state
+                currentValues.forEach(match => {
+                    if (!previousMap.has(match.id)) {
+                        stableMatches.push(match);
+                    }
+                });
+
+                // Update with the stable array that preserves object references
+                previousRef.current = stableMatches;
+                setter(stableMatches);
+            } else {
+                // First load, just use the current values
+                previousRef.current = currentValues;
+                setter(currentValues);
+            }
+        }, 50);  // Small debounce to batch multiple rapid updates
+    }, []);
+
+    // Add effect to smoothly update the UI when data changes
     useEffect(() => {
         const interval = setInterval(() => {
             if (latestMatchesRef.current.size > 0) {
-                setMatches(Array.from(latestMatchesRef.current.values()));
+                stableUpdateMatches(
+                    latestMatchesRef.current,
+                    setMatches,
+                    previousMatchesRef
+                );
             }
-            if (latestAllMatchesRef.current.size > 0) {
-                setAllLiveMatches(Array.from(latestAllMatchesRef.current.values()));
-            }
-        }, 500); // Update more frequently (every 500ms)
 
-        return () => clearInterval(interval);
-    }, []);
+            if (latestAllMatchesRef.current.size > 0) {
+                stableUpdateMatches(
+                    latestAllMatchesRef.current,
+                    setAllLiveMatches,
+                    previousAllLiveMatchesRef
+                );
+            }
+        }, 500); // Update every 500ms
+
+        return () => {
+            clearInterval(interval);
+            if (updateTimeoutRef.current) {
+                clearTimeout(updateTimeoutRef.current);
+            }
+        };
+    }, [stableUpdateMatches]);
 
     // Add a new useEffect to check all existing matches when prediction data first loads or updates
     useEffect(() => {
@@ -516,7 +609,7 @@ export const useMatchData = () => {
 
                         // Process each match from the SignalR data
                         data.forEach(match => {
-                        // Transform the match data
+                            // Transform the match data
                             const transformedMatch = transformMatch(match);
 
                             // Ensure we're using the latest match time
@@ -530,8 +623,8 @@ export const useMatchData = () => {
                         // Update the ref with the new data
                         latestMatchesRef.current = newMatchesMap;
 
-                        // Update the state with the new data
-                        setMatches(Array.from(newMatchesMap.values()));
+                        // Let the interval handle the update for smoother UI
+                        // This prevents mid-render updates that can cause UI jacking
 
                         // Update the last update timestamp
                         setLastUpdate(Date.now());
@@ -546,7 +639,7 @@ export const useMatchData = () => {
 
                         // Process each match from the SignalR data
                         data.forEach(match => {
-                        // Transform the match data
+                            // Transform the match data
                             const transformedMatch = transformMatch(match);
 
                             // Ensure we're using the latest match time
@@ -560,8 +653,8 @@ export const useMatchData = () => {
                         // Update the ref with the new data
                         latestAllMatchesRef.current = newMatchesMap;
 
-                        // Update the state with the new data
-                        setAllLiveMatches(Array.from(newMatchesMap.values()));
+                        // Let the interval handle the update for smoother UI
+                        // This prevents mid-render updates that can cause UI jacking
 
                         // Update the last update timestamp
                         setLastUpdate(Date.now());
@@ -587,6 +680,9 @@ export const useMatchData = () => {
             isMounted = false;
             if (connectionRef.current) {
                 connectionRef.current.stop();
+            }
+            if (updateTimeoutRef.current) {
+                clearTimeout(updateTimeoutRef.current);
             }
         };
     }, [isPaused, setPredictionData, setIsPredictionDataLoaded, isPredictionDataLoaded, predictionData]);

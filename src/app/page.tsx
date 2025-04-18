@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useMatchData } from '../hooks/useMatchData';
 import { useCartStore } from '@/hooks/useStore';
 import {
@@ -585,8 +585,12 @@ const MarketRow = ({
   onToggleExpand: () => void;
   isMatchSaved?: (matchId: string) => boolean;
 }) => {
-  const isInCart = cartItems.some(
-    (item) => item.matchId === match.id && item.marketId === market.id
+  const isInCart = useMemo(
+    () =>
+      cartItems.some(
+        (item) => item.matchId === match.id && item.marketId === market.id
+      ),
+    [cartItems, match.id, market.id]
   );
 
   const findPredictionForMatch = useCartStore(
@@ -705,43 +709,87 @@ const MarketRow = ({
     match.matchDetails,
     match.matchSituation,
     match.score,
-    match.status, // Added match.status to dependency array
+    match.status,
   ]);
 
-  const handleRowClick = (e: React.MouseEvent<HTMLTableRowElement>) => {
-    if (hasPrediction) {
-      e.preventDefault();
-      e.stopPropagation();
-      onToggleExpand();
-    }
-  };
+  const handleRowClick = useCallback(
+    (e: React.MouseEvent<HTMLTableRowElement>) => {
+      if (hasPrediction) {
+        e.preventDefault();
+        e.stopPropagation();
+        onToggleExpand();
+      }
+    },
+    [hasPrediction, onToggleExpand]
+  );
 
   const TOTAL_INVESTMENT = 100000;
 
-  const createOutcomeKey = (outcomeId: string, index: number) => {
-    return `${match.id}-${market.id}-${outcomeId}-${index}`;
-  };
+  const createOutcomeKey = useCallback(
+    (outcomeId: string, index: number) => {
+      return `${match.id}-${market.id}-${outcomeId}-${index}`;
+    },
+    [match.id, market.id]
+  );
 
-  const getOddsClassName = (outcome: { isChanged?: boolean }) => {
+  const getOddsClassName = useCallback((outcome: { isChanged?: boolean }) => {
     if (!outcome.isChanged) return 'text-sm font-medium text-right';
     return 'text-sm font-medium text-right bg-yellow-100 transition-colors duration-500';
-  };
+  }, []);
 
   // Check if match is saved
-  const isSaved = isMatchSaved ? isMatchSaved(match.id) : false;
+  const isSaved = useMemo(
+    () => (isMatchSaved ? isMatchSaved(match.id) : false),
+    [isMatchSaved, match.id]
+  );
+
+  const rowClassName = useMemo(() => {
+    return `border-t transition-all duration-300 ease-in-out match-row fixed-height-row ${
+      hasPrediction
+        ? performanceValidation
+          ? performanceValidation.isValid
+            ? 'border-l-4 border-l-green-600 bg-green-50 hover:bg-green-100'
+            : 'border-l-4 border-l-red-600 bg-red-50 hover:bg-red-100'
+          : 'border-l-4 border-l-blue-600 bg-blue-50 hover:bg-blue-100'
+        : 'hover:bg-gray-50'
+    }`;
+  }, [hasPrediction, performanceValidation]);
+
+  const expandedRowClassName = useMemo(() => {
+    return `transition-all duration-300 ease-in-out expanded-row ${
+      performanceValidation?.isValid
+        ? 'bg-green-50/50'
+        : performanceValidation
+        ? 'bg-red-50/50'
+        : 'bg-blue-50/50'
+    }`;
+  }, [performanceValidation]);
+
+  const handleAddRemoveClick = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (isInCart) {
+        removeItem(match.id, market.id);
+      } else {
+        addItem({
+          matchId: match.id,
+          marketId: market.id,
+          teams: match.teams,
+          market: {
+            ...market,
+            outcomes: market.outcomes,
+          },
+          addedAt: new Date().toISOString(),
+        });
+      }
+    },
+    [addItem, isInCart, match.id, match.teams, market, removeItem]
+  );
 
   return (
     <>
       <tr
-        className={`border-t transition-all duration-200 ease-in-out ${
-          hasPrediction
-            ? performanceValidation
-              ? performanceValidation.isValid
-                ? 'border-l-4 border-l-green-600 bg-green-50 hover:bg-green-100'
-                : 'border-l-4 border-l-red-600 bg-red-50 hover:bg-red-100'
-              : 'border-l-4 border-l-blue-600 bg-blue-50 hover:bg-blue-100'
-            : 'hover:bg-gray-50'
-        }`}
+        className={rowClassName}
         onClick={handleRowClick}
         style={{ cursor: hasPrediction ? 'pointer' : 'default' }}
       >
@@ -752,20 +800,22 @@ const MarketRow = ({
               <span className='font-medium text-gray-900'>
                 {match.teams.home.name}
               </span>
-              {hasPrediction && (
-                <span className='inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800'>
-                  Prediction
-                </span>
-              )}
-              {isSaved && (
-                <span
-                  className='ml-1 text-xs bg-blue-100 text-blue-800 rounded px-1.5 py-0.5 font-semibold flex items-center'
-                  title='This match was saved from Upcoming Tab'
-                >
-                  <Database className='w-3 h-3 mr-0.5' />
-                  Saved
-                </span>
-              )}
+              <div className='flex items-center space-x-1'>
+                {hasPrediction && (
+                  <span className='inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800'>
+                    Prediction
+                  </span>
+                )}
+                {isSaved && (
+                  <span
+                    className='text-xs bg-blue-100 text-blue-800 rounded px-1.5 py-0.5 font-semibold flex items-center'
+                    title='This match was saved from Upcoming Tab'
+                  >
+                    <Database className='w-3 h-3 mr-0.5' />
+                    Saved
+                  </span>
+                )}
+              </div>
             </div>
             <span className='text-sm text-gray-600'>
               {match.teams.away.name}
@@ -921,23 +971,7 @@ const MarketRow = ({
         {/* Actions Column */}
         <td className='px-4 py-3 text-center'>
           <button
-            onClick={(e) => {
-              e.stopPropagation();
-              if (isInCart) {
-                removeItem(match.id, market.id);
-              } else {
-                addItem({
-                  matchId: match.id,
-                  marketId: market.id,
-                  teams: match.teams,
-                  market: {
-                    ...market,
-                    outcomes: market.outcomes,
-                  },
-                  addedAt: new Date().toISOString(),
-                });
-              }
-            }}
+            onClick={handleAddRemoveClick}
             disabled={disabled}
             className={`inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium transition-colors duration-200 ${
               isInCart
@@ -952,17 +986,9 @@ const MarketRow = ({
 
       {/* Expanded prediction details */}
       {isExpanded && hasPrediction && predictionMatch && (
-        <tr
-          className={`${
-            performanceValidation?.isValid
-              ? 'bg-green-50/50'
-              : performanceValidation
-              ? 'bg-red-50/50'
-              : 'bg-blue-50/50'
-          }`}
-        >
+        <tr className={expandedRowClassName}>
           <td colSpan={13} className='p-4'>
-            <div className='border border-gray-100 rounded-lg bg-white p-4 shadow-sm space-y-4'>
+            <div className='border border-gray-100 rounded-lg bg-white p-4 shadow-sm space-y-4 expanded-content'>
               {/* Win Probability & Stats */}
               <div className='grid grid-cols-3 gap-4'>
                 <div className='col-span-2 bg-gray-50 rounded-lg p-3'>
@@ -1690,6 +1716,21 @@ const MarketRow = ({
   );
 };
 
+// Memoize the MarketRow to prevent unnecessary re-renders
+const MemoizedMarketRow = React.memo(MarketRow, (prevProps, nextProps) => {
+  // Only re-render if these specific props change
+  return (
+    prevProps.match.id === nextProps.match.id &&
+    prevProps.market.id === nextProps.market.id &&
+    prevProps.isExpanded === nextProps.isExpanded &&
+    prevProps.disabled === nextProps.disabled &&
+    JSON.stringify(prevProps.market.outcomes) ===
+      JSON.stringify(nextProps.market.outcomes) &&
+    prevProps.isMatchSaved?.(prevProps.match.id) ===
+      nextProps.isMatchSaved?.(nextProps.match.id)
+  );
+});
+
 // Main Component
 const MatchesPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -2126,6 +2167,15 @@ const MatchesPage = () => {
       return newSet;
     });
   };
+
+  // Memoize the filtered matches to prevent unnecessary re-renders
+  const memoizedFilteredMatches = useMemo(
+    () =>
+      getSortedAndFilteredMatches(
+        activeTab === 'live' ? liveMatches : allLiveMatches
+      ),
+    [activeTab, liveMatches, allLiveMatches, sortConfigs, filters, searchQuery]
+  );
 
   // Function to check if a match has a clear preferred team
   const hasClearPreferredTeam = (match: Match): boolean => {
@@ -2585,8 +2635,98 @@ const MatchesPage = () => {
   );
 
   return (
-    <div className='min-h-screen bg-gray-50'>
-      <div className='py-4'>
+    <div className='min-h-screen bg-gray-50 overflow-x-hidden'>
+      <style jsx global>{`
+        .match-table-row-enter {
+          opacity: 0;
+          transform: translateY(-10px);
+        }
+        .match-table-row-enter-active {
+          opacity: 1;
+          transform: translateY(0);
+          transition: opacity 300ms ease-in-out, transform 300ms ease-in-out;
+        }
+        .match-table-row-exit {
+          opacity: 1;
+        }
+        .match-table-row-exit-active {
+          opacity: 0;
+          transform: translateY(10px);
+          transition: opacity 300ms ease-in-out, transform 300ms ease-in-out;
+        }
+
+        /* Prevent UI jacking when rows are added/removed */
+        .match-table {
+          will-change: contents;
+          contain: content;
+          position: relative;
+        }
+
+        /* Lock table layout to prevent resizing */
+        .match-table table {
+          table-layout: fixed;
+          width: 100%;
+        }
+
+        /* Ensure cells maintain their size during updates */
+        .match-table td,
+        .match-table th {
+          box-sizing: border-box;
+          position: relative;
+          overflow: hidden;
+        }
+
+        /* Create consistent heights for expanded content */
+        .expanded-content {
+          height: auto;
+          transition: height 300ms ease-in-out, opacity 300ms ease-in-out;
+          contain: content;
+          overflow: hidden;
+        }
+
+        /* Improve transitions for expanded rows */
+        .expanded-row {
+          position: relative;
+          transition: all 300ms ease-in-out;
+          opacity: 1;
+        }
+
+        /* Use hardware acceleration for smoother transitions */
+        .match-row {
+          transform: translateZ(0);
+          backface-visibility: hidden;
+          perspective: 1000px;
+          will-change: transform;
+        }
+
+        /* Prevent layout shifts */
+        .fixed-height-row {
+          min-height: 80px;
+        }
+
+        /* Smooth transitions for expanded content */
+        .expanded-content-enter {
+          max-height: 0;
+          opacity: 0;
+          overflow: hidden;
+        }
+        .expanded-content-enter-active {
+          max-height: 1000px;
+          opacity: 1;
+          transition: max-height 300ms ease-in-out, opacity 300ms ease-in-out;
+        }
+        .expanded-content-exit {
+          max-height: 1000px;
+          opacity: 1;
+          overflow: hidden;
+        }
+        .expanded-content-exit-active {
+          max-height: 0;
+          opacity: 0;
+          transition: max-height 300ms ease-in-out, opacity 300ms ease-in-out;
+        }
+      `}</style>
+      <div className='p-4'>
         <div className='relative'>
           {copiedText && (
             <p className='text-sm text-gray-700 bg-gray-100 px-4 py-2 rounded-md'>
@@ -3197,7 +3337,7 @@ const MatchesPage = () => {
               <LoadingTable />
             ) : (
               <div className='mt-4 bg-white rounded-lg shadow-sm'>
-                <div className='w-full overflow-x-auto min-w-0'>
+                <div className='w-full overflow-x-auto min-w-0 match-table'>
                   <table className='w-full divide-y divide-gray-200 table-fixed min-w-[1400px]'>
                     <thead>
                       <tr className='bg-gray-50 sticky top-0 z-10'>
@@ -3213,7 +3353,7 @@ const MatchesPage = () => {
                           isActive={sortConfigs.some(
                             (c) => c.field === 'playedSeconds'
                           )}
-                          className='w-[200px] min-w-[200px]'
+                          className='w-[250px] min-w-[250px]'
                         />
                         <HeaderCell
                           title='Score'
@@ -3312,7 +3452,7 @@ const MatchesPage = () => {
                       </tr>
                     </thead>
                     <tbody className='divide-y divide-gray-200'>
-                      {filteredMatches.flatMap((match, matchIndex) => {
+                      {memoizedFilteredMatches.flatMap((match) => {
                         return match.markets
                           .filter((market) =>
                             activeTab === 'live'
@@ -3320,24 +3460,35 @@ const MatchesPage = () => {
                                 '1st Half - Correct Score'
                               : true
                           )
-                          .map((market, marketIndex) => (
-                            <MarketRow
-                              key={`${match.id}-${market.id}-${matchIndex}-${marketIndex}`}
-                              match={match}
-                              market={market}
-                              cartItems={cartItems}
-                              addItem={addItem}
-                              removeItem={removeItem}
-                              disabled={isInitialLoading}
-                              isExpanded={expandedRows.has(
-                                `${match.id}-${market.id}`
-                              )}
-                              onToggleExpand={() =>
-                                toggleExpandedRow(match.id, market.id)
-                              }
-                              isMatchSaved={isMatchSaved}
-                            />
-                          ));
+                          .map(
+                            (
+                              market: Match['markets'][0],
+                              marketIndex: number
+                            ) => {
+                              const marketKey = `${match.id}-${market.id}`;
+                              const isRowExpanded = expandedRows.has(marketKey);
+
+                              // Create a stable key for the market that won't change when data updates
+                              const stableMarketKey = `${marketKey}-${marketIndex}`;
+
+                              return (
+                                <MemoizedMarketRow
+                                  key={stableMarketKey}
+                                  match={match}
+                                  market={market}
+                                  cartItems={cartItems}
+                                  addItem={addItem}
+                                  removeItem={removeItem}
+                                  disabled={isInitialLoading}
+                                  isExpanded={isRowExpanded}
+                                  onToggleExpand={() =>
+                                    toggleExpandedRow(match.id, market.id)
+                                  }
+                                  isMatchSaved={isMatchSaved}
+                                />
+                              );
+                            }
+                          );
                       })}
                     </tbody>
                   </table>
