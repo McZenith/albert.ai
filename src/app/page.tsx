@@ -508,7 +508,9 @@ const Stats = ({
 
         <div className='flex space-x-2 flex-wrap gap-2'>
           <button
-            onClick={() => setShowCartItems(!showCartItems)}
+            onClick={() => {
+              setShowCartItems(!showCartItems);
+            }}
             disabled={disabled}
             className='flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors relative'
           >
@@ -595,7 +597,9 @@ const MarketRow = ({
   // Use a more robust check that won't be affected by frequent data updates
   const isInCart = useMemo(() => {
     return cartItems.some(
-      (item) => item.matchId === match.id && item.marketId === market.id
+      (item) =>
+        String(item.matchId) === String(match.id) &&
+        String(item.marketId) === String(market.id)
     );
   }, [cartItems, match.id, market.id]);
 
@@ -777,7 +781,7 @@ const MarketRow = ({
       if (isInCart) {
         removeItem(match.id, market.id);
       } else {
-        addItem({
+        const newItem = {
           matchId: match.id,
           marketId: market.id,
           teams: match.teams,
@@ -786,7 +790,8 @@ const MarketRow = ({
             outcomes: market.outcomes,
           },
           addedAt: new Date().toISOString(),
-        });
+        };
+        addItem(newItem);
       }
     },
     [addItem, isInCart, match.id, match.teams, market, removeItem]
@@ -1740,14 +1745,14 @@ const MemoizedMarketRow = React.memo(MarketRow, (prevProps, nextProps) => {
   // Check if this item is in the cart - this is crucial for the Add/Remove button
   const prevIsInCart = prevProps.cartItems.some(
     (item) =>
-      item.matchId === prevProps.match.id &&
-      item.marketId === prevProps.market.id
+      String(item.matchId) === String(prevProps.match.id) &&
+      String(item.marketId) === String(prevProps.market.id)
   );
 
   const nextIsInCart = nextProps.cartItems.some(
     (item) =>
-      item.matchId === nextProps.match.id &&
-      item.marketId === nextProps.market.id
+      String(item.matchId) === String(nextProps.match.id) &&
+      String(item.marketId) === String(nextProps.market.id)
   );
 
   // Track critical visual changes that should trigger re-renders
@@ -1947,10 +1952,13 @@ const MatchesPage = () => {
         !showCartItems ||
         match.markets.some((market) =>
           cartItems.some(
-            (item) => item.matchId === match.id && item.marketId === market.id
+            (item) =>
+              String(item.matchId) === String(match.id) &&
+              String(item.marketId) === String(market.id)
           )
         );
 
+    
       // Filter by saved matches using local function instead of isMatchSaved
       const matchesSaved = (() => {
         // Skip this filter if showOnlySavedMatches is false
@@ -1960,14 +1968,6 @@ const MatchesPage = () => {
 
         // When filtering for saved matches, ensure we actually check if it's saved
         const matchIdStr = String(match.id);
-        console.log(
-          'Checking if match is saved:',
-          matchIdStr,
-          'Result:',
-          Array.from(savedMatchIds).some((id) => String(id) === matchIdStr),
-          'Size of savedMatchIds:',
-          savedMatchIds.size
-        );
 
         return Array.from(savedMatchIds).some(
           (id) => String(id) === matchIdStr
@@ -2090,9 +2090,10 @@ const MatchesPage = () => {
   // Function to stabilize data updates and prevent flickering
   const getStabilizedMatches = useCallback(
     (currentMatches: Match[]): Match[] => {
-      // When filtering by saved matches, don't use stabilization
+      // When filtering by saved matches or cart items, don't use stabilization
       // This ensures the filter is applied immediately
-      if (showOnlySavedMatches) {
+      if (showOnlySavedMatches || showCartItems) {
+        console.log('Bypassing stabilization due to filters being active');
         return currentMatches;
       }
 
@@ -2180,7 +2181,7 @@ const MatchesPage = () => {
 
       return result;
     },
-    [dataUpdating, showOnlySavedMatches]
+    [dataUpdating, showOnlySavedMatches, showCartItems]
   );
 
   // Clean up the timeout on unmount
@@ -2194,12 +2195,6 @@ const MatchesPage = () => {
 
   // In the existing useMemo for memoizedFilteredMatches, apply the stabilization
   const memoizedFilteredMatches = useMemo(() => {
-    console.log('Recalculating filtered matches:', {
-      showOnlySavedMatches,
-      savedMatchCount: savedMatchIds.size,
-      activeTab,
-    });
-
     const rawFilteredMatches = getSortedAndFilteredMatches(
       activeTab === 'live' ? liveMatches : allLiveMatches
     );
@@ -2219,7 +2214,7 @@ const MatchesPage = () => {
     filters,
     searchQuery,
     showCartItems,
-    cartItems,
+    cartItems, // Ensure we're tracking the actual cart items array
     // Stabilization function
     getStabilizedMatches,
   ]);
@@ -2230,15 +2225,6 @@ const MatchesPage = () => {
       setIsInitialLoading(false);
     }
   }, [isConnected, isInitialLoading, liveMatches.length]);
-
-  // Show feedback about prediction data loading
-  useEffect(() => {
-    if (predictionData.length > 0) {
-      console.log(
-        `Prediction data loaded: ${predictionData.length} matches available for cross-reference`
-      );
-    }
-  }, [predictionData.length]);
 
   // Restore the timer effect for copiedText
   useEffect(() => {
@@ -2343,7 +2329,9 @@ const MatchesPage = () => {
         const market = match.markets[0];
         // Check if this match/market is already in cart
         const isInCart = cartItems.some(
-          (item) => item.matchId === match.id && item.marketId === market.id
+          (item) =>
+            String(item.matchId) === String(match.id) &&
+            String(item.marketId) === String(market.id)
         );
 
         if (!isInCart) {
@@ -2680,7 +2668,9 @@ const MatchesPage = () => {
           const market = match.markets[0];
           // Check if this match/market is already in cart
           const isInCart = cartItems.some(
-            (item) => item.matchId === match.id && item.marketId === market.id
+            (item) =>
+              String(item.matchId) === String(match.id) &&
+              String(item.marketId) === String(market.id)
           );
 
           if (!isInCart) {
@@ -2858,10 +2848,6 @@ const MatchesPage = () => {
 
   // Add a toggle for saved matches filter function
   const toggleSavedMatchesFilter = useCallback(() => {
-    console.log('Toggling saved matches filter', {
-      current: showOnlySavedMatches,
-      savedMatchCount: savedMatchIds.size,
-    });
 
     // Clear the previous matches reference to force a fresh calculation
     previousMatchesRef.current = [];

@@ -159,8 +159,8 @@ export const useCartStore = create<CartStore>((set, get) => ({
       // Check if this item already exists in the cart
       const exists = state.items.some(
         (existingItem) =>
-          existingItem.matchId === item.matchId &&
-          existingItem.marketId === item.marketId
+          String(existingItem.matchId) === String(item.matchId) &&
+          String(existingItem.marketId) === String(item.marketId)
       );
 
       // If it already exists, don't add it again
@@ -176,7 +176,11 @@ export const useCartStore = create<CartStore>((set, get) => ({
   removeItem: (matchId, marketId) =>
     set((state) => ({
       items: state.items.filter(
-        (item) => !(item.matchId === matchId && item.marketId === marketId)
+        (item) =>
+          !(
+            String(item.matchId) === String(matchId) &&
+            String(item.marketId) === String(marketId)
+          )
       ),
     })),
   clearCart: () => set(() => ({ items: [] })),
@@ -194,14 +198,16 @@ export const useCartStore = create<CartStore>((set, get) => ({
   removeUpcomingMatch: (matchId) =>
     set((state) => ({
       upcomingMatches: state.upcomingMatches.filter(
-        (match) => match.id !== matchId
+        (match) => String(match.id) !== String(matchId)
       ),
     })),
   clearUpcomingMatches: () => set(() => ({ upcomingMatches: [] })),
   getUpcomingMatchesCount: () => get().upcomingMatches.length,
 
   isUpcomingMatchInCart: (matchId) => {
-    return get().upcomingMatches.some((match) => match.id === matchId);
+    return get().upcomingMatches.some(
+      (match) => String(match.id) === String(matchId)
+    );
   },
 
   findPredictionForMatch: (homeTeamName: string, awayTeamName: string) => {
