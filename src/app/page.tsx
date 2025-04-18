@@ -800,13 +800,13 @@ const MarketRow = ({
         style={{ cursor: hasPrediction ? 'pointer' : 'default' }}
       >
         {/* Teams & Status Column */}
-        <td className='px-4 py-3'>
+        <td className='px-4 py-3 min-w-[250px]'>
           <div className='flex flex-col space-y-1'>
             <div className='flex items-center space-x-2'>
               <span className='font-medium text-gray-900'>
                 {match.teams.home.name}
               </span>
-              <div className='flex items-center space-x-1'>
+              <div className='flex flex-col space-y-1'>
                 {hasPrediction && (
                   <span className='inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800'>
                     Prediction
@@ -1910,12 +1910,6 @@ const MatchesPage = () => {
         : undefined,
     }));
 
-    // Define a local function to check if a match is saved
-    const checkMatchSaved = (matchId: string): boolean => {
-      const matchIdStr = String(matchId);
-      return Array.from(savedMatchIds).some((id) => String(id) === matchIdStr);
-    };
-
     const filtered = transformedMatches.filter((match) => {
       // Split search query into home and away team parts
       const searchLower = searchQuery.toLowerCase().trim();
@@ -1958,7 +1952,27 @@ const MatchesPage = () => {
         );
 
       // Filter by saved matches using local function instead of isMatchSaved
-      const matchesSaved = !showOnlySavedMatches || checkMatchSaved(match.id);
+      const matchesSaved = (() => {
+        // Skip this filter if showOnlySavedMatches is false
+        if (!showOnlySavedMatches) {
+          return true;
+        }
+
+        // When filtering for saved matches, ensure we actually check if it's saved
+        const matchIdStr = String(match.id);
+        console.log(
+          'Checking if match is saved:',
+          matchIdStr,
+          'Result:',
+          Array.from(savedMatchIds).some((id) => String(id) === matchIdStr),
+          'Size of savedMatchIds:',
+          savedMatchIds.size
+        );
+
+        return Array.from(savedMatchIds).some(
+          (id) => String(id) === matchIdStr
+        );
+      })();
 
       return (
         matchesSearch &&
@@ -2076,6 +2090,12 @@ const MatchesPage = () => {
   // Function to stabilize data updates and prevent flickering
   const getStabilizedMatches = useCallback(
     (currentMatches: Match[]): Match[] => {
+      // When filtering by saved matches, don't use stabilization
+      // This ensures the filter is applied immediately
+      if (showOnlySavedMatches) {
+        return currentMatches;
+      }
+
       // If we have no matches at all but had them before, this is likely a temporary flicker
       // Use previous data until we get at least 3 matches to prevent the "one row" issue
       if (currentMatches.length < 3 && previousMatchesRef.current.length > 5) {
@@ -2160,7 +2180,7 @@ const MatchesPage = () => {
 
       return result;
     },
-    [dataUpdating]
+    [dataUpdating, showOnlySavedMatches]
   );
 
   // Clean up the timeout on unmount
@@ -2174,6 +2194,12 @@ const MatchesPage = () => {
 
   // In the existing useMemo for memoizedFilteredMatches, apply the stabilization
   const memoizedFilteredMatches = useMemo(() => {
+    console.log('Recalculating filtered matches:', {
+      showOnlySavedMatches,
+      savedMatchCount: savedMatchIds.size,
+      activeTab,
+    });
+
     const rawFilteredMatches = getSortedAndFilteredMatches(
       activeTab === 'live' ? liveMatches : allLiveMatches
     );
@@ -2181,16 +2207,20 @@ const MatchesPage = () => {
     // Apply our stabilization function to prevent flickering
     return getStabilizedMatches(rawFilteredMatches);
   }, [
+    // Critical filter states that should always trigger recalculation
+    showOnlySavedMatches,
+    savedMatchIds,
     activeTab,
+    // Data sources
     liveMatches,
     allLiveMatches,
+    // Other filters and sorting
     sortConfigs,
     filters,
     searchQuery,
     showCartItems,
     cartItems,
-    showOnlySavedMatches,
-    savedMatchIds,
+    // Stabilization function
     getStabilizedMatches,
   ]);
 
@@ -2828,8 +2858,17 @@ const MatchesPage = () => {
 
   // Add a toggle for saved matches filter function
   const toggleSavedMatchesFilter = useCallback(() => {
+    console.log('Toggling saved matches filter', {
+      current: showOnlySavedMatches,
+      savedMatchCount: savedMatchIds.size,
+    });
+
+    // Clear the previous matches reference to force a fresh calculation
+    previousMatchesRef.current = [];
+
+    // Toggle the filter
     setShowOnlySavedMatches((prev) => !prev);
-  }, []);
+  }, [savedMatchIds, showOnlySavedMatches]);
 
   // Add scroll button visibility handler
   useEffect(() => {
