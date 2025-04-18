@@ -527,27 +527,18 @@ const MatchPredictor = () => {
   const toggleMatchInCart = (id: string | number, index: number): void => {
     const matchToAdd = upcomingMatches.find((m) => m.id === id);
     if (!matchToAdd) {
-      console.error(`Could not find match with ID ${id} at index ${index}`);
       return;
     }
 
     // Generate a unique ID if the match ID is 0
     const uniqueId = id === 0 ? `match-${index}` : id;
-    console.log(
-      `Toggling match in cart: ${matchToAdd.homeTeam.name} vs ${matchToAdd.awayTeam.name} (ID: ${uniqueId})`
-    );
 
     if (isUpcomingMatchInCart(String(uniqueId))) {
       // Remove from cart if already there
-      console.log(
-        `Removing match from cart: ${matchToAdd.homeTeam.name} vs ${matchToAdd.awayTeam.name}`
-      );
+
       removeUpcomingMatch(String(uniqueId));
     } else {
       // Add to cart if not there, ensure it has a unique ID
-      console.log(
-        `Adding match to cart: ${matchToAdd.homeTeam.name} vs ${matchToAdd.awayTeam.name}`
-      );
 
       // Create new team objects with required id properties
       const homeTeamWithId = {
@@ -570,23 +561,11 @@ const MatchPredictor = () => {
     }
 
     // Log the current cart state after the change
-    console.log(
-      `Cart now contains ${
-        useCartStore.getState().upcomingMatches.length
-      } matches`
-    );
   };
 
   const checkMatchInCart = (id: string | number, index: number): boolean => {
     const uniqueId = id === 0 ? `match-${index}` : id;
     const isInCart = isUpcomingMatchInCart(String(uniqueId));
-
-    // Add logging when matches are checked only during filtering, not during rendering
-    if (uniqueId === id) {
-      console.log(
-        `Checking if match with ID ${uniqueId} is in cart: ${isInCart}`
-      );
-    }
 
     return isInCart;
   };
@@ -765,8 +744,6 @@ const MatchPredictor = () => {
 
   // Filter function for matches
   const filterMatches = (matches: Match[]): Match[] => {
-    console.log(`Starting filtering with ${matches.length} total matches`);
-
     // Apply all basic filters first (confidence, favorite, position gap, expected goals)
     let filteredMatches = matches.filter((match) => {
       // Filter by confidence score
@@ -845,36 +822,19 @@ const MatchPredictor = () => {
       return true;
     });
 
-    console.log(`After basic filters: ${filteredMatches.length} matches`);
-
     // Next apply the time window filter if enabled
     if (filters.showOnlyUpcoming) {
       const windowFiltered = applyTimeWindowFilter(filteredMatches);
       filteredMatches = windowFiltered;
-      console.log(`After time filter: ${filteredMatches.length} matches`);
     }
 
     // Finally, apply cart filter if enabled (after all other filters)
     if (showOnlyCart) {
-      console.log(`Applying cart filter to ${filteredMatches.length} matches`);
-      const beforeCartCount = filteredMatches.length;
-
       filteredMatches = filteredMatches.filter((match, index) => {
         const uniqueId = match.id === 0 ? `match-${index}` : match.id;
         const isInCart = isUpcomingMatchInCart(String(uniqueId));
-
-        if (isInCart) {
-          console.log(
-            `Match in cart: ${match.homeTeam.name} vs ${match.awayTeam.name} (ID: ${uniqueId})`
-          );
-        }
-
         return isInCart;
       });
-
-      console.log(
-        `After cart filter: ${filteredMatches.length}/${beforeCartCount} matches remain`
-      );
     }
 
     return filteredMatches;
@@ -884,7 +844,6 @@ const MatchPredictor = () => {
   const applyTimeWindowFilter = (matches: Match[]): Match[] => {
     // Try 24 hour window first
     const matchesIn24Hours = filterByTimeWindow(matches, 24);
-    console.log(`Matches in 24h window: ${matchesIn24Hours.length}`);
 
     // If we have a reasonable number of matches in the 24 hour window, return those
     if (matchesIn24Hours.length >= 5) {
@@ -893,7 +852,6 @@ const MatchPredictor = () => {
 
     // If we have very few matches, try a 72 hour window
     const matchesIn72Hours = filterByTimeWindow(matches, 72);
-    console.log(`Matches in 72h window: ${matchesIn72Hours.length}`);
 
     // If we have a reasonable number of matches in the 72 hour window, return those
     if (matchesIn72Hours.length >= 5) {
@@ -902,7 +860,6 @@ const MatchPredictor = () => {
 
     // As a last resort, try a 7 day window
     const matchesIn7Days = filterByTimeWindow(matches, 24 * 7);
-    console.log(`Matches in 7 day window: ${matchesIn7Days.length}`);
     return matchesIn7Days;
   };
 
@@ -990,7 +947,6 @@ const MatchPredictor = () => {
 
         // Check if the date is valid
         if (!matchDateTime || isNaN(matchDateTime.getTime())) {
-          console.error('Invalid date/time format:', match.date, match.time);
           return false;
         }
 
@@ -1000,13 +956,7 @@ const MatchPredictor = () => {
         }
 
         return true;
-      } catch (error) {
-        console.error(
-          'Error parsing match date/time:',
-          error,
-          match.date,
-          match.time
-        );
+      } catch {
         return false;
       }
     });
@@ -1039,11 +989,8 @@ const MatchPredictor = () => {
 
   // Add a function to select all visible matches
   const selectAllVisibleMatches = () => {
-    console.log('Selecting all visible matches');
     const visibleMatches = sortedMatches; // Use sorted matches instead of filtering again
-    console.log(`Found ${visibleMatches.length} visible matches to select`);
 
-    let addedCount = 0;
     visibleMatches.forEach((match, index) => {
       // Only add matches that are not already in the cart
       const uniqueId = match.id === 0 ? `match-${index}` : match.id;
@@ -1066,16 +1013,8 @@ const MatchPredictor = () => {
           homeTeam: homeTeamWithId,
           awayTeam: awayTeamWithId,
         });
-
-        addedCount++;
       }
     });
-
-    console.log(
-      `Added ${addedCount} new matches to cart. Total cart size: ${
-        useCartStore.getState().upcomingMatches.length
-      }`
-    );
   };
 
   // Add a function to clear all selected matches
@@ -1115,24 +1054,10 @@ const MatchPredictor = () => {
   // Add a function to toggle showing only cart items
   const toggleCartFilter = () => {
     const newValue = !showOnlyCart;
-    console.log(`Toggling cart filter from ${showOnlyCart} to ${newValue}`);
-    console.log(
-      `Current cart size: ${
-        useCartStore.getState().upcomingMatches.length
-      } matches`
-    );
 
     // Log some cart items for debugging
     if (useCartStore.getState().upcomingMatches.length > 0) {
-      console.log('Sample cart items:');
-      useCartStore
-        .getState()
-        .upcomingMatches.slice(0, 3)
-        .forEach((match) => {
-          console.log(
-            `- ${match.homeTeam.name} vs ${match.awayTeam.name} (ID: ${match.id})`
-          );
-        });
+      useCartStore.getState().upcomingMatches.slice(0, 3);
     }
 
     setShowOnlyCart(newValue);
@@ -1241,8 +1166,7 @@ const MatchPredictor = () => {
           hour12: false,
         });
       }
-    } catch (error) {
-      console.error('Error formatting match date:', error);
+    } catch {
       return `${date || 'N/A'} ${time || ''}`;
     }
   };
@@ -1653,14 +1577,11 @@ const MatchPredictor = () => {
         cartItems.forEach((match) => newSavedMatches.add(match.id));
         setSavedMatchIds(newSavedMatches);
 
-        toast.success(
-          `Successfully saved ${result.count} matches to database!`
-        );
+        toast.success(`${result.message}`);
       } else {
         toast.error(`Failed to save matches: ${result.error}`);
       }
-    } catch (error) {
-      console.error('Error saving matches:', error);
+    } catch {
       toast.error('An error occurred while saving matches');
     } finally {
       setIsSavingToDb(false);

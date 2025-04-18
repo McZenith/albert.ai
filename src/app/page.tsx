@@ -2548,9 +2548,9 @@ const MatchesPage = () => {
     try {
       const result = await getSavedMatches();
 
-      if (result.success && result.matches) {
+      if (!('error' in result) && result.savedMatches) {
         const savedIds = new Set<string>();
-        result.matches.forEach((match) => {
+        result.savedMatches.forEach((match) => {
           // Ensure ID is stored as a string
           savedIds.add(String(match.id));
         });

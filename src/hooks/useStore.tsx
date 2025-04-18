@@ -1,6 +1,16 @@
 import { create } from 'zustand';
 import { normalizeTeamName, getTeamNameSimilarity } from '@/utils/teamUtils';
 import { UpcomingMatch } from '@/types/match';
+import {
+  saveMatchesToDatabase,
+  getSavedMatches,
+  deleteSavedMatch,
+} from '@/app/actions';
+
+interface SavedMatch {
+  id: string;
+  [key: string]: unknown;
+}
 
 interface CartItem {
   matchId: string;
@@ -42,6 +52,17 @@ interface CartStore {
     homeTeamName: string,
     awayTeamName: string
   ) => UpcomingMatch | null;
+  savedMatchIds: string[];
+  setSavedMatchIds: (ids: string[]) => void;
+  addSavedMatchId: (id: string) => void;
+  isSavedMatch: (id: string) => boolean;
+  fetchSavedMatches: () => Promise<string[]>;
+  saveMatchesToDb: (
+    matches: UpcomingMatch[]
+  ) => Promise<{ success: boolean; message: string }>;
+  deleteMatchFromDb: (
+    id: string
+  ) => Promise<{ success: boolean; message: string }>;
 }
 
 export const useCartStore = create<CartStore>((set, get) => ({
@@ -49,10 +70,89 @@ export const useCartStore = create<CartStore>((set, get) => ({
   upcomingMatches: [],
   predictionData: [],
   isPredictionDataLoaded: false,
+  savedMatchIds: [],
 
   setPredictionData: (data) => set({ predictionData: data }),
   setIsPredictionDataLoaded: (loaded) =>
     set({ isPredictionDataLoaded: loaded }),
+
+  setSavedMatchIds: (ids) => set({ savedMatchIds: ids }),
+  addSavedMatchId: (id) =>
+    set((state) => ({
+      savedMatchIds: [...state.savedMatchIds, id],
+    })),
+  isSavedMatch: (id) => get().savedMatchIds.includes(id),
+
+  fetchSavedMatches: async () => {
+    try {
+      const result = await getSavedMatches();
+
+      if ('error' in result) {
+        console.error('Error fetching saved matches:', result.error);
+        return [];
+      }
+
+      if (result.savedMatches) {
+        // Extract match IDs from saved matches
+        const ids = result.savedMatches
+          .map((match: any) => match.id)
+          .filter(Boolean);
+        set({ savedMatchIds: ids });
+        return ids;
+      }
+    } catch (error) {
+      console.error('Error fetching saved matches:', error);
+    }
+    return [];
+  },
+
+  saveMatchesToDb: async (matches) => {
+    try {
+      const result = await saveMatchesToDatabase(matches);
+
+      if ('error' in result) {
+        return { success: false, message: result.error || 'Unknown error' };
+      }
+
+      // If successful, update the savedMatchIds
+      const newIds = matches.map((match) => match.id as string);
+      set((state) => ({
+        savedMatchIds: [...state.savedMatchIds, ...newIds],
+      }));
+      return { success: true, message: result.message };
+    } catch (error) {
+      console.error('Error saving matches to DB:', error);
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+  },
+
+  deleteMatchFromDb: async (id) => {
+    try {
+      const result = await deleteSavedMatch(id);
+
+      if ('error' in result) {
+        return { success: false, message: result.error || 'Unknown error' };
+      }
+
+      // Remove the ID from savedMatchIds
+      set((state) => ({
+        savedMatchIds: state.savedMatchIds.filter((savedId) => savedId !== id),
+      }));
+      return {
+        success: true,
+        message: result.message || 'Match deleted successfully',
+      };
+    } catch (error) {
+      console.error('Error deleting match from DB:', error);
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+  },
 
   addItem: (item) =>
     set((state) => ({

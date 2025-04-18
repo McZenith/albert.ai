@@ -1,6 +1,6 @@
 'use server'
 
-import { MongoClient } from 'mongodb'
+import { MongoClient, ObjectId } from 'mongodb'
 import { revalidatePath } from 'next/cache'
 
 // Define types for saved matches
@@ -21,137 +21,149 @@ interface SavedMatch {
   [key: string]: unknown;
 }
 
-// MongoDB connection from environment variables
-const uri = process.env.MONGODB_URI ?? ""
-const dbName = process.env.MONGODB_DB_NAME ?? "SportsDb"
-const collectionName = process.env.MONGODB_COLLECTION ?? "SavedMatches"
+// Using environment variables for credentials
+const MONGODB_URI = process.env.MONGODB_URI as string;
+const MONGODB_DB = process.env.MONGODB_DB as string;
+const COLLECTION_NAME = process.env.MONGODB_COLLECTION as string;
 
 // Connect to MongoDB
-async function connectToDatabase() {
-  if (!uri) {
-    throw new Error('Please define the MONGODB_URI environment variable')
+let cachedClient: MongoClient | null = null;
+
+const connectToDatabase = async () => {
+  if (!MONGODB_URI) {
+    throw new Error('MONGODB_URI is not defined. Please set it in your environment variables.');
   }
 
-  const client = new MongoClient(uri)
+  if (cachedClient) {
+    return cachedClient;
+  }
 
+  const client = new MongoClient(MONGODB_URI);
+  await client.connect();
+  cachedClient = client;
+  return client;
+};
+
+// Create an index to auto-delete expired documents
+const createExpiryIndex = async () => {
   try {
-    await client.connect()
-    const db = client.db(dbName)
-    const collection = db.collection(collectionName)
+    const client = await connectToDatabase();
+    const db = client.db(MONGODB_DB);
+    const collection = db.collection(COLLECTION_NAME);
 
-    // Create TTL index if it doesn't exist (auto-delete after 3 days)
-    const indexes = await collection.indexes()
-    const hasTTLIndex = indexes.some(index => index.name === 'expiresAt_1')
-
-    if (!hasTTLIndex) {
-      await collection.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 259200 }) // 3 days in seconds
-    }
-
-    return { db, collection, client }
+    // Create a TTL index on expires_at field to auto-delete after expiry
+    await collection.createIndex({ expires_at: 1 }, { expireAfterSeconds: 0 });
+    console.log("TTL index created successfully");
   } catch (error) {
-    console.error('Failed to connect to MongoDB', error)
-    await client.close()
-    throw new Error('Failed to connect to database')
+    console.error("Error creating TTL index:", error);
   }
-}
+};
+
+// Initialize index
+createExpiryIndex().catch(console.error);
 
 // Save matches to database
 export async function saveMatchesToDatabase(matches: SavedMatch[]) {
-  let client
   try {
-    const { collection, client: mongoClient } = await connectToDatabase()
-    client = mongoClient
+    if (!Array.isArray(matches) || matches.length === 0) {
+      return { error: 'No matches provided', status: 400 };
+    }
 
-    // Prepare matches for saving with expiration date
-    const matchesToSave = matches.map(match => ({
+    const client = await connectToDatabase();
+    const db = client.db(MONGODB_DB);
+    const collection = db.collection(COLLECTION_NAME);
+
+    // Add expiry date (3 days from now)
+    const expiryDate = new Date();
+    expiryDate.setDate(expiryDate.getDate() + 3);
+
+    // Prepare matches with expiry date
+    const matchesWithExpiry = matches.map(match => ({
       ...match,
-      savedAt: new Date(),
-      expiresAt: new Date(Date.now() + 259200000), // Current time + 3 days
-    }))
+      saved_at: new Date(),
+      expires_at: expiryDate
+    }));
 
     // Insert matches
-    const result = await collection.insertMany(matchesToSave)
+    const result = await collection.insertMany(matchesWithExpiry);
 
-    // Revalidate the paths to update UI
-    revalidatePath('/')
+    revalidatePath('/');
 
-    return { success: true, count: result.insertedCount }
+    return {
+      success: true,
+      message: `${result.insertedCount} matches saved successfully`,
+      ids: result.insertedIds,
+      status: 201
+    };
   } catch (error) {
-    console.error('Error saving matches:', error)
-    return { success: false, error: 'Failed to save matches' }
-  } finally {
-    // Close connection
-    if (client) await client.close()
+    console.error('Error saving matches:', error);
+    return {
+      error: 'Failed to save matches',
+      details: (error as Error).message,
+      status: 500
+    };
   }
 }
 
 // Get saved matches from database
 export async function getSavedMatches() {
-  let client
   try {
-    const { collection, client: mongoClient } = await connectToDatabase()
-    client = mongoClient
+    const client = await connectToDatabase();
+    const db = client.db(MONGODB_DB);
+    const collection = db.collection(COLLECTION_NAME);
 
-    // Get all saved matches
-    const savedMatches = await collection.find({}).toArray()
+    // Get all unexpired saved matches
+    const savedMatches = await collection
+      .find({ expires_at: { $gt: new Date() } })
+      .toArray();
 
-    // Convert MongoDB documents to plain objects and remove _id field
-    const serializedMatches = savedMatches.map(match => {
-      const plainMatch = JSON.parse(JSON.stringify(match))
-      // Remove the MongoDB _id field
-      delete plainMatch._id
-      return plainMatch
-    })
-
-    return { success: true, matches: serializedMatches }
+    return {
+      savedMatches,
+      count: savedMatches.length,
+      status: 200
+    };
   } catch (error) {
-    console.error('Error fetching saved matches:', error)
-    return { success: false, error: 'Failed to fetch saved matches', matches: [] }
-  } finally {
-    // Close connection
-    if (client) await client.close()
-  }
-}
-
-// Check if a match is saved
-export async function isMatchSaved(matchId: string) {
-  let client
-  try {
-    const { collection, client: mongoClient } = await connectToDatabase()
-    client = mongoClient
-
-    // Check if match exists
-    const match = await collection.findOne({ 'id': matchId })
-
-    return { success: true, isSaved: !!match }
-  } catch (error) {
-    console.error('Error checking if match is saved:', error)
-    return { success: false, isSaved: false }
-  } finally {
-    // Close connection
-    if (client) await client.close()
+    console.error('Error retrieving saved matches:', error);
+    return {
+      error: 'Failed to retrieve saved matches',
+      details: (error as Error).message,
+      status: 500
+    };
   }
 }
 
 // Delete a saved match
-export async function deleteSavedMatch(matchId: string) {
-  let client
+export async function deleteSavedMatch(id: string) {
   try {
-    const { collection, client: mongoClient } = await connectToDatabase()
-    client = mongoClient
+    if (!id) {
+      return { error: 'Match ID is required', status: 400 };
+    }
 
-    // Delete the match
-    const result = await collection.deleteOne({ 'id': matchId })
+    const client = await connectToDatabase();
+    const db = client.db(MONGODB_DB);
+    const collection = db.collection(COLLECTION_NAME);
 
-    // Revalidate the paths to update UI
-    revalidatePath('/')
+    const result = await collection.deleteOne({
+      _id: new ObjectId(id)
+    });
 
-    return { success: true, deleted: result.deletedCount > 0 }
+    if (result.deletedCount === 0) {
+      return { error: 'Match not found', status: 404 };
+    }
+
+    revalidatePath('/');
+
+    return {
+      success: true,
+      message: 'Match deleted successfully',
+      status: 200
+    };
   } catch (error) {
-    console.error('Error deleting saved match:', error)
-    return { success: false, error: 'Failed to delete saved match' }
-  } finally {
-    // Close connection
-    if (client) await client.close()
+    console.error('Error deleting match:', error);
+    return {
+      error: 'Failed to delete match',
+      details: (error as Error).message,
+      status: 500
+    };
   }
 } 
