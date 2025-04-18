@@ -1747,6 +1747,8 @@ const MatchesPage = () => {
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [enableGrouping, setEnableGrouping] = useState<boolean>(false);
   const [groupSize, setGroupSize] = useState<number>(4);
+  const [showOnlySavedMatches, setShowOnlySavedMatches] =
+    useState<boolean>(false);
   const [sortConfigs, setSortConfigs] = useState<
     Array<{ field: string; direction: SortDirection }>
   >(() => {
@@ -1814,6 +1816,29 @@ const MatchesPage = () => {
     setIsInitialLoading(allLiveMatches.length === 0 && isConnected);
   }, [allLiveMatches, isConnected]);
 
+  // Fetch saved matches when component mounts
+  useEffect(() => {
+    fetchSavedMatches();
+
+    // Refresh saved matches every 5 minutes
+    const intervalId = setInterval(fetchSavedMatches, 5 * 60 * 1000);
+
+    return () => clearInterval(intervalId);
+  }, []);
+
+  // Check if a match is saved - moved up before it's used
+  const isMatchSaved = useCallback(
+    (matchId: string) => {
+      // Convert both to string to ensure type consistency
+      const matchIdStr = String(matchId);
+      const isSaved = Array.from(savedMatchIds).some(
+        (id) => String(id) === matchIdStr
+      );
+      return isSaved;
+    },
+    [savedMatchIds]
+  );
+
   const getSortedAndFilteredMatches = (matches: Match[]): Match[] => {
     // Create a fresh copy of the matches to ensure we're working with the latest data
     const transformedMatches = matches.map((match) => ({
@@ -1825,6 +1850,12 @@ const MatchesPage = () => {
           }
         : undefined,
     }));
+
+    // Define a local function to check if a match is saved
+    const checkMatchSaved = (matchId: string): boolean => {
+      const matchIdStr = String(matchId);
+      return Array.from(savedMatchIds).some((id) => String(id) === matchIdStr);
+    };
 
     const filtered = transformedMatches.filter((match) => {
       // Split search query into home and away team parts
@@ -1867,6 +1898,9 @@ const MatchesPage = () => {
           )
         );
 
+      // Filter by saved matches using local function instead of isMatchSaved
+      const matchesSaved = !showOnlySavedMatches || checkMatchSaved(match.id);
+
       return (
         matchesSearch &&
         matchesStatus &&
@@ -1874,7 +1908,8 @@ const MatchesPage = () => {
         matchesProfit &&
         matchesMargin &&
         matchesOdds &&
-        matchesCart
+        matchesCart &&
+        matchesSaved
       );
     });
 
@@ -2174,7 +2209,18 @@ const MatchesPage = () => {
       getSortedAndFilteredMatches(
         activeTab === 'live' ? liveMatches : allLiveMatches
       ),
-    [activeTab, liveMatches, allLiveMatches, sortConfigs, filters, searchQuery]
+    [
+      activeTab,
+      liveMatches,
+      allLiveMatches,
+      sortConfigs,
+      filters,
+      searchQuery,
+      showCartItems,
+      cartItems,
+      showOnlySavedMatches,
+      savedMatchIds,
+    ]
   );
 
   // Function to check if a match has a clear preferred team
@@ -2611,28 +2657,10 @@ const MatchesPage = () => {
     }
   };
 
-  // Fetch saved matches when component mounts
-  useEffect(() => {
-    fetchSavedMatches();
-
-    // Refresh saved matches every 5 minutes
-    const intervalId = setInterval(fetchSavedMatches, 5 * 60 * 1000);
-
-    return () => clearInterval(intervalId);
+  // Add a toggle for saved matches filter function
+  const toggleSavedMatchesFilter = useCallback(() => {
+    setShowOnlySavedMatches((prev) => !prev);
   }, []);
-
-  // Check if a match is saved
-  const isMatchSaved = useCallback(
-    (matchId: string) => {
-      // Convert both to string to ensure type consistency
-      const matchIdStr = String(matchId);
-      const isSaved = Array.from(savedMatchIds).some(
-        (id) => String(id) === matchIdStr
-      );
-      return isSaved;
-    },
-    [savedMatchIds]
-  );
 
   return (
     <div className='min-h-screen bg-gray-50 overflow-x-hidden'>
@@ -2795,6 +2823,23 @@ const MatchesPage = () => {
                     </select>
                   </div>
                 )}
+
+                <div className='flex items-center gap-2'>
+                  <label className='text-sm text-gray-600'>
+                    Saved Matches:
+                  </label>
+                  <button
+                    className={`px-3 py-1 text-sm rounded border ${
+                      showOnlySavedMatches
+                        ? 'bg-blue-600 text-white border-blue-700'
+                        : 'bg-white text-gray-800 border-gray-300'
+                    }`}
+                    onClick={toggleSavedMatchesFilter}
+                    disabled={isInitialLoading}
+                  >
+                    {showOnlySavedMatches ? 'Only Saved' : 'All Matches'}
+                  </button>
+                </div>
               </div>
             </div>
 
