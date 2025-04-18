@@ -87,12 +87,15 @@ export async function saveMatchesToDatabase(matches: SavedMatch[]) {
     // Insert matches
     const result = await collection.insertMany(matchesWithExpiry);
 
+    // Serialize the result to handle any potential Buffer objects
+    const serializedIds = serializeData(result.insertedIds);
+
     revalidatePath('/');
 
     return {
       success: true,
       message: `${result.insertedCount} matches saved successfully`,
-      ids: result.insertedIds,
+      ids: serializedIds,
       status: 201
     };
   } catch (error) {
@@ -104,6 +107,52 @@ export async function saveMatchesToDatabase(matches: SavedMatch[]) {
     };
   }
 }
+
+// Define type for serializable data
+type SerializableData = string | number | boolean | null | undefined | Date | Buffer |
+  SerializableData[] | { [key: string]: SerializableData };
+
+// Utility function to deeply serialize MongoDB documents and buffer objects
+const serializeData = (data: unknown): SerializableData => {
+  // Handle null or undefined
+  if (data === null || data === undefined) {
+    return data;
+  }
+
+  // Handle ObjectId
+  if (data && typeof data === 'object' && 'toString' in data && '_bsontype' in data) {
+    return data.toString();
+  }
+
+  // Handle Buffer objects
+  if (Buffer.isBuffer(data)) {
+    return data.toString('hex');
+  }
+
+  // Handle Date objects
+  if (data instanceof Date) {
+    return data.toISOString();
+  }
+
+  // Handle arrays
+  if (Array.isArray(data)) {
+    return data.map(item => serializeData(item));
+  }
+
+  // Handle plain objects (recursively)
+  if (typeof data === 'object' && data !== null) {
+    const result: Record<string, SerializableData> = {};
+    for (const key in data) {
+      if (Object.prototype.hasOwnProperty.call(data, key)) {
+        result[key] = serializeData((data as Record<string, unknown>)[key]);
+      }
+    }
+    return result;
+  }
+
+  // Return primitive values as is
+  return data as SerializableData;
+};
 
 // Get saved matches from database
 export async function getSavedMatches() {
@@ -117,9 +166,12 @@ export async function getSavedMatches() {
       .find({ expires_at: { $gt: new Date() } })
       .toArray();
 
+    // Deep serialize all match data to ensure it's safe for client components
+    const serializedMatches = serializeData(savedMatches) as Array<Record<string, SerializableData>>;
+
     return {
-      savedMatches,
-      count: savedMatches.length,
+      savedMatches: serializedMatches,
+      count: serializedMatches.length,
       status: 200
     };
   } catch (error) {
@@ -147,6 +199,7 @@ export async function deleteSavedMatch(id: string) {
       _id: new ObjectId(id)
     });
 
+    // Check if document was actually deleted
     if (result.deletedCount === 0) {
       return { error: 'Match not found', status: 404 };
     }
