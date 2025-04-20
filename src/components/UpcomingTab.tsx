@@ -788,7 +788,7 @@ const MatchPredictor = () => {
       // Filter by home goals
       if (
         filters.minHomeGoals > 0 &&
-        match.homeTeam.homeAverageGoalsScored < filters.minHomeGoals
+        match.homeTeam.averageGoalsScored < filters.minHomeGoals
       ) {
         return false;
       }
@@ -796,7 +796,7 @@ const MatchPredictor = () => {
       // Filter by away goals
       if (
         filters.minAwayGoals > 0 &&
-        match.awayTeam.awayAverageGoalsScored < filters.minAwayGoals
+        match.awayTeam.averageGoalsScored < filters.minAwayGoals
       ) {
         return false;
       }
@@ -2440,21 +2440,21 @@ const MatchPredictor = () => {
                     <td className='p-2 text-center w-[100px]'>
                       <div
                         className={`px-1.5 py-0.5 rounded text-sm inline-block ${getMetricColor(
-                          match.homeTeam.homeAverageGoalsScored || 0,
+                          match.homeTeam.averageGoalsScored || 0,
                           { high: 1.8, medium: 1.3 }
                         )}`}
                       >
-                        {Math.round(match.homeTeam.homeAverageGoalsScored || 0)}
+                        {Math.round(match.homeTeam.averageGoalsScored || 0)}
                       </div>
                     </td>
                     <td className='p-2 text-center w-[70px]'>
                       <div
                         className={`px-2 py-1 rounded-lg text-sm ${getMetricColor(
-                          match.awayTeam.awayAverageGoalsScored || 0,
+                          match.awayTeam.averageGoalsScored || 0,
                           { high: 1.4, medium: 1.0 }
                         )}`}
                       >
-                        {Math.round(match.awayTeam.awayAverageGoalsScored || 0)}
+                        {Math.round(match.awayTeam.averageGoalsScored || 0)}
                       </div>
                     </td>
                     <td className='p-2 text-center w-[60px]'>
