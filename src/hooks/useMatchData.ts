@@ -302,12 +302,10 @@ const processMatchData = (match: Match): UpcomingMatch => {
         name: enhancedCleanTeamName(homeTeam.name),
         isHomeTeam: true,
         opponentName: awayTeam.name,
-        avgHomeGoals: safeNumber(homeTeam.homeAverageGoalsScored) ||
-            safeNumber(homeTeam.averageGoalsScored) ||
-            safeNumber(homeTeam.avgHomeGoals),
-        avgAwayGoals: safeNumber(homeTeam.awayAverageGoalsScored) ||
-            safeNumber(homeTeam.averageGoalsScored) ||
-            safeNumber(homeTeam.avgAwayGoals),
+        avgHomeGoals:
+            safeNumber(homeTeam.averageGoalsScored),
+        avgAwayGoals:
+            safeNumber(homeTeam.averageGoalsScored),
         avgTotalGoals: safeNumber(homeTeam.avgTotalGoals)
     };
 
@@ -316,12 +314,10 @@ const processMatchData = (match: Match): UpcomingMatch => {
         name: enhancedCleanTeamName(awayTeam.name),
         isHomeTeam: false,
         opponentName: homeTeam.name,
-        avgHomeGoals: safeNumber(awayTeam.homeAverageGoalsScored) ||
-            safeNumber(awayTeam.averageGoalsScored) ||
-            safeNumber(awayTeam.avgHomeGoals),
-        avgAwayGoals: safeNumber(awayTeam.awayAverageGoalsScored) ||
-            safeNumber(awayTeam.averageGoalsScored) ||
-            safeNumber(awayTeam.avgAwayGoals),
+        avgHomeGoals:
+            safeNumber(awayTeam.averageGoalsScored),
+        avgAwayGoals:
+            safeNumber(awayTeam.averageGoalsScored),
         avgTotalGoals: safeNumber(awayTeam.avgTotalGoals)
     };
 
