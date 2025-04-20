@@ -2724,7 +2724,7 @@ const MatchPredictor = () => {
                                     {match.headToHead?.wins || 0}
                                   </div>
                                   <div className='text-xs text-gray-600'>
-                                    WINS
+                                    HOME WINS
                                   </div>
                                 </div>
                                 <div className='text-center'>
@@ -2740,7 +2740,7 @@ const MatchPredictor = () => {
                                     {match.headToHead?.losses || 0}
                                   </div>
                                   <div className='text-xs text-gray-600'>
-                                    LOSSES
+                                    AWAY WINS
                                   </div>
                                 </div>
                               </div>
