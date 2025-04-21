@@ -18,11 +18,13 @@ import {
   Copy,
   Database,
   ArrowUp,
+  FileDown,
 } from 'lucide-react';
 import MatchPredictor from '@/components/UpcomingTab';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { getSavedMatches } from './actions';
+import { exportMatchesToCSV } from '@/utils/exportUtils';
 
 // Enhanced Types
 interface Match {
@@ -399,6 +401,7 @@ const Stats = ({
   isPaused,
   togglePause,
   onCopyNames,
+  onCopyNamesOnly,
   activeTab,
   setActiveTab,
   cartItemsCount,
@@ -406,12 +409,14 @@ const Stats = ({
   showCartItems,
   setShowCartItems,
   onClearCart,
+  onExportCSV,
   disabled = false,
 }: {
   matchCount: number;
   isPaused: boolean;
   togglePause: () => void;
   onCopyNames: () => void;
+  onCopyNamesOnly: () => void;
   activeTab: string;
   setActiveTab: (tab: string) => void;
   cartItemsCount: number;
@@ -419,6 +424,7 @@ const Stats = ({
   showCartItems: boolean;
   setShowCartItems: (show: boolean) => void;
   onClearCart: () => void;
+  onExportCSV: () => void;
   disabled?: boolean;
 }) => {
   // Always set a consistent initial UI for both server and client
@@ -539,20 +545,30 @@ const Stats = ({
             Clear Cart
           </button>
           <button
-            onClick={onCopyNames}
-            disabled={
-              disabled ||
-              (isClient && cartItemsCount + upcomingMatchesCount === 0)
-            }
-            className={`flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors ${
-              disabled ||
-              (isClient && cartItemsCount + upcomingMatchesCount === 0)
+            className={`px-3 py-2 rounded-lg flex items-center gap-1 ${
+              disabled
                 ? 'opacity-50 cursor-not-allowed'
-                : ''
+                : 'bg-amber-600 text-white hover:bg-amber-700'
             }`}
+            onClick={onCopyNamesOnly}
+            disabled={disabled}
+            title='Copy team names only'
           >
-            <span className='mr-2'>📋</span>
-            Copy Selected Teams
+            <Copy size={16} />
+            <span className='hidden md:inline'>Copy Only</span>
+          </button>
+          <button
+            className={`px-3 py-2 rounded-lg flex items-center gap-1 ${
+              disabled
+                ? 'opacity-50 cursor-not-allowed'
+                : 'bg-blue-600 text-white hover:bg-blue-700'
+            }`}
+            onClick={onCopyNames}
+            disabled={disabled}
+            title='Copy team names and add to cart'
+          >
+            <Copy size={16} />
+            <span className='hidden md:inline'>Copy & Add</span>
           </button>
           <button
             onClick={togglePause}
@@ -565,6 +581,32 @@ const Stats = ({
                 ? 'Resume Updates'
                 : 'Pause Updates'
               : 'Pause Updates'}
+          </button>
+          <button
+            className={`px-3 py-2 rounded-lg flex items-center gap-1 ${
+              disabled
+                ? 'opacity-50 cursor-not-allowed'
+                : 'bg-green-600 text-white hover:bg-green-700'
+            }`}
+            onClick={onCopyNames}
+            disabled={disabled}
+            title='Copy team names to clipboard'
+          >
+            <Copy size={16} />
+            <span className='hidden md:inline'>Copy Names</span>
+          </button>
+          <button
+            className={`px-3 py-2 rounded-lg flex items-center gap-1 ${
+              disabled
+                ? 'opacity-50 cursor-not-allowed'
+                : 'bg-green-600 text-white hover:bg-green-700'
+            }`}
+            onClick={onExportCSV}
+            disabled={disabled}
+            title='Export cart items to CSV'
+          >
+            <FileDown size={16} />
+            <span className='hidden md:inline'>Export CSV</span>
           </button>
         </div>
       </div>
@@ -789,12 +831,17 @@ const MarketRow = ({
             ...market,
             outcomes: market.outcomes,
           },
+          match: {
+            ...match, // Include the full match object for export
+            matchDetails: match.matchDetails || {},
+            matchSituation: match.matchSituation || {},
+          },
           addedAt: new Date().toISOString(),
         };
         addItem(newItem);
       }
     },
-    [addItem, isInCart, match.id, match.teams, market, removeItem]
+    [addItem, isInCart, match, market, removeItem]
   );
 
   return (
@@ -1958,7 +2005,6 @@ const MatchesPage = () => {
           )
         );
 
-    
       // Filter by saved matches using local function instead of isMatchSaved
       const matchesSaved = (() => {
         // Skip this filter if showOnlySavedMatches is false
@@ -2309,8 +2355,8 @@ const MatchesPage = () => {
     clearUpcomingMatches();
   };
 
-  // Update the copy function to handle both carts
-  const copyAllNames = (): void => {
+  // Update the copy function to handle both carts but make adding to cart optional
+  const copyAllNames = (addToCart = false): void => {
     const cartTeamNames = cartItems.map((item) => item.teams.home.name);
     const upcomingTeamNames = upcomingMatches
       .filter((match) => match.favorite === 'home' || match.favorite === 'away')
@@ -2322,75 +2368,87 @@ const MatchesPage = () => {
 
     const allTeams = [...cartTeamNames, ...upcomingTeamNames].join('\n');
 
-    // For live tab: add matched from the filtered matches to cart
-    memoizedFilteredMatches.forEach((match) => {
-      const preferredTeam = getPreferredTeam(match);
-      if (preferredTeam && match.markets && match.markets.length > 0) {
-        const market = match.markets[0];
-        // Check if this match/market is already in cart
-        const isInCart = cartItems.some(
-          (item) =>
-            String(item.matchId) === String(match.id) &&
-            String(item.marketId) === String(market.id)
-        );
+    // Only add to cart if explicitly requested
+    if (addToCart) {
+      // For live tab: add matched from the filtered matches to cart
+      memoizedFilteredMatches.forEach((match) => {
+        const preferredTeam = getPreferredTeam(match);
+        if (preferredTeam && match.markets && match.markets.length > 0) {
+          const market = match.markets[0];
+          // Check if this match/market is already in cart
+          const isInCart = cartItems.some(
+            (item) =>
+              String(item.matchId) === String(match.id) &&
+              String(item.marketId) === String(market.id)
+          );
 
-        if (!isInCart) {
-          addItem({
-            matchId: match.id,
-            marketId: market.id,
-            teams: match.teams,
-            market: {
-              ...market,
-              outcomes: market.outcomes,
-            },
-            addedAt: new Date().toISOString(),
-          });
-        }
-      }
-    });
-
-    // For upcoming tab: make sure all matches with preferred teams are in cart
-    if (activeTab === 'upcoming') {
-      const { predictionData } = useCartStore.getState();
-      predictionData.forEach((match) => {
-        if (match.favorite === 'home' || match.favorite === 'away') {
-          const isInCart = useCartStore
-            .getState()
-            .isUpcomingMatchInCart(match.id);
           if (!isInCart) {
-            // Create new team objects with required id properties
-            const homeTeamWithId = {
-              ...match.homeTeam,
-              id: String(
-                match.homeTeam.name.replace(/\s+/g, '_').toLowerCase()
-              ),
-            };
-
-            const awayTeamWithId = {
-              ...match.awayTeam,
-              id: String(
-                match.awayTeam.name.replace(/\s+/g, '_').toLowerCase()
-              ),
-            };
-
-            addUpcomingMatch({
-              ...match,
-              id: String(match.id),
-              homeTeam: homeTeamWithId,
-              awayTeam: awayTeamWithId,
+            addItem({
+              matchId: match.id,
+              marketId: market.id,
+              teams: match.teams,
+              market: {
+                ...market,
+                outcomes: market.outcomes,
+              },
+              match: {
+                ...match, // Store the complete match object for export
+                matchDetails: match.matchDetails || {},
+                matchSituation: match.matchSituation || {},
+              },
+              addedAt: new Date().toISOString(),
             });
           }
         }
       });
+
+      // For upcoming tab: make sure all matches with preferred teams are in cart
+      if (activeTab === 'upcoming') {
+        const { predictionData } = useCartStore.getState();
+        predictionData.forEach((match) => {
+          if (match.favorite === 'home' || match.favorite === 'away') {
+            const isInCart = useCartStore
+              .getState()
+              .isUpcomingMatchInCart(match.id);
+            if (!isInCart) {
+              // Create new team objects with required id properties
+              const homeTeamWithId = {
+                ...match.homeTeam,
+                id: String(
+                  match.homeTeam.name.replace(/\s+/g, '_').toLowerCase()
+                ),
+              };
+
+              const awayTeamWithId = {
+                ...match.awayTeam,
+                id: String(
+                  match.awayTeam.name.replace(/\s+/g, '_').toLowerCase()
+                ),
+              };
+
+              addUpcomingMatch({
+                ...match,
+                id: String(match.id),
+                homeTeam: homeTeamWithId,
+                awayTeam: awayTeamWithId,
+              });
+            }
+          }
+        });
+      }
     }
 
     navigator.clipboard
       .writeText(allTeams)
       .then(() =>
         setCopiedText(
-          `${
-            cartTeamNames.length + upcomingTeamNames.length
-          } team names copied and added to cart!`
+          addToCart
+            ? `${
+                cartTeamNames.length + upcomingTeamNames.length
+              } team names copied and added to cart!`
+            : `${
+                cartTeamNames.length + upcomingTeamNames.length
+              } team names copied!`
         )
       )
       .catch((err) => console.error('Failed to copy:', err));
@@ -2682,6 +2740,11 @@ const MatchesPage = () => {
                 ...market,
                 outcomes: market.outcomes,
               },
+              match: {
+                ...match, // Include the full match object for export
+                matchDetails: match.matchDetails || {},
+                matchSituation: match.matchSituation || {},
+              },
               addedAt: new Date().toISOString(),
             });
           }
@@ -2848,7 +2911,6 @@ const MatchesPage = () => {
 
   // Add a toggle for saved matches filter function
   const toggleSavedMatchesFilter = useCallback(() => {
-
     // Clear the previous matches reference to force a fresh calculation
     previousMatchesRef.current = [];
 
@@ -2899,6 +2961,122 @@ const MatchesPage = () => {
       );
     }
   }, [memoizedFilteredMatches]);
+
+  // Add the export function near the copyAllNames function
+  const exportToCSV = (): void => {
+    const cartItems = useCartStore.getState().items;
+    const findPredictionForMatch =
+      useCartStore.getState().findPredictionForMatch;
+
+    if (cartItems.length === 0) {
+      toast.warning('No matches in cart to export!');
+      return;
+    }
+
+    // Format the data for export - create proper structured objects from cart items
+    // Include all detailed match data plus prediction data
+    const matchesToExport = cartItems
+      .map((item) => {
+        // Get associated prediction data if available
+        const homeTeamName = item.teams?.home?.name || '';
+        const awayTeamName = item.teams?.away?.name || '';
+        const prediction =
+          homeTeamName && awayTeamName
+            ? findPredictionForMatch(homeTeamName, awayTeamName)
+            : null;
+
+        // For live matches, construct a proper match object including prediction data
+        return {
+          id: item.matchId,
+          teams: item.teams,
+          score: item.match?.score || '',
+          status: item.match?.status || '',
+          playedSeconds: item.match?.playedSeconds || 0,
+          matchTime: item.match?.matchTime || '',
+          playedTime: item.match?.playedTime || '',
+          tournamentName: item.match?.tournamentName || '',
+          venue: item.match?.venue || '',
+          // Include all available match details
+          matchDetails: item.match?.matchDetails || {},
+          matchSituation: item.match?.matchSituation || {},
+          // Include market data
+          markets: item.market
+            ? [
+                {
+                  ...item.market,
+                  outcomes: item.market.outcomes || [],
+                },
+              ]
+            : [],
+          // Basic date info
+          date: new Date().toISOString().split('T')[0],
+          time: item.match?.matchTime || new Date().toTimeString().substr(0, 5),
+
+          // Include prediction data from upcoming matches
+          positionGap: prediction?.positionGap || 0,
+          favorite: prediction?.favorite || null,
+          confidenceScore: prediction?.confidenceScore || 0,
+          averageGoals: prediction?.averageGoals || 0,
+          expectedGoals: prediction?.expectedGoals || 0,
+          defensiveStrength: prediction?.defensiveStrength || 0,
+          headToHead: prediction?.headToHead || {
+            matches: 0,
+            wins: 0,
+            draws: 0,
+            losses: 0,
+            goalsScored: 0,
+            goalsConceded: 0,
+            recentMatches: [],
+          },
+          odds: prediction?.odds || {
+            homeWin: 0,
+            draw: 0,
+            awayWin: 0,
+            over15Goals: 0,
+            under15Goals: 0,
+            over25Goals: 0,
+            under25Goals: 0,
+            bttsYes: 0,
+            bttsNo: 0,
+          },
+          cornerStats: prediction?.cornerStats || {
+            homeAvg: 0,
+            awayAvg: 0,
+            totalAvg: 0,
+          },
+          scoringPatterns: prediction?.scoringPatterns || {
+            homeFirstGoalRate: 0,
+            awayFirstGoalRate: 0,
+            homeLateGoalRate: 0,
+            awayLateGoalRate: 0,
+            homeBttsRate: 0,
+            awayBttsRate: 0,
+          },
+          reasonsForPrediction: prediction?.reasonsForPrediction || [],
+
+          // Also include home and away team prediction data
+          homeTeam: {
+            ...(item.teams?.home || {}),
+            ...(prediction?.homeTeam || {}),
+          },
+          awayTeam: {
+            ...(item.teams?.away || {}),
+            ...(prediction?.awayTeam || {}),
+          },
+        };
+      })
+      .filter(Boolean);
+
+    try {
+      exportMatchesToCSV(matchesToExport, false, 'live_matches.csv');
+      toast.success(
+        `${matchesToExport.length} matches exported to CSV successfully!`
+      );
+    } catch (error) {
+      toast.error('Error exporting to CSV');
+      console.error('Export error:', error);
+    }
+  };
 
   return (
     <div className='min-h-screen bg-gray-50 overflow-x-hidden'>
@@ -3138,7 +3316,9 @@ const MatchesPage = () => {
           matchCount={memoizedFilteredMatches.length}
           isPaused={isPaused}
           togglePause={togglePause}
-          onCopyNames={copyAllNames}
+          onCopyNames={() => copyAllNames(true)}
+          onCopyNamesOnly={() => copyAllNames(false)}
+          onExportCSV={exportToCSV}
           activeTab={activeTab}
           setActiveTab={setActiveTab}
           cartItemsCount={cartItems.length}

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { HubConnection, HubConnectionBuilder } from '@microsoft/signalr';
 import { useCartStore } from './useStore';
 import { ClientMatch, TransformedMatch, Match, UpcomingMatch, Team } from '@/types/match';
-import { transformMatch, findPredictionForMatch } from '@/utils/matchUtils';
+import { transformMatch } from '@/utils/matchUtils';
 
 interface PredictionDataResponse {
     data: {
@@ -415,8 +415,6 @@ export const useMatchData = () => {
     const connectionRef = useRef<HubConnection | null>(null);
     const latestMatchesRef = useRef<Map<string, TransformedMatch>>(new Map());
     const latestAllMatchesRef = useRef<Map<string, TransformedMatch>>(new Map());
-    const [allMatchesChecked, setAllMatchesChecked] = useState(false);
-    const lastPredictionDataLengthRef = useRef<number>(0);
     const [lastUpdate, setLastUpdate] = useState<number>(Date.now());
 
     // Add a buffer for pending updates to ensure complete batches

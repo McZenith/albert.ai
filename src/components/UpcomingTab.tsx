@@ -9,11 +9,13 @@ import {
   ArrowUpCircle,
   Copy,
   Database,
+  FileDown,
 } from 'lucide-react';
 import { useCartStore } from '@/hooks/useStore';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { saveMatchesToDatabase } from '@/app/actions';
+import { exportMatchesToCSV } from '@/utils/exportUtils';
 
 interface Team {
   id: string;
@@ -1458,7 +1460,7 @@ const MatchPredictor = () => {
   };
 
   // Function to copy preferred team names from a group
-  const copyPreferredTeamNames = (matches: Match[]) => {
+  const copyPreferredTeamNames = (matches: Match[], addToCart = false) => {
     const teamNames = matches
       .map((match) => {
         const preferredTeam = getPreferredTeam(match);
@@ -1467,7 +1469,58 @@ const MatchPredictor = () => {
       .filter(Boolean)
       .join('\n');
 
-    // Also add matches to cart
+    // Only add matches to cart if explicitly requested
+    if (addToCart) {
+      matches.forEach((match) => {
+        const preferredTeam = getPreferredTeam(match);
+        if (preferredTeam) {
+          // Check if this match is already in cart
+          const isInCart = isUpcomingMatchInCart(String(match.id));
+
+          if (!isInCart) {
+            // Create new team objects with required id properties
+            const homeTeamWithId = {
+              ...match.homeTeam,
+              id: String(
+                match.homeTeam.name.replace(/\s+/g, '_').toLowerCase()
+              ),
+            };
+
+            const awayTeamWithId = {
+              ...match.awayTeam,
+              id: String(
+                match.awayTeam.name.replace(/\s+/g, '_').toLowerCase()
+              ),
+            };
+
+            // Add to cart with proper structure
+            addUpcomingMatch({
+              ...match,
+              id: String(match.id),
+              homeTeam: homeTeamWithId,
+              awayTeam: awayTeamWithId,
+            });
+          }
+        }
+      });
+    }
+
+    if (teamNames) {
+      navigator.clipboard.writeText(teamNames);
+      toast.success(
+        addToCart
+          ? 'Copied team names to clipboard and added to cart!'
+          : 'Copied team names to clipboard!'
+      );
+    } else {
+      toast.error('No preferred teams found in this group');
+    }
+  };
+
+  // Add a separate function to add to cart
+  const addPreferredTeamsToCart = (matches: Match[]) => {
+    let addedCount = 0;
+
     matches.forEach((match) => {
       const preferredTeam = getPreferredTeam(match);
       if (preferredTeam) {
@@ -1493,15 +1546,16 @@ const MatchPredictor = () => {
             homeTeam: homeTeamWithId,
             awayTeam: awayTeamWithId,
           });
+
+          addedCount++;
         }
       }
     });
 
-    if (teamNames) {
-      navigator.clipboard.writeText(teamNames);
-      toast.success('Copied team names to clipboard and added to cart!');
+    if (addedCount > 0) {
+      toast.success(`Added ${addedCount} matches to cart!`);
     } else {
-      toast.error('No preferred teams found in this group');
+      toast.info('No new matches to add to cart');
     }
   };
 
@@ -1585,6 +1639,26 @@ const MatchPredictor = () => {
       toast.error('An error occurred while saving matches');
     } finally {
       setIsSavingToDb(false);
+    }
+  };
+
+  // Add exportToCSV function
+  const exportToCSV = () => {
+    const cartItems = useCartStore.getState().upcomingMatches;
+
+    if (cartItems.length === 0) {
+      toast.warning('No matches in cart to export!');
+      return;
+    }
+
+    try {
+      exportMatchesToCSV(cartItems, true, 'upcoming_matches.csv');
+      toast.success(
+        `${cartItems.length} matches exported to CSV successfully!`
+      );
+    } catch (error) {
+      toast.error('Error exporting to CSV');
+      console.error('Export error:', error);
     }
   };
 
@@ -1683,6 +1757,14 @@ const MatchPredictor = () => {
                 Save to Database
               </>
             )}
+          </button>
+          <button
+            onClick={exportToCSV}
+            className='flex items-center gap-1 px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-sm'
+            title='Export cart items to CSV'
+          >
+            <FileDown size={16} />
+            <span>Export CSV</span>
           </button>
         </div>
       </div>
@@ -2097,13 +2179,32 @@ const MatchPredictor = () => {
                     <h4 className='text-md font-medium text-gray-700'>
                       Group {groupIndex + 1} ({group.length} matches)
                     </h4>
-                    <button
-                      className='flex items-center gap-1 px-3 py-1 text-sm rounded bg-amber-100 text-amber-800 hover:bg-amber-200 border border-amber-200'
-                      onClick={() => copyPreferredTeamNames(group)}
-                    >
-                      <Copy size={14} />
-                      Copy Team Names
-                    </button>
+                    <div className='flex gap-2'>
+                      <button
+                        className='flex items-center gap-1 px-3 py-1 text-sm rounded bg-amber-100 text-amber-800 hover:bg-amber-200 border border-amber-200'
+                        onClick={() => copyPreferredTeamNames(group, false)}
+                        title='Copy team names to clipboard'
+                      >
+                        <Copy size={14} />
+                        Copy Only
+                      </button>
+                      <button
+                        className='flex items-center gap-1 px-3 py-1 text-sm rounded bg-blue-100 text-blue-800 hover:bg-blue-200 border border-blue-200'
+                        onClick={() => copyPreferredTeamNames(group, true)}
+                        title='Copy team names and add to cart'
+                      >
+                        <Copy size={14} />
+                        Copy & Add to Cart
+                      </button>
+                      <button
+                        className='flex items-center gap-1 px-3 py-1 text-sm rounded bg-green-100 text-green-800 hover:bg-green-200 border border-green-200'
+                        onClick={() => addPreferredTeamsToCart(group)}
+                        title='Add preferred teams to cart without copying'
+                      >
+                        <Plus size={14} />
+                        Add to Cart
+                      </button>
+                    </div>
                   </div>
                   <div className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3'>
                     {group.map((match) => {
@@ -2188,13 +2289,6 @@ const MatchPredictor = () => {
                   </div>
                 </div>
               )
-            )}
-            {createMatchGroups(sortedMatches, filters.groupSize).length ===
-              0 && (
-              <div className='bg-gray-50 p-4 rounded-lg text-center text-gray-600'>
-                No matches with clear preferred teams found. Try adjusting your
-                filters.
-              </div>
             )}
           </div>
         </div>

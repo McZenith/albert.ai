@@ -30,6 +30,12 @@ interface CartItem {
       stakePercentage: number;
     }>;
   };
+  match?: {
+    id: string;
+    matchDetails?: Record<string, any>;
+    matchSituation?: Record<string, any>;
+    [key: string]: any;
+  };
   addedAt: string;
 }
 
