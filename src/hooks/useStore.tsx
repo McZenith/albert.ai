@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { create } from 'zustand';
 import { normalizeTeamName, getTeamNameSimilarity } from '@/utils/teamUtils';
 import { UpcomingMatch } from '@/types/match';
@@ -6,11 +7,6 @@ import {
   getSavedMatches,
   deleteSavedMatch,
 } from '@/app/actions';
-
-interface SavedMatch {
-  id: string;
-  [key: string]: unknown;
-}
 
 interface CartItem {
   matchId: string;

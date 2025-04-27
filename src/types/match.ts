@@ -8,12 +8,21 @@ export interface ClientTeam {
     avgHomeGoals?: number;
     avgAwayGoals?: number;
     avgTotalGoals?: number;
+    recentMatches?: RecentMatch[]; // Added this field
+    homeForm?: string;
+    awayForm?: string;
+    form?: string;
+    winPercentage?: number;
+    drawPercentage?: number;
+    homeWinPercentage?: number;
+    awayWinPercentage?: number;
 }
 
 export interface ClientTeams {
     home: ClientTeam;
     away: ClientTeam;
 }
+
 
 export interface ClientOutcome {
     id: string;
@@ -60,6 +69,7 @@ export interface ClientMatchSituation {
         safeAttackPercentage: string;
     };
 }
+
 
 export interface ClientMatchDetails {
     home: {
@@ -135,15 +145,7 @@ export interface MatchStats {
         bttsYes: number;
         bttsNo: number;
     };
-    headToHead?: {
-        matches: number;
-        wins: number;
-        draws: number;
-        losses: number;
-        goalsScored: number;
-        goalsConceded: number;
-        recentMatches: RecentMatch[];
-    };
+    headToHead?: HeadToHead;
     cornerStats?: {
         homeAvg: number;
         awayAvg: number;
@@ -178,9 +180,10 @@ export interface TeamBase {
     name: string;
     position: number;
     logo?: string;
+    recentMatches?: RecentMatch[]; // Added this field
 }
 
-export interface Team extends TeamBase {
+export interface Team extends ClientTeam {
     avgHomeGoals: number;
     avgAwayGoals: number;
     avgTotalGoals: number;
@@ -263,6 +266,7 @@ export interface Team extends TeamBase {
         over25: number;
         over35: number;
     };
+    recentMatches?: RecentMatch[]; // Added this field
     [key: string]: unknown;
 }
 
@@ -297,8 +301,8 @@ export interface TransformedMatch {
     matchTime: string;
     homeTeam?: Team;
     awayTeam?: Team;
+    headToHead?: HeadToHead; // Added to handle direct access to headToHead in TransformedMatch
 }
-
 export interface TransformedMatchSituation {
     totalTime: number;
     dominantTeam: string;
@@ -373,8 +377,9 @@ export interface TransformedMatchDetails {
     types: Record<string, string>;
 }
 
+
 export interface UpcomingMatch {
-    id: string;
+    id: string | number;
     homeTeam: Team;
     awayTeam: Team;
     date: string;
@@ -443,10 +448,7 @@ export interface HeadToHead {
     losses: number;
     goalsScored: number;
     goalsConceded: number;
-    recentMatches: Array<{
-        date: string;
-        result: string;
-    }>;
+    recentMatches: Array<{ date: string; result: string; }>;
 }
 
 export interface MatchOdds {
@@ -486,4 +488,4 @@ export const isClientMatch = (match: Match): match is TransformedMatch => {
 // Type guard to check if a match is an UpcomingMatch
 export const isUpcomingMatch = (match: Match): match is UpcomingMatch => {
     return 'homeTeam' in match && !('teams' in match);
-}; 
+};; 

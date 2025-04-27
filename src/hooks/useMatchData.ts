@@ -1,7 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { HubConnection, HubConnectionBuilder } from '@microsoft/signalr';
 import { useCartStore } from './useStore';
-import { ClientMatch, TransformedMatch, Match, UpcomingMatch, Team } from '@/types/match';
+import { ClientMatch, TransformedMatch, Match, UpcomingMatch, Team, RecentMatch } from '@/types/match';
 import { transformMatch } from '@/utils/matchUtils';
 
 interface PredictionDataResponse {
@@ -53,7 +54,20 @@ const getAwayTeam = (match: Match) => {
     return isClientMatch(match) ? match.teams.away : match.awayTeam;
 };
 
-// Process match data
+// Process recent matches data
+const processRecentMatches = (matches: any[] | undefined): RecentMatch[] => {
+    if (!matches || !Array.isArray(matches)) return [];
+
+    return matches.map(match => ({
+        date: match.date || '',
+        homeTeam: match.homeTeam || '',
+        awayTeam: match.awayTeam || '',
+        score: match.score || '0-0',
+        result: match.result || 'D'
+    }));
+};
+
+// Process match data with enhanced support for recent matches
 const processMatchData = (match: Match): UpcomingMatch => {
     if (!match) {
         throw new Error('Invalid match data');
@@ -80,6 +94,7 @@ const processMatchData = (match: Match): UpcomingMatch => {
                 name: '',
                 position: 0,
                 logo: '🏆',
+                // Other required team fields...
                 avgHomeGoals: 0,
                 avgAwayGoals: 0,
                 avgTotalGoals: 0,
@@ -102,6 +117,7 @@ const processMatchData = (match: Match): UpcomingMatch => {
                 homeBttsRate: 0,
                 awayBttsRate: 0,
                 lateGoalRate: 0,
+                recentMatches: [],
                 homeAverageGoalsScored: 0,
                 awayAverageGoalsScored: 0,
                 averageGoalsScored: 0,
@@ -168,6 +184,7 @@ const processMatchData = (match: Match): UpcomingMatch => {
                 name: '',
                 position: 0,
                 logo: '🏆',
+                // Other required team fields...
                 avgHomeGoals: 0,
                 avgAwayGoals: 0,
                 avgTotalGoals: 0,
@@ -190,6 +207,7 @@ const processMatchData = (match: Match): UpcomingMatch => {
                 homeBttsRate: 0,
                 awayBttsRate: 0,
                 lateGoalRate: 0,
+                recentMatches: [],
                 homeAverageGoalsScored: 0,
                 awayAverageGoalsScored: 0,
                 averageGoalsScored: 0,
@@ -297,16 +315,19 @@ const processMatchData = (match: Match): UpcomingMatch => {
         };
     }
 
+    // Process recent matches for each team
+    const homeRecentMatches = processRecentMatches(homeTeam.recentMatches);
+    const awayRecentMatches = processRecentMatches(awayTeam.recentMatches);
+
     const homeTeamData = {
         ...homeTeam,
         name: enhancedCleanTeamName(homeTeam.name),
         isHomeTeam: true,
         opponentName: awayTeam.name,
-        avgHomeGoals:
-            safeNumber(homeTeam.averageGoalsScored),
-        avgAwayGoals:
-            safeNumber(homeTeam.averageGoalsScored),
-        avgTotalGoals: safeNumber(homeTeam.avgTotalGoals)
+        avgHomeGoals: safeNumber(homeTeam.averageGoalsScored),
+        avgAwayGoals: safeNumber(homeTeam.averageGoalsScored),
+        avgTotalGoals: safeNumber(homeTeam.avgTotalGoals),
+        recentMatches: homeRecentMatches
     };
 
     const awayTeamData = {
@@ -314,12 +335,35 @@ const processMatchData = (match: Match): UpcomingMatch => {
         name: enhancedCleanTeamName(awayTeam.name),
         isHomeTeam: false,
         opponentName: homeTeam.name,
-        avgHomeGoals:
-            safeNumber(awayTeam.averageGoalsScored),
-        avgAwayGoals:
-            safeNumber(awayTeam.averageGoalsScored),
-        avgTotalGoals: safeNumber(awayTeam.avgTotalGoals)
+        avgHomeGoals: safeNumber(awayTeam.averageGoalsScored),
+        avgAwayGoals: safeNumber(awayTeam.averageGoalsScored),
+        avgTotalGoals: safeNumber(awayTeam.avgTotalGoals),
+        recentMatches: awayRecentMatches
     };
+
+    // Process head-to-head recent matches
+    const headToHead = isUpcomingMatch(match) ? match.headToHead || {
+        matches: 0,
+        wins: 0,
+        draws: 0,
+        losses: 0,
+        goalsScored: 0,
+        goalsConceded: 0,
+        recentMatches: []
+    } : {
+        matches: 0,
+        wins: 0,
+        draws: 0,
+        losses: 0,
+        goalsScored: 0,
+        goalsConceded: 0,
+        recentMatches: []
+    };
+
+    // Ensure proper typing of recentMatches in headToHead
+    if (headToHead && headToHead.recentMatches) {
+        headToHead.recentMatches = processRecentMatches(headToHead.recentMatches);
+    }
 
     return {
         id: String(match.id),
@@ -334,23 +378,7 @@ const processMatchData = (match: Match): UpcomingMatch => {
         averageGoals: isUpcomingMatch(match) ? safeNumber(match.averageGoals) : 0,
         expectedGoals: isUpcomingMatch(match) ? safeNumber(match.expectedGoals) : 0,
         defensiveStrength: isUpcomingMatch(match) ? safeNumber(match.defensiveStrength) : 0,
-        headToHead: isUpcomingMatch(match) ? match.headToHead || {
-            matches: 0,
-            wins: 0,
-            draws: 0,
-            losses: 0,
-            goalsScored: 0,
-            goalsConceded: 0,
-            recentMatches: []
-        } : {
-            matches: 0,
-            wins: 0,
-            draws: 0,
-            losses: 0,
-            goalsScored: 0,
-            goalsConceded: 0,
-            recentMatches: []
-        },
+        headToHead,
         odds: isUpcomingMatch(match) ? match.odds || {
             homeWin: 0,
             draw: 0,
@@ -527,7 +555,9 @@ export const useMatchData = () => {
                             score: updatedMatch.score,
                             matchDetails: updatedMatch.matchDetails,
                             matchSituation: updatedMatch.matchSituation,
-                        // Deep merge teams to maintain reference stability for team objects
+                            // Add headToHead data if available
+                            headToHead: updatedMatch.headToHead,
+                            // Deep merge teams to maintain reference stability for team objects
                             teams: {
                                 home: {
                                     ...prevMatch.teams.home,
@@ -535,6 +565,8 @@ export const useMatchData = () => {
                                     position: updatedMatch.teams.home.position !== prevMatch.teams.home.position
                                         ? updatedMatch.teams.home.position
                                         : prevMatch.teams.home.position,
+                                    // Add recent matches if available
+                                    recentMatches: updatedMatch.teams.home.recentMatches || prevMatch.teams.home.recentMatches
                                 },
                                 away: {
                                     ...prevMatch.teams.away,
@@ -542,6 +574,8 @@ export const useMatchData = () => {
                                     position: updatedMatch.teams.away.position !== prevMatch.teams.away.position
                                         ? updatedMatch.teams.away.position
                                         : prevMatch.teams.away.position,
+                                    // Add recent matches if available
+                                    recentMatches: updatedMatch.teams.away.recentMatches || prevMatch.teams.away.recentMatches
                                 }
                             },
                             // Deep merge markets to maintain stability while updating odds
@@ -684,13 +718,29 @@ export const useMatchData = () => {
                             // Transform the match data
                             const transformedMatch = transformMatch(match);
 
-                            // Ensure we're using the latest match time
-                            transformedMatch.matchTime = match.playedTime || '';
-                            transformedMatch.playedSeconds = getPlayedSeconds(match.playedTime || '0:00');
+            // Ensure we're using the latest match time
+            transformedMatch.matchTime = match.playedTime || '';
+            transformedMatch.playedSeconds = getPlayedSeconds(match.playedTime || '0:00');
 
-                            // Add to the buffer
-                            buffer.arbitrage.set(match.id, transformedMatch);
-                        });
+            // Add recent matches if available
+            if (match.teams?.home?.recentMatches) {
+                transformedMatch.teams.home.recentMatches = processRecentMatches(match.teams.home.recentMatches);
+            }
+            if (match.teams?.away?.recentMatches) {
+                transformedMatch.teams.away.recentMatches = processRecentMatches(match.teams.away.recentMatches);
+            }
+
+            // Add headToHead data if available
+            if (match.headToHead) {
+                transformedMatch.headToHead = {
+                    ...match.headToHead,
+                    recentMatches: processRecentMatches(match.headToHead.recentMatches)
+                };
+            }
+
+            // Add to the buffer
+            buffer.arbitrage.set(match.id, transformedMatch);
+        });
 
                         // Schedule processing after collecting more data
                         scheduleBufferProcessing();
@@ -711,13 +761,29 @@ export const useMatchData = () => {
                             // Transform the match data
                             const transformedMatch = transformMatch(match);
 
-                            // Ensure we're using the latest match time
-                            transformedMatch.matchTime = match.playedTime || '';
-                            transformedMatch.playedSeconds = getPlayedSeconds(match.playedTime || '0:00');
+            // Ensure we're using the latest match time
+            transformedMatch.matchTime = match.playedTime || '';
+            transformedMatch.playedSeconds = getPlayedSeconds(match.playedTime || '0:00');
 
-                            // Add to the buffer
-                            buffer.all.set(match.id, transformedMatch);
-                        });
+            // Add recent matches if available
+            if (match.teams?.home?.recentMatches) {
+                transformedMatch.teams.home.recentMatches = processRecentMatches(match.teams.home.recentMatches);
+            }
+            if (match.teams?.away?.recentMatches) {
+                transformedMatch.teams.away.recentMatches = processRecentMatches(match.teams.away.recentMatches);
+            }
+
+            // Add headToHead data if available
+            if (match.headToHead) {
+                transformedMatch.headToHead = {
+                    ...match.headToHead,
+                    recentMatches: processRecentMatches(match.headToHead.recentMatches)
+                };
+            }
+
+            // Add to the buffer
+            buffer.all.set(match.id, transformedMatch);
+        });
 
                         // Schedule processing after collecting more data
                         scheduleBufferProcessing();

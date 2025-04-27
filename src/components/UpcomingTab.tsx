@@ -16,6 +16,8 @@ import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { saveMatchesToDatabase } from '@/app/actions';
 import { exportMatchesToCSV } from '@/utils/exportUtils';
+import RecentMatches from '@/components/RecentMatches';
+import { RecentMatch } from '@/types/match';
 
 interface Team {
   id: string;
@@ -44,6 +46,7 @@ interface Team {
   homeBttsRate: number;
   awayBttsRate: number;
   lateGoalRate: number;
+  recentMatches?: RecentMatch[];
   goalDistribution: {
     '0-15': { total: number; home: number; away: number };
     '16-30': { total: number; home: number; away: number };
@@ -303,6 +306,24 @@ const ClientOnlyLoader = () => {
   );
 };
 
+// Add transform function
+const transformRecentMatch = (
+  match: { date: string; result: string } | RecentMatch,
+  homeTeam?: string,
+  awayTeam?: string
+): RecentMatch => {
+  if ('homeTeam' in match) {
+    return match as RecentMatch;
+  }
+  return {
+    date: match.date,
+    result: match.result as 'W' | 'D' | 'L',
+    homeTeam: homeTeam || '',
+    awayTeam: awayTeam || '',
+    score: '0-0', // Default score since we don't have it
+  };
+};
+
 const MatchPredictor = () => {
   // Remove unused state variables
   const [expandedMatch, setExpandedMatch] = useState<string | number | null>(
@@ -559,6 +580,18 @@ const MatchPredictor = () => {
         id: String(uniqueId),
         homeTeam: homeTeamWithId,
         awayTeam: awayTeamWithId,
+        headToHead: matchToAdd.headToHead
+          ? {
+              ...matchToAdd.headToHead,
+              recentMatches: matchToAdd.headToHead.recentMatches.map((m) =>
+                transformRecentMatch(
+                  m,
+                  matchToAdd.homeTeam.name,
+                  matchToAdd.awayTeam.name
+                )
+              ),
+            }
+          : undefined,
       });
     }
 
@@ -2841,6 +2874,66 @@ const MatchPredictor = () => {
                             </div>
                           </div>
 
+                          {/* Recent Matches Section (New) */}
+                          <div className='grid grid-cols-3 gap-4'>
+                            {/* Head to Head Recent Matches */}
+                            <div className='col-span-1'>
+                              <RecentMatches
+                                matches={
+                                  match.headToHead?.recentMatches?.map((m) =>
+                                    transformRecentMatch(
+                                      m,
+                                      match.homeTeam?.name,
+                                      match.awayTeam?.name
+                                    )
+                                  ) || []
+                                }
+                                title='HEAD TO HEAD RECENT MATCHES'
+                                bgColor='bg-blue-50'
+                                textColor='text-gray-800'
+                                maxItems={5}
+                              />
+                            </div>
+
+                            {/* Home Team Recent Matches */}
+                            <div className='col-span-1'>
+                              <RecentMatches
+                                matches={
+                                  match.homeTeam?.recentMatches?.map((m) =>
+                                    transformRecentMatch(
+                                      m,
+                                      match.homeTeam.name,
+                                      ''
+                                    )
+                                  ) || []
+                                }
+                                title={`${match.homeTeam.name.toUpperCase()} RECENT MATCHES`}
+                                bgColor='bg-blue-50/60'
+                                textColor='text-blue-800'
+                                maxItems={5}
+                              />
+                            </div>
+
+                            {/* Away Team Recent Matches */}
+                            <div className='col-span-1'>
+                              <RecentMatches
+                                matches={
+                                  match.awayTeam?.recentMatches?.map((m) =>
+                                    transformRecentMatch(
+                                      m,
+                                      '',
+                                      match.awayTeam.name
+                                    )
+                                  ) || []
+                                }
+                                title={`${match.awayTeam.name.toUpperCase()} RECENT MATCHES`}
+                                bgColor='bg-purple-50/60'
+                                textColor='text-purple-800'
+                                maxItems={5}
+                              />
+                            </div>
+                          </div>
+
                           {/* Match Info Grid */}
                           <div className='grid grid-cols-4 gap-4'>
                             {/* Date & Time */}
@@ -2992,6 +3085,7 @@ const MatchPredictor = () => {
                             </div>
                           </div>
 
+                          {/* Rest of existing sections... */}
                           {/* Performance Metrics */}
                           <div className='grid grid-cols-4 gap-4'>
                             {/* Clean Sheets */}
@@ -3240,63 +3334,28 @@ const MatchPredictor = () => {
                               </div>
                             </div>
 
-                            {/* Recent H2H */}
                             <div className='bg-gray-50 rounded-lg p-3'>
                               <h4 className='text-xs font-medium text-gray-500 mb-2'>
-                                RECENT H2H
+                                KEY INSIGHTS
                               </h4>
-                              <div className='space-y-1 text-xs'>
-                                {match.headToHead?.recentMatches
-                                  ?.slice(0, 3)
-                                  .map((h2h, idx) => (
-                                    <div
-                                      key={idx}
-                                      className='flex justify-between items-center'
-                                    >
-                                      <span className='text-gray-600'>
-                                        {h2h.date.substring(0, 10)}
+                              <ul className='text-xs text-gray-600 space-y-1'>
+                                {match.reasonsForPrediction?.map(
+                                  (reason, idx) => (
+                                    <li key={idx} className='flex items-start'>
+                                      <span className='text-blue-500 mr-2'>
+                                        •
                                       </span>
-                                      <span
-                                        className={`font-medium ${
-                                          h2h.result === 'W'
-                                            ? 'text-green-600'
-                                            : h2h.result === 'D'
-                                            ? 'text-yellow-600'
-                                            : 'text-red-600'
-                                        }`}
-                                      >
-                                        {h2h.result}
-                                      </span>
-                                    </div>
-                                  ))}
-                              </div>
+                                      {reason}
+                                    </li>
+                                  )
+                                ) || (
+                                  <li className='text-gray-500 italic'>
+                                    No insights available
+                                  </li>
+                                )}
+                              </ul>
                             </div>
                           </div>
-
-                          {/* Key Insights */}
-                          {match.reasonsForPrediction &&
-                            match.reasonsForPrediction.length > 0 && (
-                              <div className='bg-gray-50 rounded-lg p-3'>
-                                <h4 className='text-xs font-medium text-gray-500 mb-2'>
-                                  KEY INSIGHTS
-                                </h4>
-                                <ul className='text-xs text-gray-600 space-y-1'>
-                                  {match.reasonsForPrediction.map(
-                                    (reason, idx) => (
-                                      <li
-                                        key={idx}
-                                        className='flex items-start'
-                                      >
-                                        <span className='text-blue-500 mr-2'>
-                                          •
-                                        </span>
-                                        {reason}
-                                      </li>
-                                    )
-                                  )}
-                                </ul>
-                              </div>
-                            )}
                         </div>
                       </td>
                     </tr>

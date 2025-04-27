@@ -1,4 +1,5 @@
-import { Team } from '@/types/match';
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { RecentMatch } from '@/types/match';
 
 // Helper to sanitize text for CSV
 export const sanitizeForCSV = (text: string | number | null | undefined): string => {
@@ -18,7 +19,19 @@ export const safeGet = (obj: any, path: string, defaultValue: any = ''): any => 
     return keys.reduce((o, key) => (o && o[key] !== undefined ? o[key] : defaultValue), obj);
 };
 
-// Convert match data to CSV rows
+// Helper to format recent matches for CSV
+const formatRecentMatches = (matches: RecentMatch[] | undefined): string => {
+    if (!matches || !Array.isArray(matches) || matches.length === 0) {
+        return '';
+    }
+
+    // Format up to 3 most recent matches in a compact format
+    return matches.slice(0, 3)
+        .map(match => `${match.date}:${match.homeTeam} vs ${match.awayTeam}:${match.score}:${match.result}`)
+        .join('|');
+};
+
+// Convert match data to CSV rows with recent matches
 export const matchToCSV = (match: any, isUpcoming: boolean = true): string => {
     try {
         if (!match) return '';
@@ -77,7 +90,11 @@ export const matchToCSV = (match: any, isUpcoming: boolean = true): string => {
                 sanitizeForCSV(safeGet(homeTeam, 'over15', 0)),
                 sanitizeForCSV(safeGet(homeTeam, 'over25', 0)),
                 sanitizeForCSV(safeGet(awayTeam, 'over15', 0)),
-                sanitizeForCSV(safeGet(awayTeam, 'over25', 0))
+                sanitizeForCSV(safeGet(awayTeam, 'over25', 0)),
+                // Recent matches data
+                sanitizeForCSV(formatRecentMatches(safeGet(homeTeam, 'recentMatches', []))),
+                sanitizeForCSV(formatRecentMatches(safeGet(awayTeam, 'recentMatches', []))),
+                sanitizeForCSV(formatRecentMatches(safeGet(match, 'headToHead.recentMatches', [])))
             ].join(',');
         } else {
             // Fields specific to live matches with expanded data and prediction data
@@ -194,6 +211,11 @@ export const matchToCSV = (match: any, isUpcoming: boolean = true): string => {
                 sanitizeForCSV(safeGet(awayTeam, 'over15', 0)),
                 sanitizeForCSV(safeGet(awayTeam, 'over25', 0)),
 
+                // Recent matches data
+                sanitizeForCSV(formatRecentMatches(safeGet(homeTeam, 'recentMatches', []))),
+                sanitizeForCSV(formatRecentMatches(safeGet(awayTeam, 'recentMatches', []))),
+                sanitizeForCSV(formatRecentMatches(safeGet(match, 'headToHead.recentMatches', []))),
+
                 // Prediction reasons
                 sanitizeForCSV(safeGet(match, 'reasonsForPrediction', []).join('; '))
             ];
@@ -250,7 +272,10 @@ export const getCSVHeader = (isUpcoming: boolean = true): string => {
             'Home Over 1.5',
             'Home Over 2.5',
             'Away Over 1.5',
-            'Away Over 2.5'
+            'Away Over 2.5',
+            'Home Recent Matches',
+            'Away Recent Matches',
+            'H2H Recent Matches'
         ].join(',');
     } else {
         // Create combined headers for live matches + prediction data
@@ -325,6 +350,9 @@ export const getCSVHeader = (isUpcoming: boolean = true): string => {
             'Prediction: Home Over 2.5',
             'Prediction: Away Over 1.5',
             'Prediction: Away Over 2.5',
+            'Home Recent Matches',
+            'Away Recent Matches',
+            'H2H Recent Matches',
             'Prediction: Reasons'
         ];
 
@@ -365,4 +393,4 @@ export const exportMatchesToCSV = (matches: any[], isUpcoming: boolean = true, f
         console.error('Error exporting matches to CSV:', err);
         throw err;
     }
-}; 
+};
