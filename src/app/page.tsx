@@ -1853,9 +1853,7 @@ const MatchesPage = () => {
 
     // First filter based on active tab
     if (activeTab === 'live') {
-      // For live tab, only show matches with specific criteria
       transformedMatches = transformedMatches.filter((match) => {
-        // Filter out matches that don't meet live tab criteria
         const isValidStatus = ['1H', '2H', 'HT'].includes(match.status);
         const hasValidMarket = match.markets.some(
           (market) => market.description !== '1st Half - Correct Score'
@@ -1863,7 +1861,6 @@ const MatchesPage = () => {
         return isValidStatus && hasValidMarket;
       });
     }
-    // For 'all-live' tab, we use all matches but still filter out specific markets if needed
 
     const filtered = transformedMatches.filter((match) => {
       // Split search query into home and away team parts
@@ -1872,7 +1869,7 @@ const MatchesPage = () => {
         .split(' vs ')
         .map((s) => s.trim());
 
-      // Apply text search - match home team with home search and away team with away search
+      // Apply text search
       const matchesSearch =
         searchLower === '' ||
         ((homeSearch === '' ||
@@ -1923,26 +1920,65 @@ const MatchesPage = () => {
       );
     });
 
-    // Apply multiple sorts with stable sorting to prevent jumping
+    // Apply sorting
     if (sortConfigs.length > 0) {
-      // ... existing sorting logic ...
+      // Create a memoized sorting function
+      const getSortValue = (match: Match, field: string) => {
+        switch (field) {
+          case 'playedSeconds':
+            return match.playedSeconds || 0;
+          case 'profit':
+            return Math.max(
+              ...match.markets.map((m) => m.profitPercentage || 0)
+            );
+          case 'margin':
+            return Math.max(...match.markets.map((m) => m.margin || 0));
+          case 'odds':
+            return Math.max(
+              ...match.markets.flatMap((m) =>
+                m.outcomes.map((o) => o.odds || 0)
+              )
+            );
+          default:
+            return 0;
+        }
+      };
+
+      // Pre-calculate sort values for better performance
+      const sortedMatches = filtered.map((match) => ({
+        match,
+        sortValues: sortConfigs.map((config) =>
+          getSortValue(match, config.field)
+        ),
+      }));
+
+      // Sort using pre-calculated values
+      sortedMatches.sort((a, b) => {
+        for (let i = 0; i < sortConfigs.length; i++) {
+          const { direction } = sortConfigs[i];
+          const diff = a.sortValues[i] - b.sortValues[i];
+          if (diff !== 0) {
+            return direction === 'asc' ? diff : -diff;
+          }
+        }
+        return 0;
+      });
+
+      return sortedMatches.map(({ match }) => match);
     }
 
     return filtered;
   };
 
-  // Function to stabilize data updates and prevent flickering
+  // Add back the getStabilizedMatches function before memoizedFilteredMatches
   const getStabilizedMatches = useCallback(
     (currentMatches: Match[]): Match[] => {
       // When filtering by saved matches or cart items, don't use stabilization
-      // This ensures the filter is applied immediately
       if (showOnlySavedMatches || showCartItems) {
-        console.log('Bypassing stabilization due to filters being active');
         return currentMatches;
       }
 
       // If we have no matches at all but had them before, this is likely a temporary flicker
-      // Use previous data until we get at least 3 matches to prevent the "one row" issue
       if (currentMatches.length < 3 && previousMatchesRef.current.length > 5) {
         return previousMatchesRef.current;
       }
@@ -1961,25 +1997,23 @@ const MatchesPage = () => {
         return currentMatches;
       }
 
-      // Create a map of previous matches by ID for quick lookup
+      // Create maps for quick lookup
       const prevMatchMap = new Map(
         previousMatchesRef.current.map((match) => [String(match.id), match])
       );
 
-      // Create a map of current matches by ID
       const curMatchMap = new Map(
         currentMatches.map((match) => [String(match.id), match])
       );
 
-      // Start with the previous order of matches to maintain stability
+      // Start with the previous order of matches
       const stableMatches = [...previousMatchesRef.current];
 
-      // Add new matches that weren't in the previous dataset
+      // Add new matches
       const newMatchIds = currentMatches
         .map((match) => String(match.id))
         .filter((id) => !prevMatchMap.has(id));
 
-      // Add new matches at the end to maintain order stability
       newMatchIds.forEach((id) => {
         const newMatch = curMatchMap.get(id);
         if (newMatch) {
@@ -1987,19 +2021,16 @@ const MatchesPage = () => {
         }
       });
 
-      // Remove matches that are no longer in the current dataset, but be careful
-      // If too many matches would be removed, suspect a temporary data issue
+      // Remove matches no longer in current dataset
       const stableMatchesCandidates = stableMatches.filter((match) =>
         curMatchMap.has(String(match.id))
       );
 
-      // Only remove matches if we're not losing too many at once
-      // This helps prevent flickering when data temporarily glitches
       const finalStableMatches =
         stableMatchesCandidates.length <
           previousMatchesRef.current.length / 2 &&
         previousMatchesRef.current.length > 5
-          ? previousMatchesRef.current // Use previous if too many would be removed
+          ? previousMatchesRef.current
           : stableMatchesCandidates;
 
       // Update match data while preserving order
@@ -2008,7 +2039,7 @@ const MatchesPage = () => {
         return curMatchMap.has(id) ? curMatchMap.get(id)! : match;
       });
 
-      // Trigger a small delay before updating the UI to debounce rapid updates
+      // Handle data updates
       if (!dataUpdating) {
         setDataUpdating(true);
         if (dataUpdateTimeoutRef.current) {
@@ -2016,19 +2047,18 @@ const MatchesPage = () => {
         }
         dataUpdateTimeoutRef.current = setTimeout(() => {
           setDataUpdating(false);
-          // Only update reference if we have multiple matches and the new data looks good
           if (currentMatches.length >= 3) {
             previousMatchesRef.current = [...result];
           }
-        }, 600); // Increased to 600ms for more stability
+        }, 600);
       }
 
       return result;
     },
-    [dataUpdating, showOnlySavedMatches, showCartItems]
+    [showOnlySavedMatches, showCartItems, dataUpdating]
   );
 
-  // Clean up the timeout on unmount
+  // Add back the cleanup effect
   useEffect(() => {
     return () => {
       if (dataUpdateTimeoutRef.current) {
@@ -2037,29 +2067,30 @@ const MatchesPage = () => {
     };
   }, []);
 
-  // In the existing useMemo for memoizedFilteredMatches, apply the stabilization
+  // Find and update the memoizedFilteredMatches implementation
   const memoizedFilteredMatches = useMemo(() => {
     const rawFilteredMatches = getSortedAndFilteredMatches(
       activeTab === 'live' ? liveMatches : allLiveMatches
     );
 
-    // Apply our stabilization function to prevent flickering
+    // When sorting is active, bypass stabilization for instant updates
+    if (sortConfigs.length > 0) {
+      return rawFilteredMatches;
+    }
+
+    // Apply stabilization for other cases
     return getStabilizedMatches(rawFilteredMatches);
   }, [
-    // Critical filter states that should always trigger recalculation
-    showOnlySavedMatches,
-    savedMatchIds,
     activeTab,
-    // Data sources
     liveMatches,
     allLiveMatches,
-    // Other filters and sorting
-    sortConfigs,
-    filters,
     searchQuery,
+    filters,
+    sortConfigs,
     showCartItems,
-    cartItems, // Ensure we're tracking the actual cart items array
-    // Stabilization function
+    cartItems,
+    showOnlySavedMatches,
+    savedMatchIds,
     getStabilizedMatches,
   ]);
 
@@ -2087,26 +2118,28 @@ const MatchesPage = () => {
       const existingIndex = current.findIndex(
         (config) => config.field === field
       );
-
-      const asc: SortDirection = 'asc';
-      const desc: SortDirection = 'desc';
+      const newConfigs = [...current];
 
       if (existingIndex === -1) {
-        // Add new sort
-        const newConfigs = [...current, { field, direction: asc }];
-        localStorage.setItem('sortConfigs', JSON.stringify(newConfigs));
-        return newConfigs;
+        // If field is not being sorted, add it as primary sort
+        return [{ field, direction: 'asc' }];
       } else {
-        // Toggle direction or remove if it was desc
-        const newConfigs = [...current];
+        // If field is already being sorted, toggle direction or remove
         if (newConfigs[existingIndex].direction === 'asc') {
-          newConfigs[existingIndex].direction = desc;
+          newConfigs[existingIndex].direction = 'desc';
         } else {
+          // If it was descending, remove the sort
           newConfigs.splice(existingIndex, 1);
+          // If this was the last sort config, default to playedSeconds asc
+          if (newConfigs.length === 0) {
+            newConfigs.push({ field: 'playedSeconds', direction: 'asc' });
+          }
         }
-        localStorage.setItem('sortConfigs', JSON.stringify(newConfigs));
-        return newConfigs;
       }
+
+      // Save to localStorage
+      localStorage.setItem('sortConfigs', JSON.stringify(newConfigs));
+      return newConfigs;
     });
   };
 
