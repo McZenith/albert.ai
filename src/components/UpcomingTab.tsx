@@ -10,6 +10,14 @@ import {
   Copy,
   Database,
   FileDown,
+  Clock,
+  ShoppingCart,
+  Star,
+  BarChart2,
+  CheckSquare,
+  Trash2,
+  RotateCcw,
+  TrendingUp,
 } from 'lucide-react';
 import { useCartStore } from '@/hooks/useStore';
 import { toast, ToastContainer } from 'react-toastify';
@@ -176,14 +184,15 @@ interface Filters {
   positionGap: number;
   minExpectedGoals: number;
   showOnlyUpcoming: boolean;
-  showOnlyClearPreferred: boolean; // Add new filter
-  enableGrouping: boolean; // Add grouping toggle
-  groupSize: number; // Add group size configuration
-  minBttsRate: number; // Minimum BTTS rate
-  minHomeGoals: number; // Minimum average home goals
-  minAwayGoals: number; // Minimum average away goals
-  minH2hMatchCount: number; // Minimum number of H2H matches
-  minH2hWinGap: number; // Minimum H2H win-loss difference
+  showOnlyClearPreferred: boolean;
+  enableGrouping: boolean;
+  groupSize: number;
+  minBttsRate: number;
+  minHomeGoals: number;
+  minAwayGoals: number;
+  minH2hMatchCount: number;
+  minH2hWinGap: number;
+  showHighScoringOnly: boolean; // Add new filter
 }
 
 interface ThresholdValues {
@@ -338,14 +347,15 @@ const MatchPredictor = () => {
     positionGap: 0,
     minExpectedGoals: 0,
     showOnlyUpcoming: false,
-    showOnlyClearPreferred: false, // Add new filter
-    enableGrouping: false, // Add grouping toggle
-    groupSize: 10, // Add group size configuration
-    minBttsRate: 0, // Minimum BTTS rate
-    minHomeGoals: 0, // Minimum average home goals
-    minAwayGoals: 0, // Minimum average away goals
-    minH2hMatchCount: 0, // Minimum number of H2H matches
-    minH2hWinGap: 0, // Minimum H2H win-loss difference
+    showOnlyClearPreferred: false,
+    enableGrouping: false,
+    groupSize: 10,
+    minBttsRate: 0,
+    minHomeGoals: 0,
+    minAwayGoals: 0,
+    minH2hMatchCount: 0,
+    minH2hWinGap: 0,
+    showHighScoringOnly: false, // Add new filter
   });
   const [showScrollTop, setShowScrollTop] = useState<boolean>(false);
   const [showAnalyticsModal, setShowAnalyticsModal] = useState<boolean>(false);
@@ -787,6 +797,11 @@ const MatchPredictor = () => {
   const filterMatches = (matches: Match[]): Match[] => {
     // Apply all basic filters first (confidence, favorite, position gap, expected goals)
     let filteredMatches = matches.filter((match) => {
+      // Apply high scoring filter first if enabled
+      if (filters.showHighScoringOnly && !meetsHighScoringCriteria(match)) {
+        return false;
+      }
+
       // Filter by confidence score
       if (match.confidenceScore < filters.minConfidence) {
         return false;
@@ -1069,6 +1084,7 @@ const MatchPredictor = () => {
       minAwayGoals: 0,
       minH2hMatchCount: 0,
       minH2hWinGap: 0,
+      showHighScoringOnly: false, // Add new filter reset
     });
     // Clear the cart filter
     setShowOnlyCart(false);
@@ -1707,6 +1723,95 @@ const MatchPredictor = () => {
     setShowAnalyticsModal(false);
   };
 
+  // Add new function to check high scoring conditions
+  const meetsHighScoringCriteria = (match: Match): boolean => {
+    // Helper function to safely parse match result
+    const parseMatchResult = (result: string): [number, number] => {
+      try {
+        if (!result || typeof result !== 'string') return [0, 0];
+        const [home, away] = result.split('-').map((num) => {
+          const parsed = parseInt(num, 10);
+          return isNaN(parsed) ? 0 : parsed;
+        });
+        return [home || 0, away || 0];
+      } catch {
+        return [0, 0];
+      }
+    };
+
+    // 1. Check if either team has over 2 average goals
+    const homeAvg = match.homeTeam.averageGoalsScored || 0;
+    const awayAvg = match.awayTeam.averageGoalsScored || 0;
+    const hasHighScoringTeam = homeAvg > 2 || awayAvg > 2;
+
+    // 2. Calculate H2H gap (wins difference)
+    const h2hGap = Math.abs(
+      (match.headToHead?.wins || 0) - (match.headToHead?.losses || 0)
+    );
+    const hasHighH2hGap = h2hGap > 3;
+
+    // 3. Calculate average goals in last 5 H2H matches
+    const recentH2hMatches = match.headToHead?.recentMatches?.slice(0, 5) || [];
+    const h2hGoals = recentH2hMatches.reduce((sum, m) => {
+      const [home, away] = parseMatchResult(m.result);
+      return sum + home + away;
+    }, 0);
+    const h2hAvgGoals =
+      recentH2hMatches.length > 0 ? h2hGoals / recentH2hMatches.length : 0;
+    const hasHighH2hScoring = h2hAvgGoals > 2.5;
+
+    // 4. Calculate average goals in last 5 matches for both teams
+    const getLastFiveAvg = (matches: RecentMatch[] = []): number => {
+      const lastFive = matches.slice(0, 5);
+      if (lastFive.length === 0) return 0;
+
+      const totalGoals = lastFive.reduce((sum, m) => {
+        if (!m.score) return sum;
+        // For matches like "2-1", "3-0", etc.
+        if (m.score.includes('-')) {
+          const [home, away] = parseMatchResult(m.score);
+          return sum + home + away;
+        }
+        // For matches with just total goals
+        const total = parseInt(m.score, 10);
+        return isNaN(total) ? sum : sum + total;
+      }, 0);
+
+      // Debug log for this specific calculation
+      console.log('Match Goals Analysis:', {
+        matches: lastFive.map((m) => m.score),
+        totalGoals,
+        matchCount: lastFive.length,
+        average: totalGoals / lastFive.length,
+      });
+
+      return totalGoals / lastFive.length;
+    };
+
+    const homeLastFiveAvg = getLastFiveAvg(match.homeTeam.recentMatches);
+    const awayLastFiveAvg = getLastFiveAvg(match.awayTeam.recentMatches);
+
+    // Check if the combined average is over 2.5
+    const combinedAvg = (homeLastFiveAvg + awayLastFiveAvg) / 2;
+    const bothTeamsHighRecent = combinedAvg > 2.5;
+
+    // Match must meet all criteria
+    return (
+      hasHighScoringTeam &&
+      hasHighH2hGap &&
+      hasHighH2hScoring &&
+      bothTeamsHighRecent
+    );
+  };
+
+  // Add toggle function for high scoring filter
+  const toggleHighScoringFilter = () => {
+    setFilters((prev) => ({
+      ...prev,
+      showHighScoringOnly: !prev.showHighScoringOnly,
+    }));
+  };
+
   if (isPredictionDataLoading) {
     return (
       <div className='max-w-full mx-auto p-4 bg-white rounded-lg shadow-sm'>
@@ -1827,402 +1932,298 @@ const MatchPredictor = () => {
 
         {/* Filters */}
         <div className='mt-2 bg-white p-3 rounded-lg border border-gray-200'>
-          <div className='flex flex-wrap items-center gap-4'>
+          <div className='flex items-center gap-3'>
             {/* Basic Filters Group */}
-            <div className='flex flex-col gap-2 border-r border-gray-200 pr-4'>
-              <h4 className='text-xs font-medium text-gray-500'>
-                Basic Filters
-              </h4>
-              <div className='flex gap-2'>
-                <div>
-                  <label className='text-gray-500 text-xs block mb-1'>
-                    Min Confidence
-                  </label>
-                  <select
-                    className='bg-white text-gray-800 rounded px-2 py-1 text-sm border border-gray-300'
-                    value={filters.minConfidence}
-                    onChange={(e) =>
-                      handleFilterChange(
-                        'minConfidence',
-                        parseInt(e.target.value)
-                      )
-                    }
-                  >
-                    <option value='0'>All</option>
-                    <option value='60'>60%+</option>
-                    <option value='70'>70%+</option>
-                    <option value='80'>80%+</option>
-                    <option value='90'>90%+</option>
-                  </select>
-                </div>
+            <div className='flex items-center gap-2'>
+              <div className='flex items-center gap-1.5'>
+                <span className='text-xs text-gray-500'>Min</span>
+                <select
+                  className='bg-white text-gray-800 rounded px-2 py-1 text-sm border border-gray-300 w-16'
+                  value={filters.minConfidence}
+                  onChange={(e) =>
+                    handleFilterChange(
+                      'minConfidence',
+                      parseInt(e.target.value)
+                    )
+                  }
+                  title='Minimum Confidence'
+                >
+                  <option value='0'>All</option>
+                  <option value='60'>60%+</option>
+                  <option value='70'>70%+</option>
+                  <option value='80'>80%+</option>
+                  <option value='90'>90%+</option>
+                </select>
+              </div>
 
-                <div>
-                  <label className='text-gray-500 text-xs block mb-1'>
-                    Favorite
-                  </label>
-                  <select
-                    className='bg-white text-gray-800 rounded px-2 py-1 text-sm border border-gray-300'
-                    value={filters.favorite}
-                    onChange={(e) =>
-                      handleFilterChange('favorite', e.target.value)
-                    }
-                  >
-                    <option value='all'>All</option>
-                    <option value='home'>Home Teams</option>
-                    <option value='away'>Away Teams</option>
-                  </select>
-                </div>
+              <div className='flex items-center gap-1.5'>
+                <span className='text-xs text-gray-500'>Team</span>
+                <select
+                  className='bg-white text-gray-800 rounded px-2 py-1 text-sm border border-gray-300 w-20'
+                  value={filters.favorite}
+                  onChange={(e) =>
+                    handleFilterChange('favorite', e.target.value)
+                  }
+                  title='Favorite Team'
+                >
+                  <option value='all'>All</option>
+                  <option value='home'>Home</option>
+                  <option value='away'>Away</option>
+                </select>
               </div>
             </div>
+
+            <div className='h-6 border-l border-gray-300'></div>
 
             {/* Advanced Filters Group */}
-            <div className='flex flex-col gap-2 border-r border-gray-200 pr-4'>
-              <h4 className='text-xs font-medium text-gray-500'>
-                Advanced Filters
-              </h4>
-              <div className='flex flex-wrap gap-2'>
-                <div>
-                  <label className='text-gray-500 text-xs block mb-1'>
-                    Min Position Gap
-                  </label>
-                  <select
-                    className='bg-white text-gray-800 rounded px-2 py-1 text-sm border border-gray-300'
-                    value={filters.positionGap}
-                    onChange={(e) =>
-                      handleFilterChange(
-                        'positionGap',
-                        parseInt(e.target.value)
-                      )
-                    }
-                  >
-                    <option value='0'>All</option>
-                    <option value='5'>5+</option>
-                    <option value='10'>10+</option>
-                    <option value='15'>15+</option>
-                  </select>
-                </div>
+            <div className='flex items-center gap-2'>
+              <div className='flex items-center gap-1.5'>
+                <span className='text-xs text-gray-500'>Gap</span>
+                <select
+                  className='bg-white text-gray-800 rounded px-2 py-1 text-sm border border-gray-300 w-16'
+                  value={filters.positionGap}
+                  onChange={(e) =>
+                    handleFilterChange('positionGap', parseInt(e.target.value))
+                  }
+                  title='Position Gap'
+                >
+                  <option value='0'>All</option>
+                  <option value='5'>5+</option>
+                  <option value='10'>10+</option>
+                  <option value='15'>15+</option>
+                </select>
+              </div>
 
-                <div>
-                  <label className='text-gray-500 text-xs block mb-1'>
-                    Min Expected Goals
-                  </label>
-                  <select
-                    className='bg-white text-gray-800 rounded px-2 py-1 text-sm border border-gray-300'
-                    value={filters.minExpectedGoals}
-                    onChange={(e) =>
-                      handleFilterChange(
-                        'minExpectedGoals',
-                        parseFloat(e.target.value)
-                      )
-                    }
-                  >
-                    <option value='0'>All</option>
-                    <option value='1.5'>1.5+</option>
-                    <option value='2.0'>2.0+</option>
-                    <option value='2.5'>2.5+</option>
-                  </select>
-                </div>
+              <div className='flex items-center gap-1.5'>
+                <span className='text-xs text-gray-500'>xG</span>
+                <select
+                  className='bg-white text-gray-800 rounded px-2 py-1 text-sm border border-gray-300 w-16'
+                  value={filters.minExpectedGoals.toFixed(1)}
+                  onChange={(e) =>
+                    handleFilterChange(
+                      'minExpectedGoals',
+                      parseFloat(e.target.value)
+                    )
+                  }
+                  title='Expected Goals'
+                >
+                  <option value='0.0'>All</option>
+                  <option value='1.5'>1.5+</option>
+                  <option value='2.0'>2.0+</option>
+                  <option value='2.5'>2.5+</option>
+                </select>
+              </div>
 
-                <div>
-                  <label className='text-gray-500 text-xs block mb-1'>
-                    Min BTTS Rate
-                  </label>
-                  <select
-                    className='bg-white text-gray-800 rounded px-2 py-1 text-sm border border-gray-300'
-                    value={filters.minBttsRate}
-                    onChange={(e) =>
-                      handleFilterChange(
-                        'minBttsRate',
-                        parseInt(e.target.value)
-                      )
-                    }
-                  >
-                    <option value='0'>All</option>
-                    <option value='40'>40%+</option>
-                    <option value='50'>50%+</option>
-                    <option value='60'>60%+</option>
-                    <option value='70'>70%+</option>
-                  </select>
-                </div>
+              <div className='flex items-center gap-1.5'>
+                <span className='text-xs text-gray-500'>BTTS</span>
+                <select
+                  className='bg-white text-gray-800 rounded px-2 py-1 text-sm border border-gray-300 w-16'
+                  value={filters.minBttsRate}
+                  onChange={(e) =>
+                    handleFilterChange('minBttsRate', parseInt(e.target.value))
+                  }
+                  title='Both Teams To Score Rate'
+                >
+                  <option value='0'>All</option>
+                  <option value='40'>40%+</option>
+                  <option value='50'>50%+</option>
+                  <option value='60'>60%+</option>
+                  <option value='70'>70%+</option>
+                </select>
+              </div>
 
-                <div>
-                  <label className='text-gray-500 text-xs block mb-1'>
-                    Min Home Goals
-                  </label>
-                  <select
-                    className='bg-white text-gray-800 rounded px-2 py-1 text-sm border border-gray-300'
-                    value={filters.minHomeGoals}
-                    onChange={(e) =>
-                      handleFilterChange(
-                        'minHomeGoals',
-                        parseFloat(e.target.value)
-                      )
-                    }
-                  >
-                    <option value='0'>All</option>
-                    <option value='1.0'>1.0+</option>
-                    <option value='1.5'>1.5+</option>
-                    <option value='2.0'>2.0+</option>
-                    <option value='2.5'>2.5+</option>
-                    <option value='3.0'>3.0+</option>
-                    <option value='3.5'>3.5+</option>
-                    <option value='4.0'>4.0+</option>
-                    <option value='4.5'>4.5+</option>
-                    <option value='5.0'>5.0+</option>
-                  </select>
-                </div>
+              <div className='flex items-center gap-1.5'>
+                <span className='text-xs text-gray-500'>H/G</span>
+                <select
+                  className='bg-white text-gray-800 rounded px-2 py-1 text-sm border border-gray-300 w-16'
+                  value={filters.minHomeGoals.toFixed(1)}
+                  onChange={(e) =>
+                    handleFilterChange(
+                      'minHomeGoals',
+                      parseFloat(e.target.value)
+                    )
+                  }
+                  title='Home Goals'
+                >
+                  <option value='0.0'>All</option>
+                  <option value='1.5'>1.5+</option>
+                  <option value='2.0'>2.0+</option>
+                  <option value='2.5'>2.5+</option>
+                </select>
+              </div>
 
-                <div>
-                  <label className='text-gray-500 text-xs block mb-1'>
-                    Min Away Goals
-                  </label>
-                  <select
-                    className='bg-white text-gray-800 rounded px-2 py-1 text-sm border border-gray-300'
-                    value={filters.minAwayGoals}
-                    onChange={(e) =>
-                      handleFilterChange(
-                        'minAwayGoals',
-                        parseFloat(e.target.value)
-                      )
-                    }
-                  >
-                    <option value='0'>All</option>
-                    <option value='1.0'>1.0+</option>
-                    <option value='1.5'>1.5+</option>
-                    <option value='2.0'>2.0+</option>
-                    <option value='2.5'>2.5+</option>
-                    <option value='3.0'>3.0+</option>
-                    <option value='3.5'>3.5+</option>
-                    <option value='4.0'>4.0+</option>
-                    <option value='4.5'>4.5+</option>
-                    <option value='5.0'>5.0+</option>
-                  </select>
-                </div>
+              <div className='flex items-center gap-1.5'>
+                <span className='text-xs text-gray-500'>A/G</span>
+                <select
+                  className='bg-white text-gray-800 rounded px-2 py-1 text-sm border border-gray-300 w-16'
+                  value={filters.minAwayGoals.toFixed(1)}
+                  onChange={(e) =>
+                    handleFilterChange(
+                      'minAwayGoals',
+                      parseFloat(e.target.value)
+                    )
+                  }
+                  title='Away Goals'
+                >
+                  <option value='0.0'>All</option>
+                  <option value='1.5'>1.5+</option>
+                  <option value='2.0'>2.0+</option>
+                  <option value='2.5'>2.5+</option>
+                </select>
+              </div>
 
-                <div>
-                  <label className='text-gray-500 text-xs block mb-1'>
-                    Min H2H Matches
-                  </label>
-                  <select
-                    className='bg-white text-gray-800 rounded px-2 py-1 text-sm border border-gray-300'
-                    value={filters.minH2hMatchCount}
-                    onChange={(e) =>
-                      handleFilterChange(
-                        'minH2hMatchCount',
-                        parseInt(e.target.value)
-                      )
-                    }
-                  >
-                    <option value='0'>All</option>
-                    <option value='2'>2+</option>
-                    <option value='5'>5+</option>
-                    <option value='10'>10+</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className='text-gray-500 text-xs block mb-1'>
-                    Min H2H Win Gap
-                  </label>
-                  <select
-                    className='bg-white text-gray-800 rounded px-2 py-1 text-sm border border-gray-300'
-                    value={filters.minH2hWinGap}
-                    onChange={(e) =>
-                      handleFilterChange(
-                        'minH2hWinGap',
-                        parseInt(e.target.value)
-                      )
-                    }
-                  >
-                    <option value='0'>All</option>
-                    <option value='1'>1+</option>
-                    <option value='2'>2+</option>
-                    <option value='3'>3+</option>
-                  </select>
-                </div>
+              <div className='flex items-center gap-1.5'>
+                <span className='text-xs text-gray-500'>H2H</span>
+                <select
+                  className='bg-white text-gray-800 rounded px-2 py-1 text-sm border border-gray-300 w-16'
+                  value={filters.minH2hMatchCount}
+                  onChange={(e) =>
+                    handleFilterChange(
+                      'minH2hMatchCount',
+                      parseInt(e.target.value)
+                    )
+                  }
+                  title='Head to Head Matches'
+                >
+                  <option value='0'>All</option>
+                  <option value='2'>2+</option>
+                  <option value='5'>5+</option>
+                  <option value='10'>10+</option>
+                </select>
               </div>
             </div>
 
-            {/* View Filters Group */}
-            <div className='flex flex-col gap-2 border-r border-gray-200 pr-4'>
-              <h4 className='text-xs font-medium text-gray-500'>
-                View Filters
-              </h4>
-              <div className='flex gap-2'>
-                {/* Time Filter Button */}
-                <div>
-                  <label className='text-gray-500 text-xs block mb-1'>
-                    Time Filter
-                  </label>
-                  <button
-                    className={`px-3 py-1 text-sm rounded border ${
-                      filters.showOnlyUpcoming
-                        ? 'bg-purple-600 text-white border-purple-700'
-                        : 'bg-white text-gray-800 border-gray-300'
-                    }`}
-                    onClick={toggleUpcomingFilter}
-                    title={
-                      selectedTime
-                        ? `Showing matches for ${
-                            selectedTime.date
-                          } at ${selectedTime.hour.padStart(2, '0')}:00`
-                        : filters.showOnlyUpcoming
-                        ? getTimeRangeTooltip()
-                        : 'Prioritizes matches from current hour through next 24 hours'
-                    }
-                  >
-                    {selectedTime
-                      ? `${selectedTime.date} ${selectedTime.hour.padStart(
-                          2,
-                          '0'
-                        )}:00`
-                      : filters.showOnlyUpcoming
-                      ? 'Upcoming Matches'
-                      : 'All Times'}
-                  </button>
-                  {selectedTime && (
-                    <button
-                      onClick={() => {
-                        setSelectedTime(null);
-                        setFilters((prev) => ({
-                          ...prev,
-                          showOnlyUpcoming: false,
-                        }));
-                      }}
-                      className='ml-2 text-xs text-gray-500 hover:text-gray-700'
-                      title='Clear time filter'
-                    >
-                      ✕
-                    </button>
-                  )}
-                </div>
+            <div className='h-6 border-l border-gray-300'></div>
 
-                <div>
-                  <label className='text-gray-500 text-xs block mb-1'>
-                    Cart Filter
-                  </label>
-                  <button
-                    className={`px-3 py-1 text-sm rounded border ${
-                      showOnlyCart
-                        ? 'bg-green-600 text-white border-green-700'
-                        : 'bg-white text-gray-800 border-gray-300'
-                    }`}
-                    onClick={toggleCartFilter}
-                    title={
-                      showOnlyCart
-                        ? 'Currently showing only matches in your cart'
-                        : 'Currently showing all matches (click to show only cart items)'
-                    }
-                  >
-                    {showOnlyCart ? 'Cart Items Only' : 'All Matches'}
-                  </button>
-                </div>
-              </div>
-            </div>
+            {/* Toggle Filters */}
+            <div className='flex items-center gap-2'>
+              <button
+                onClick={toggleHighScoringFilter}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-sm transition-colors ${
+                  filters.showHighScoringOnly
+                    ? 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+                title='Show only matches with high scoring potential'
+              >
+                <TrendingUp size={16} />
+                <span>High Scoring</span>
+              </button>
 
-            {/* Quality Filters Group */}
-            <div className='flex flex-col gap-2'>
-              <h4 className='text-xs font-medium text-gray-500'>
-                Quality Filters
-              </h4>
-              <div className='flex gap-2'>
-                <div>
-                  <label className='text-gray-500 text-xs block mb-1'>
-                    Clear Preferred
-                  </label>
-                  <button
-                    className={`px-3 py-1 text-sm rounded border ${
-                      filters.showOnlyClearPreferred
-                        ? 'bg-indigo-600 text-white border-indigo-700'
-                        : 'bg-white text-gray-800 border-gray-300'
-                    }`}
-                    onClick={toggleClearPreferredFilter}
-                    title='Show only matches with clear preferred teams and complete data'
-                  >
-                    {filters.showOnlyClearPreferred
-                      ? 'Clear Preferred Only'
-                      : 'All Matches'}
-                  </button>
-                </div>
+              <button
+                onClick={toggleGroupingFilter}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-sm transition-colors ${
+                  filters.enableGrouping
+                    ? 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+                title='Enable match grouping'
+              >
+                <TrendingUp size={16} />
+                <span>Group</span>
+              </button>
 
-                <div>
-                  <label className='text-gray-500 text-xs block mb-1'>
-                    Analytics
-                  </label>
-                  <button
-                    className='px-3 py-1 text-sm rounded border bg-blue-500 text-white border-blue-600'
-                    onClick={showMatchesByHour}
-                    title='Show analytics of matches by date and hour'
-                  >
-                    Show Match Analytics
-                  </button>
-                </div>
+              <button
+                onClick={showMatchesByHour}
+                className='flex items-center gap-1.5 px-2.5 py-1 rounded text-sm bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors'
+                title='Show match analytics'
+              >
+                <BarChart2 size={16} />
+                <span>Analytics</span>
+              </button>
 
-                <div>
-                  <label className='text-gray-500 text-xs block mb-1'>
-                    Group Matches
-                  </label>
-                  <button
-                    className={`px-3 py-1 text-sm rounded border ${
-                      filters.enableGrouping
-                        ? 'bg-amber-600 text-white border-amber-700'
-                        : 'bg-white text-gray-800 border-gray-300'
-                    }`}
-                    onClick={toggleGroupingFilter}
-                    title='Group matches with clear preferred teams for easy betting'
-                  >
-                    {filters.enableGrouping
-                      ? 'Grouping Enabled'
-                      : 'Enable Grouping'}
-                  </button>
-                </div>
+              <button
+                className={`p-1.5 rounded-lg border ${
+                  filters.showOnlyUpcoming
+                    ? 'bg-purple-600 text-white border-purple-700'
+                    : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                }`}
+                onClick={toggleUpcomingFilter}
+                title={
+                  selectedTime
+                    ? `Showing matches for ${
+                        selectedTime.date
+                      } at ${selectedTime.hour.padStart(2, '0')}:00`
+                    : filters.showOnlyUpcoming
+                    ? getTimeRangeTooltip()
+                    : 'Show Upcoming Matches'
+                }
+              >
+                <Clock size={16} />
+              </button>
 
-                {filters.enableGrouping && (
-                  <div>
-                    <label className='text-gray-500 text-xs block mb-1'>
-                      Group Size
-                    </label>
+              <button
+                className={`p-1.5 rounded-lg border ${
+                  showOnlyCart
+                    ? 'bg-green-600 text-white border-green-700'
+                    : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                }`}
+                onClick={toggleCartFilter}
+                title='Toggle Cart Items'
+              >
+                <ShoppingCart size={16} />
+              </button>
+
+              <button
+                className={`p-1.5 rounded-lg border ${
+                  filters.showOnlyClearPreferred
+                    ? 'bg-indigo-600 text-white border-indigo-700'
+                    : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                }`}
+                onClick={toggleClearPreferredFilter}
+                title='Show Clear Preferred'
+              >
+                <Star size={16} />
+              </button>
+
+              {filters.enableGrouping && (
+                <>
+                  <div className='h-6 border-l border-gray-300'></div>
+                  <div className='flex items-center gap-1.5'>
+                    <span className='text-xs text-gray-500'>Size</span>
                     <select
-                      className='bg-white text-gray-800 rounded px-2 py-1 text-sm border border-gray-300'
+                      className='bg-white text-gray-800 rounded px-2 py-1 text-sm border border-gray-300 w-16'
                       value={filters.groupSize}
                       onChange={(e) =>
                         handleGroupSizeChange(parseInt(e.target.value))
                       }
+                      title='Group Size'
                     >
-                      <option value='2'>2 Matches</option>
-                      <option value='3'>3 Matches</option>
-                      <option value='4'>4 Matches</option>
-                      <option value='5'>5 Matches</option>
-                      <option value='6'>6 Matches</option>
-                      <option value='8'>8 Matches</option>
-                      <option value='10'>10 Matches</option>
+                      <option value='2'>2</option>
+                      <option value='3'>3</option>
+                      <option value='4'>4</option>
+                      <option value='5'>5</option>
+                      <option value='6'>6</option>
+                      <option value='8'>8</option>
+                      <option value='10'>10</option>
                     </select>
                   </div>
-                )}
-              </div>
+                </>
+              )}
             </div>
 
             {/* Action Buttons */}
-            <div className='ml-auto flex gap-2'>
+            <div className='ml-auto flex items-center gap-2'>
               <button
-                className='bg-green-600 hover:bg-green-700 text-white rounded-lg px-4 py-1 text-sm'
+                className='p-1.5 rounded-lg bg-green-600 hover:bg-green-700 text-white'
                 onClick={selectAllVisibleMatches}
-                title='Select all visible matches'
+                title='Select All'
               >
-                Select All
+                <CheckSquare size={16} />
               </button>
               <button
-                className='bg-red-600 hover:bg-red-700 text-white rounded-lg px-4 py-1 text-sm'
+                className='p-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white'
                 onClick={clearAllSelectedMatches}
-                title='Clear all selected matches'
+                title='Clear All'
               >
-                Clear All
+                <Trash2 size={16} />
               </button>
               <button
-                className='bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 py-1 text-sm'
+                className='p-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white'
                 onClick={resetFilters}
+                title='Reset Filters'
               >
-                Reset Filters
+                <RotateCcw size={16} />
               </button>
             </div>
           </div>
