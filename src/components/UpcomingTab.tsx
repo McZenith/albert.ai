@@ -18,6 +18,7 @@ import { saveMatchesToDatabase } from '@/app/actions';
 import { exportMatchesToCSV } from '@/utils/exportUtils';
 import RecentMatches from '@/components/RecentMatches';
 import { RecentMatch } from '@/types/match';
+import MatchAnalyticsModal from '@/components/MatchAnalyticsModal';
 
 interface Team {
   id: string;
@@ -365,6 +366,11 @@ const MatchPredictor = () => {
   const [savedMatchIds, setSavedMatchIds] = useState<Set<string | number>>(
     new Set()
   );
+  // Add selectedTime state
+  const [selectedTime, setSelectedTime] = useState<{
+    date: string;
+    hour: string;
+  } | null>(null);
 
   // Get cart functions from the global store
   const {
@@ -900,7 +906,28 @@ const MatchPredictor = () => {
 
   // Apply time filter - checks if match time is within the specified window
   const filterByTimeWindow = (matches: Match[], windowHours: number) => {
-    // Create the time window boundaries once to avoid recalculating
+    // If we have a selected time, filter for that specific time
+    if (selectedTime) {
+      return matches.filter((match) => {
+        try {
+          if (!match.date || !match.time) return false;
+
+          const formattedDate = formatMatchDate(match.date, match.time).split(
+            ','
+          )[0];
+          const matchHour = match.time.split(':')[0];
+
+          return (
+            formattedDate === selectedTime.date &&
+            matchHour === selectedTime.hour
+          );
+        } catch {
+          return false;
+        }
+      });
+    }
+
+    // Otherwise use the default time window filtering
     const now = new Date();
     const currentHour = new Date(now);
     currentHour.setMinutes(0, 0, 0);
@@ -908,14 +935,10 @@ const MatchPredictor = () => {
       currentHour.getTime() + windowHours * 60 * 60 * 1000
     );
 
-    const filtered = matches.filter((match) => {
+    return matches.filter((match) => {
       try {
-        // Skip if missing date
-        if (!match.date) {
-          return false;
-        }
+        if (!match.date || !match.time) return false;
 
-        // If the date is from 2025, correct it to the current year for filtering purposes
         let dateToUse = match.date;
         if (match.date.startsWith('2025-')) {
           const [, month, day] = match.date.split('-');
@@ -923,80 +946,53 @@ const MatchPredictor = () => {
           dateToUse = `${currentYear}-${month}-${day}`;
         }
 
-        // Try to create a valid date object
-        let matchDateTime;
-
-        // Normalize the time if needed
         const timeToUse = match.time || '12:00';
+        let matchDateTime;
+        let hours = 12,
+          minutes = 0;
 
-        // Try parsing with standard ISO format
         try {
-          // Make sure we have seconds
           const timeWithSeconds =
             timeToUse.includes(':') && timeToUse.split(':').length === 2
               ? `${timeToUse}:00`
               : timeToUse;
 
           matchDateTime = new Date(`${dateToUse}T${timeWithSeconds}`);
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        } catch (_) {
+        } catch {
           // Fallback to manual parsing
-        }
+          const [year, month, day] = dateToUse.split('-').map(Number);
 
-        // If that fails, parse manually
-        if (!matchDateTime || isNaN(matchDateTime.getTime())) {
-          try {
-            const [year, month, day] = dateToUse.split('-').map(Number);
-            let hours = 12,
-              minutes = 0;
+          if (timeToUse) {
+            if (timeToUse.includes(':')) {
+              const timeParts = timeToUse.split(':');
+              hours = parseInt(timeParts[0]);
+              if (timeParts.length > 1) {
+                minutes = parseInt(timeParts[1]);
+              }
 
-            if (timeToUse) {
-              // Parse time - handle different formats
-              if (timeToUse.includes(':')) {
-                const timeParts = timeToUse.split(':');
-                hours = parseInt(timeParts[0]);
-                if (timeParts.length > 1) {
-                  minutes = parseInt(timeParts[1]);
-                }
-
-                // Check for AM/PM
-                if (timeToUse.toLowerCase().includes('pm') && hours < 12) {
-                  hours += 12;
-                } else if (
-                  timeToUse.toLowerCase().includes('am') &&
-                  hours === 12
-                ) {
-                  hours = 0;
-                }
+              if (timeToUse.toLowerCase().includes('pm') && hours < 12) {
+                hours += 12;
+              } else if (
+                timeToUse.toLowerCase().includes('am') &&
+                hours === 12
+              ) {
+                hours = 0;
               }
             }
-
-            // JavaScript months are 0-indexed
-            matchDateTime = new Date(year, month - 1, day, hours, minutes);
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-          } catch (_) {
-            // If all else fails, use noon on the match date
-            matchDateTime = new Date(`${dateToUse}T12:00:00`);
           }
+
+          matchDateTime = new Date(year, month - 1, day, hours, minutes);
         }
 
-        // Check if the date is valid
         if (!matchDateTime || isNaN(matchDateTime.getTime())) {
           return false;
         }
 
-        // Check if match time is in the desired range
-        if (matchDateTime < currentHour || matchDateTime > laterTime) {
-          return false;
-        }
-
-        return true;
+        return matchDateTime >= currentHour && matchDateTime <= laterTime;
       } catch {
         return false;
       }
     });
-
-    return filtered;
   };
 
   // Handle sorting
@@ -1068,14 +1064,16 @@ const MatchPredictor = () => {
       showOnlyClearPreferred: false,
       enableGrouping: false,
       groupSize: 10,
-      minBttsRate: 0, // Minimum BTTS rate
-      minHomeGoals: 0, // Minimum average home goals
-      minAwayGoals: 0, // Minimum average away goals
-      minH2hMatchCount: 0, // Minimum number of H2H matches
-      minH2hWinGap: 0, // Minimum H2H win-loss difference
+      minBttsRate: 0,
+      minHomeGoals: 0,
+      minAwayGoals: 0,
+      minH2hMatchCount: 0,
+      minH2hWinGap: 0,
     });
-    // Also reset the cart filter
+    // Clear the cart filter
     setShowOnlyCart(false);
+    // Clear the time filter
+    setSelectedTime(null);
   };
 
   // Add a function to toggle the upcoming matches filter
@@ -1695,6 +1693,20 @@ const MatchPredictor = () => {
     }
   };
 
+  // Add handleTimeSelect function
+  const handleTimeSelect = (date: string, hour: string) => {
+    setSelectedTime({ date, hour });
+
+    // Update filters to show only matches at the selected time
+    setFilters((prev) => ({
+      ...prev,
+      showOnlyUpcoming: true,
+    }));
+
+    // Close the modal after selecting time
+    setShowAnalyticsModal(false);
+  };
+
   if (isPredictionDataLoading) {
     return (
       <div className='max-w-full mx-auto p-4 bg-white rounded-lg shadow-sm'>
@@ -2037,6 +2049,7 @@ const MatchPredictor = () => {
                 View Filters
               </h4>
               <div className='flex gap-2'>
+                {/* Time Filter Button */}
                 <div>
                   <label className='text-gray-500 text-xs block mb-1'>
                     Time Filter
@@ -2049,15 +2062,39 @@ const MatchPredictor = () => {
                     }`}
                     onClick={toggleUpcomingFilter}
                     title={
-                      filters.showOnlyUpcoming
+                      selectedTime
+                        ? `Showing matches for ${
+                            selectedTime.date
+                          } at ${selectedTime.hour.padStart(2, '0')}:00`
+                        : filters.showOnlyUpcoming
                         ? getTimeRangeTooltip()
                         : 'Prioritizes matches from current hour through next 24 hours'
                     }
                   >
-                    {filters.showOnlyUpcoming
+                    {selectedTime
+                      ? `${selectedTime.date} ${selectedTime.hour.padStart(
+                          2,
+                          '0'
+                        )}:00`
+                      : filters.showOnlyUpcoming
                       ? 'Upcoming Matches'
                       : 'All Times'}
                   </button>
+                  {selectedTime && (
+                    <button
+                      onClick={() => {
+                        setSelectedTime(null);
+                        setFilters((prev) => ({
+                          ...prev,
+                          showOnlyUpcoming: false,
+                        }));
+                      }}
+                      className='ml-2 text-xs text-gray-500 hover:text-gray-700'
+                      title='Clear time filter'
+                    >
+                      ✕
+                    </button>
+                  )}
                 </div>
 
                 <div>
@@ -3369,101 +3406,16 @@ const MatchPredictor = () => {
 
       {/* Analytics Modal */}
       {showAnalyticsModal && (
-        <div className='fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50'>
-          <div className='bg-white rounded-lg shadow-xl mx-4 w-full max-w-2xl max-h-[80vh] overflow-auto'>
-            <div className='p-4 border-b border-gray-200 flex justify-between items-center'>
-              <h2 className='text-xl font-bold text-gray-800'>
-                Match Analytics
-              </h2>
-              <button
-                className='text-gray-400 hover:text-gray-600 focus:outline-none'
-                onClick={() => setShowAnalyticsModal(false)}
-              >
-                <svg
-                  xmlns='http://www.w3.org/2000/svg'
-                  className='h-6 w-6'
-                  fill='none'
-                  viewBox='0 0 24 24'
-                  stroke='currentColor'
-                >
-                  <path
-                    strokeLinecap='round'
-                    strokeLinejoin='round'
-                    strokeWidth={2}
-                    d='M6 18L18 6M6 6l12 12'
-                  />
-                </svg>
-              </button>
-            </div>
-
-            <div className='p-6 space-y-6'>
-              {Object.keys(analyticsData).map((dateGroup) => (
-                <div key={dateGroup} className='mb-6'>
-                  <div className='flex items-center mb-3'>
-                    <h3 className='text-lg font-semibold text-gray-700'>
-                      {dateGroup}
-                    </h3>
-                    <div className='ml-3 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm'>
-                      {analyticsData[dateGroup].total} matches
-                    </div>
-                  </div>
-
-                  {analyticsData[dateGroup].total === 0 ? (
-                    <p className='text-gray-500 italic'>No matches scheduled</p>
-                  ) : (
-                    <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3'>
-                      {Object.keys(analyticsData[dateGroup].hourData)
-                        .sort((a, b) => parseInt(a) - parseInt(b))
-                        .map((hour) => {
-                          const count = analyticsData[dateGroup].hourData[hour];
-                          const formattedHour = `${hour}:00`;
-
-                          // Calculate percentage for the progress bar
-                          const maxCount = Math.max(
-                            ...Object.values(analyticsData[dateGroup].hourData)
-                          );
-                          const percentage = Math.round(
-                            (count / maxCount) * 100
-                          );
-
-                          return (
-                            <div
-                              key={hour}
-                              className='bg-gray-50 rounded-lg p-3 border border-gray-200'
-                            >
-                              <div className='flex justify-between items-center mb-2'>
-                                <span className='font-medium text-gray-700'>
-                                  {formattedHour}
-                                </span>
-                                <span className='text-blue-600 font-semibold'>
-                                  {count} matches
-                                </span>
-                              </div>
-                              <div className='w-full bg-gray-200 rounded-full h-2.5'>
-                                <div
-                                  className='bg-blue-600 h-2.5 rounded-full'
-                                  style={{ width: `${percentage}%` }}
-                                ></div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-
-            <div className='border-t border-gray-200 p-4 flex justify-end'>
-              <button
-                className='px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors'
-                onClick={() => setShowAnalyticsModal(false)}
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
+        <MatchAnalyticsModal
+          isOpen={showAnalyticsModal}
+          onClose={() => {
+            setShowAnalyticsModal(false);
+            setSelectedTime(null); // Clear selected time when closing modal
+          }}
+          data={analyticsData}
+          onTimeSelect={handleTimeSelect}
+          selectedTime={selectedTime}
+        />
       )}
 
       {/* Scroll to top button */}
