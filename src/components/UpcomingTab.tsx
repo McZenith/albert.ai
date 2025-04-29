@@ -2710,7 +2710,7 @@ const MatchPredictor = () => {
                           { high: 2.2, medium: 1.5 }
                         )}`}
                       >
-                        {Math.round(match.expectedGoals)}
+                        {match.expectedGoals}
                       </div>
                     </td>
                     <td className='p-2 text-center w-[70px]'>
@@ -3315,7 +3315,7 @@ const MatchPredictor = () => {
                                     EXPECTED GOALS
                                   </h4>
                                   <div className='text-2xl font-bold text-gray-700'>
-                                    {match.expectedGoals?.toFixed(1) || '-'}
+                                    {match.expectedGoals || '-'}
                                   </div>
                                 </div>
                                 <div>
