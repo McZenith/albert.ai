@@ -9,7 +9,6 @@ import {
   ArrowUpCircle,
   Copy,
   Database,
-  FileDown,
   Clock,
   ShoppingCart,
   Star,
@@ -1564,48 +1563,6 @@ const MatchPredictor = () => {
     }
   };
 
-  // Add a separate function to add to cart
-  const addPreferredTeamsToCart = (matches: Match[]) => {
-    let addedCount = 0;
-
-    matches.forEach((match) => {
-      const preferredTeam = getPreferredTeam(match);
-      if (preferredTeam) {
-        // Check if this match is already in cart
-        const isInCart = isUpcomingMatchInCart(String(match.id));
-
-        if (!isInCart) {
-          // Create new team objects with required id properties
-          const homeTeamWithId = {
-            ...match.homeTeam,
-            id: String(match.homeTeam.name.replace(/\s+/g, '_').toLowerCase()),
-          };
-
-          const awayTeamWithId = {
-            ...match.awayTeam,
-            id: String(match.awayTeam.name.replace(/\s+/g, '_').toLowerCase()),
-          };
-
-          // Add to cart with proper structure
-          addUpcomingMatch({
-            ...match,
-            id: String(match.id),
-            homeTeam: homeTeamWithId,
-            awayTeam: awayTeamWithId,
-          });
-
-          addedCount++;
-        }
-      }
-    });
-
-    if (addedCount > 0) {
-      toast.success(`Added ${addedCount} matches to cart!`);
-    } else {
-      toast.info('No new matches to add to cart');
-    }
-  };
-
   // Helper function to calculate betting score for display purposes
   const calculateBettingScore = (match: Match): number => {
     // Calculate a winning probability score (0-100)
@@ -1690,6 +1647,7 @@ const MatchPredictor = () => {
   };
 
   // Add exportToCSV function
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const exportToCSV = () => {
     const cartItems = useCartStore.getState().upcomingMatches;
 
@@ -1907,14 +1865,6 @@ const MatchPredictor = () => {
                 Save to Database
               </>
             )}
-          </button>
-          <button
-            onClick={exportToCSV}
-            className='flex items-center gap-1 px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-sm'
-            title='Export cart items to CSV'
-          >
-            <FileDown size={16} />
-            <span>Export CSV</span>
           </button>
         </div>
       </div>
@@ -2252,28 +2202,12 @@ const MatchPredictor = () => {
                     </h4>
                     <div className='flex gap-2'>
                       <button
-                        className='flex items-center gap-1 px-3 py-1 text-sm rounded bg-amber-100 text-amber-800 hover:bg-amber-200 border border-amber-200'
+                        className='flex items-center gap-1 px-3 py-1 text-sm rounded bg-blue-100 text-blue-800 hover:bg-blue-200 border border-blue-200'
                         onClick={() => copyPreferredTeamNames(group, false)}
                         title='Copy team names to clipboard'
                       >
                         <Copy size={14} />
-                        Copy Only
-                      </button>
-                      <button
-                        className='flex items-center gap-1 px-3 py-1 text-sm rounded bg-blue-100 text-blue-800 hover:bg-blue-200 border border-blue-200'
-                        onClick={() => copyPreferredTeamNames(group, true)}
-                        title='Copy team names and add to cart'
-                      >
-                        <Copy size={14} />
-                        Copy & Add to Cart
-                      </button>
-                      <button
-                        className='flex items-center gap-1 px-3 py-1 text-sm rounded bg-green-100 text-green-800 hover:bg-green-200 border border-green-200'
-                        onClick={() => addPreferredTeamsToCart(group)}
-                        title='Add preferred teams to cart without copying'
-                      >
-                        <Plus size={14} />
-                        Add to Cart
+                        Copy
                       </button>
                     </div>
                   </div>
