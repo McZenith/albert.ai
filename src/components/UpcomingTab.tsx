@@ -1720,7 +1720,7 @@ const MatchPredictor = () => {
     }, 0);
     const h2hAvgGoals =
       recentH2hMatches.length > 0 ? h2hGoals / recentH2hMatches.length : 0;
-    const hasHighH2hScoring = h2hAvgGoals > 2.5;
+    const hasHighH2hScoring = h2hAvgGoals > 2;
 
     // 4. Calculate average goals in last 5 matches for both teams
     const getLastFiveAvg = (matches: RecentMatch[] = []): number => {
@@ -1739,14 +1739,6 @@ const MatchPredictor = () => {
         return isNaN(total) ? sum : sum + total;
       }, 0);
 
-      // Debug log for this specific calculation
-      console.log('Match Goals Analysis:', {
-        matches: lastFive.map((m) => m.score),
-        totalGoals,
-        matchCount: lastFive.length,
-        average: totalGoals / lastFive.length,
-      });
-
       return totalGoals / lastFive.length;
     };
 
@@ -1755,7 +1747,7 @@ const MatchPredictor = () => {
 
     // Check if the combined average is over 2.5
     const combinedAvg = (homeLastFiveAvg + awayLastFiveAvg) / 2;
-    const bothTeamsHighRecent = combinedAvg > 2.5;
+    const bothTeamsHighRecent = combinedAvg > 2;
 
     // Match must meet all criteria
     return (
