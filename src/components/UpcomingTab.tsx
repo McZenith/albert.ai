@@ -324,12 +324,16 @@ const transformRecentMatch = (
   if ('homeTeam' in match) {
     return match as RecentMatch;
   }
+
+  // Extract score from result if available (format: "2-1", "1-0", etc.)
+  const score = match.result.match(/\d+-\d+/)?.[0] || match.result;
+
   return {
     date: match.date,
     result: match.result as 'W' | 'D' | 'L',
     homeTeam: homeTeam || '',
     awayTeam: awayTeam || '',
-    score: '0-0', // Default score since we don't have it
+    score: score,
   };
 };
 

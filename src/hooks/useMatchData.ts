@@ -58,13 +58,19 @@ const getAwayTeam = (match: Match) => {
 const processRecentMatches = (matches: any[] | undefined): RecentMatch[] => {
     if (!matches || !Array.isArray(matches)) return [];
 
-    return matches.map(match => ({
-        date: match.date || '',
-        homeTeam: match.homeTeam || '',
-        awayTeam: match.awayTeam || '',
-        score: match.score || '0-0',
-        result: match.result || 'D'
-    }));
+    return matches.map(match => {
+        // Extract score from result if it contains a score pattern (e.g., "2-1", "0-0")
+        const scoreMatch = match.result?.match(/\d+-\d+/);
+        const score = scoreMatch ? scoreMatch[0] : match.score || match.result || '0-0';
+
+        return {
+            date: match.date || '',
+            homeTeam: match.homeTeam || '',
+            awayTeam: match.awayTeam || '',
+            score: score,
+            result: match.result || 'D'
+        };
+    });
 };
 
 // Process match data with enhanced support for recent matches
