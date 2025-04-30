@@ -2363,7 +2363,7 @@ const MatchPredictor = () => {
                 )}
               </th>
               <th
-                className='p-2 text-center whitespace-nowrap cursor-pointer hover:bg-gray-100 text-sm font-medium text-gray-500 w-[70px]'
+                className='p-2 text-center whitespace-nowrap cursor-pointer hover:bg-gray-100 text-sm font-medium text-gray-500 w-[100px]'
                 onClick={() => handleSort('homeAwayForm')}
               >
                 H/A Form
@@ -2577,7 +2577,7 @@ const MatchPredictor = () => {
                         </span>
                       </div>
                     </td>
-                    <td className='p-2 text-center w-[70px]'>
+                    <td className='p-2 text-center w-[100px]'>
                       <div className='flex flex-col gap-2'>
                         <div className='px-2 py-1 rounded-lg bg-blue-50 text-blue-800 text-sm font-medium'>
                           H:{' '}
